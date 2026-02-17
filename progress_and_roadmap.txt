@@ -1,0 +1,42 @@
+NOVEMBER 13 UPDATED
+Progress Summary
+- Restored the stable Open File layout and FILES panel while keeping the new warning banner for missing First/Last Name columns.
+- Added a Wrap Headers toggle plus a taller table viewport, preserving horizontal scroll and showing ~25 rows by default.
+- Implemented Student Name synthesis (First + Last) with read-only cells, row filtering, exports, and inline warnings per file.
+- Added an in-app rename modal per file entry; exports now respect the renamed title.
+- CSV/XLSX exports now sanitize and reuse the file’s name.
+- Externalized inline CSS/JS into `styles/teacher_tools.css` and `scripts/*.js`; began modular split with shared state, core logic, and comments module.
+- Fixed Report Comments wiring so comment bank/categories, copy buttons, and mark-driven templates populate as before after file load.
+- Verified and preserved key interactions: Edit Headers modal, Export Visible (CSV/XLSX), and FILES rename workflow.
+
+Roadmap (next 6–8 weeks)
+1. Header Usability – Phase 2 (Owner: UI, Status: in progress, ETA: 2 wks)
+   - Add per-column auto-expand/wrap toggles with persisted preference.
+   - Improve auto-fit so multi-line headers/cells size correctly without clipping.
+   - Success: header adjustments require ≤1 click and no manual resize for long text.
+
+2. Transpose Enhancements – Phase 3 (Owner: UI, Status: ready, ETA: 1 wk)
+   - Surface a “Transposed” chip + icon in the toolbar and table footer.
+   - Allow CSV/XLSX export of the current transposed view.
+   - Success: educators can export exactly what they see with ≤2 clicks.
+
+3. UX & Persistence Polish – Phase 4 (Owner: Platform, Status: queued, ETA: 2–3 wks)
+   - Persist wrap-header, column widths, and panel state per file.
+   - Add toast notifications for rename, export, and bulk actions.
+   - Provide a “Reset Layout” button that clears per-file prefs.
+   - Success: repeat visits restore prior layout in <1s; reset clears safely.
+
+4. Bulk Operations (Owner: Data, Status: discovery, ETA: 1–2 wks for prototype)
+   - Reintroduce “apply header change to all files” with a diff-style preview.
+   - Add batch rename helpers (pattern + increment) with undo.
+   - Success: batch actions finish <5s and expose clear rollback.
+
+5. Data Quality & Guardrails (Owner: QA, Status: backlog grooming)
+   - Extend warnings to cover duplicate headers, missing grade levels, and unsupported encodings.
+   - Log anonymized validation metrics to spot recurring issues.
+   - Success: <2% of uploads fail silently; flagged rows always show remediation tips.
+
+6. Codebase Structure & Stability (Owner: Platform, Status: new, ETA: 1–2 wks)
+   - Finish modular split (ui.js, data.js, print.js) and add lightweight smoke tests for exports, comments, and header edits.
+   - Add a local dev harness (simple HTTP server + seeded sample file) for faster manual QA.
+   - Success: zero regressions after refactors; core flows verified in one command.

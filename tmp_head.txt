@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Teacher TOOLs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles/teacher_tools.css" />
+
+
+
+  <!-- SheetJS (XLSX) and PapaParse (CSV) from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  
+</head>
+<body>
+  <div id="homeShell" class="home-shell">
+    <div class="home-hero">
+      <div class="home-meta">
+        <span class="pill">TeacherTools</span>
+        <span class="pill pill-ghost">Spreadsheet-ready</span>
+        <span class="pill pill-ghost">Report-friendly</span>
+      </div>
+      <h1>All-in-one tools for fast, consistent classroom reporting.</h1>
+      <p class="lede">
+        Upload rosters and marks, tidy headers, filter, and export print-ready sheets without juggling tabs.
+        Enter your email so we can wire up sign-in later, then launch the tools with a quick intro animation.
+      </p>
+      <div class="home-grid">
+        <div class="home-card">
+          <h3>Built for teachers</h3>
+          <p>Drag in CSV/XLSX files, keep columns aligned, and jump between classes without losing context.</p>
+          <ul class="feature-list">
+            <li>Folder upload with file switching</li>
+            <li>Column rename, hide, and sorting</li>
+            <li>Undo/redo for safer edits</li>
+          </ul>
+        </div>
+        <div class="home-card">
+          <h3>Instant exports</h3>
+          <p>Send clean CSV/XLSX to colleagues or print formatted reports tailored to each class.</p>
+          <ul class="feature-list">
+            <li>Print view with templates</li>
+            <li>Mark highlighting and filters</li>
+            <li>CSV/XLSX export of visible columns</li>
+          </ul>
+        </div>
+        <div class="home-card">
+          <h3>Comments that scale</h3>
+          <p>Use the report comment builder to combine marks, pronouns, and reusable statements in seconds.</p>
+          <ul class="feature-list">
+            <li>Student-by-student previews</li>
+            <li>Assignment token support</li>
+            <li>Copy-ready report text</li>
+          </ul>
+        </div>
+      </div>
+      <form id="accessForm" class="access-form">
+        <label for="homeEmail" class="access-label">Work email</label>
+        <div class="access-row">
+          <input id="homeEmail" type="email" placeholder="you@school.edu" autocomplete="email" />
+          <button id="launchBtn" class="btn primary launch-btn" type="submit">Open TeacherTools</button>
+        </div>
+        <div class="launch-bar" id="launchBar">
+          <span class="launch-bar-fill"></span>
+        </div>
+        <div class="access-foot">
+          <span id="launchStatus" class="muted">Ready when you are.</span>
+          <span class="pill pill-ghost">Sign-in wiring next: stored locally for now</span>
+        </div>
+        <div id="emailMessage" class="email-message"></div>
+      </form>
+    </div>
+    <div class="home-aside">
+      <div class="home-mini-card">
+        <h4>What happens to my data?</h4>
+        <p>
+          Files are processed locally in your browser. When we hook up email-based access, this form will route to a storage service.
+        </p>
+      </div>
+      <div class="home-mini-card">
+        <h4>Need to dive straight in?</h4>
+        <p>Hit "Open TeacherTools" and you'll jump into the app after a short launch animation.</p>
+      </div>
+    </div>
+  </div>
+  <div id="appRoot" class="app-shell is-hidden">
+  <div class="app-header">
+    <h1>TEACHER TOOLs</h1>
+    <button class="btn" id="hintsBtn" type="button">Hints</button>
+    <span class="spacer"></span>
+    <div class="zoom-controls">
+      <button class="btn zoom-btn" id="zoomOutBtn" type="button">Zoom -</button>
+      <button class="btn zoom-btn" id="zoomInBtn" type="button">Zoom +</button>
+      <button class="btn toggle dark-toggle" id="darkModeBtn" type="button">Dark: OFF</button>
+    </div>
+  </div>
+  <div id="hintsModal" class="modal-backdrop">
+    <div class="modal hints-modal">
+      <header>
+        <h3>Quick Hints</h3>
+      </header>
+      <div class="content">
+        <ul class="hints-list">
+          <li><strong>Load data:</strong> Drop or click to upload CSV/XLSX files; switch between them via the Files list.</li>
+          <li><strong>View & sort:</strong> Click column headers to sort; use undo/redo to back out accidental edits.</li>
+          <li><strong>Hide/show columns:</strong> Toggle columns in the header tools; keep the end marker to preserve row edges.</li>
+          <li><strong>Rename headers:</strong> Use header tools to rename/remap columns so names stay consistent across files.</li>
+          <li><strong>Filters:</strong> Apply text or mark-based filters to narrow the table; reset filters to start fresh.</li>
+          <li><strong>Mark colors:</strong> Enable mark highlighting to color-code numeric/percent columns.</li>
+          <li><strong>Export/print:</strong> Export visible columns to CSV/XLSX or open Print View for formatted pages.</li>
+          <li><strong>Comments builder:</strong> Use the builder panel to generate, customize, and copy report text.</li>
+          <li><strong>Dark mode & zoom:</strong> Toggle dark mode and adjust zoom for comfortable viewing.</li>
+        </ul>
+      </div>
+      <footer>
+        <button class="btn" type="button" id="hintsCloseBtn">Close</button>
+        <button class="btn primary" type="button" id="hintsGotItBtn">Got it</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel file-panel" style="width:100%;">
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div id="dropzone" class="dropzone" title="Click or drag a CSV/XLSX here">
+          <div>
+            <strong>Drop a file here </strong> <small class="muted">CSV XLSX XLS</small> 
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; min-width:180px;">
+          <button class="btn" id="loadDirBtn" type="button" style="width:100%;">Load from Folder</button>
+          <small class="muted" style="max-width:220px; line-height:1.3;">Pick a folder with CSV/XLSX files to load them without dragging each time.</small>
+        </div>
+
+        <div style="flex:1 1 320px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; justify-content:space-between;">
+            
+            <span class="badge" id="meta" title="File info" style="display:none;"></span>
+            <div style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="btn primary" id="exportCsvBtn" disabled>Export Visible (CSV)</button>
+              <button class="btn" id="exportXlsxBtn" disabled>Export Visible (XLSX)</button>
+              <button class="btn warn" id="resetBtn" disabled>Reset Filters</button>
+            </div>
+          </div>
+          <!-- Hidden native input; triggered by clicking the dropzone -->
+          <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
+          <div id="status" class="muted"></div>
+
+          <div class="embedded-files-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b>FILES</b>
+              <span class="badge" id="fileCount">0</span>
+            </div>
+            <div id="filesList"></div>
+            <div id="filesWarning" class="warning-banner" style="margin:0;">
+              <span style="font-weight:600;">!</span>
+              <span id="filesWarningText"></span>
+            </div>
+            <div class="muted" style="font-size:12px;">Tip: upload multiple CSV/XLSX files and click to switch.</div>

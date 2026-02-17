@@ -1,0 +1,4388 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Teacher TOOLs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --green:#c1d82f;   /* primary */
+      --yellow:#ffdd00;  /* accents / highlights */
+      --magenta:#af006f; /* calls to action */
+      --ink:#1b1b1b;
+      --muted:#777;
+      --panel:#ffffff;
+      --panel-border:#e5e5e5;
+      --thead:#f9fbe6;   /* soft greenish header */
+      --edit-bg:#fffbe6; /* subtle yellow for editable */
+      --badge-bg:#fff7bf;/* light yellow badge */
+      --badge-border:#f0d900;
+      --focus-ring: 0 0 0 3px rgba(175,0,111,.25);
+      --drop-dash:#c9c9c9;
+      --drop-hover: rgba(193,216,47,.22); /* green tint */
+      --modal-backdrop: rgba(0,0,0,.35);
+      --zoom-factor: 1;
+    }
+
+    /* Base */
+    html,body{ height:100%; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif;
+           color:var(--ink); background:#fafafa; margin:16px; }
+    h1 { margin: 0 0 8px 0; font-weight:700; letter-spacing:.2px; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .main-layout{
+      align-items:flex-start;
+      flex-wrap:nowrap;
+    }
+    body.dark-mode{
+      background:#101216;
+      color:#f4f4f4;
+    }
+    body.dark-mode .panel{
+      background:#1c1f24;
+      border-color:#2a2e34;
+      box-shadow:none;
+    }
+    body.dark-mode .embedded-files-panel{
+      background:#1c1f24;
+      border-color:#2a2e34;
+      color:#f4f4f4;
+    }
+    body.dark-mode .embedded-files-panel .muted{
+      color:#b8bdc7;
+    }
+    body.dark-mode .badge{
+      background:#2a2f38;
+      border-color:#3a404c;
+      color:#d6d9df;
+    }
+    body.dark-mode table{
+      color:#f4f4f4;
+    }
+    body.dark-mode th,
+    body.dark-mode td{
+      border-color:#2a2e34;
+    }
+    body.dark-mode th{
+      background:#242933;
+    }
+    body.dark-mode tr:nth-child(even) td{
+      background:#1a1e25;
+    }
+    body.dark-mode td[contenteditable="true"]{
+      background:#222633;
+    }
+    body.dark-mode tbody tr:nth-child(odd) td:not(.mark-high):not(.mark-mid):not(.mark-low){
+      background:#151c29;
+      color:#f6f8ff;
+    }
+    body.dark-mode tbody tr:nth-child(even) td:not(.mark-high):not(.mark-mid):not(.mark-low){
+      background:#1f2637;
+      color:#f6f8ff;
+    }
+    body.dark-mode .dropzone{
+      background:#1f232c;
+      border-color:#3a3f4a;
+    }
+    body.dark-mode .dropzone strong{
+      color:#d7dbff;
+    }
+    body.dark-mode .dropzone small{
+      color:#9aa3b8;
+    }
+    body.dark-mode input[type="text"],
+    body.dark-mode .modal,
+    body.dark-mode .modal .section{
+      background:#1b1f28;
+      color:#f3f6ff;
+      border-color:#2c3240;
+    }
+    body.dark-mode input[type="text"]{
+      border-color:#3a4050;
+    }
+    body.dark-mode input[type="text"]:focus{
+      box-shadow:0 0 0 3px rgba(110,125,255,.3);
+      border-color:#6e7dff;
+    }
+    body.dark-mode .modal{
+      background:#1f2330;
+      color:#f7f9ff;
+      border-color:#2a2f3e;
+    }
+    body.dark-mode .modal header h3{
+      color:#f7f9ff;
+    }
+    body.dark-mode .modal .content{
+      color:#e0e6ff;
+    }
+    body.dark-mode .warning-banner{
+      background:#2a1f00;
+      color:#f5d36b;
+      border-color:#a27800;
+    }
+    body.dark-mode #markWarningMessage{
+      color:#f7f9ff;
+    }
+    body.dark-mode .btn{
+      background:linear-gradient(0deg, rgba(255,255,255,.05), rgba(255,255,255,.05)), #1e222b;
+      color:#ffbde6;
+      border-color:#c05aa2;
+    }
+    body.dark-mode .btn.primary{
+      border-color:#8fbf2f;
+      color:#e6ffb5;
+      background:linear-gradient(0deg, rgba(143,191,47,.15), rgba(143,191,47,.15)), #253014;
+    }
+    body.dark-mode .btn.toggle.active{
+      background:linear-gradient(0deg, rgba(143,191,47,.25), rgba(143,191,47,.25)), #2f381c;
+      color:#e8ffb0;
+    }
+    body.dark-mode .table-wrapper{
+      background:#151820;
+    }
+    body.dark-mode .file-item,
+    body.dark-mode .row-item{
+      background:#232833;
+      border-color:#343a45;
+      color:#f0f4ff;
+    }
+    body.dark-mode .file-item.active{
+      border-color:#8fbf2f;
+      background:linear-gradient(0deg, rgba(143,191,47,.18), rgba(143,191,47,.18)), #232c19;
+    }
+    body.dark-mode .col-row.has-data{
+      background:linear-gradient(0deg, rgba(143,191,47,.18), rgba(143,191,47,.18)), #232c19;
+      border-color:#8fbf2f;
+    }
+    body.dark-mode .extras-list{
+      background:#1b1f28;
+      border-color:#2c3240;
+    }
+    body.dark-mode .extras-list label{
+      color:#f3f6ff;
+    }
+    body.dark-mode .comment-card{
+      background:#1f232b;
+      border-color:#2c313c;
+    }
+    body.dark-mode .comment-card textarea{
+      background:#181c24;
+      color:#f4f4f4;
+      border-color:#2d3240;
+    }
+    body.dark-mode td.mark-high{
+      background:#2d3a1f;
+      color:#e8ffb5;
+    }
+    body.dark-mode td.mark-mid{
+      background:#3d3415;
+      color:#ffe6a3;
+    }
+    body.dark-mode td.mark-low{
+      background:#3c1c1c;
+      color:#ffc2c2;
+    }
+    #appRoot{
+      transform: scale(var(--zoom-factor,1));
+      transform-origin: top left;
+      width: calc(100% / var(--zoom-factor,1));
+      min-height: calc(100% / var(--zoom-factor,1));
+    }
+    .zoom-controls{
+      display:flex;
+      gap:6px;
+      align-items:center;
+    }
+
+    /* Panels */
+    .panel { background:var(--panel); border:1px solid var(--panel-border);
+             border-radius:12px; padding:12px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
+    #printContainer{ display:none; }
+    #printPreviewContent{
+      display:flex;
+      flex-direction:column;
+      align-items:stretch;
+      gap:12px;
+      max-height:70vh;
+      overflow:auto;
+    }
+    .print-preview-page{
+      width:13in;
+      min-height:8.5in;
+      background:#fff;
+      border:1px solid #ddd;
+      padding:24px;
+      box-shadow:0 4px 25px rgba(0,0,0,.12);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .print-header{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      margin-bottom:8px;
+    }
+    .print-header strong{
+      font-size:16px;
+    }
+    .print-meta-form{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .print-meta-form label{
+      font-size:12px;
+      font-weight:600;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    .print-helpers{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .print-template-panel,
+    .print-class-panel{
+      border:1px solid #ececec;
+      border-radius:10px;
+      padding:10px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      background:#fafafa;
+    }
+    .print-template-panel h4,
+    .print-class-panel h4{
+      margin:0;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      color:#6b7280;
+    }
+    .template-option,
+    .print-class-option{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+    }
+    .print-class-option small{
+      color:#6b7280;
+    }
+    .print-class-list{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      max-height:220px;
+      overflow:auto;
+    }
+    .template-page-stack{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .class-template-page{
+      background:#fff;
+      border:1px solid #d1d5db;
+      border-radius:12px;
+      padding:14px 16px 34px;
+      box-shadow:0 6px 16px rgba(15, 23, 42, 0.08);
+      position:relative;
+      break-inside:avoid;
+    }
+    .page-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      border-bottom:2px solid var(--yellow);
+      padding-bottom:6px;
+      margin-bottom:8px;
+      gap:12px;
+    }
+    .page-title{
+      font-weight:600;
+      font-size:1rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:var(--magenta);
+    }
+    .page-meta{
+      font-size:0.85rem;
+    }
+    .template-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.85rem;
+      margin-top:4px;
+    }
+    .template-table th,
+    .template-table td{
+      border:1px solid #d1d5db;
+      padding:3px 6px;
+      vertical-align:middle;
+    }
+    .template-table th{
+      background:#f9fafb;
+      font-weight:600;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .template-table td:first-child{
+      text-align:center;
+      width:28px;
+    }
+    .template-table th.student-name-col{
+      text-align:left;
+      white-space:nowrap;
+    }
+    .template-table td.student-name-cell{
+      white-space:nowrap;
+      padding-right:16px;
+    }
+    .page-footer{
+      position:absolute;
+      left:16px;
+      right:16px;
+      bottom:12px;
+      font-size:0.75rem;
+      color:#6b7280;
+      display:flex;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .drill-note{
+      font-size:0.85rem;
+      margin-bottom:8px;
+    }
+    .drill-note strong{
+      margin-right:6px;
+    }
+    .print-preview-empty{
+      padding:24px;
+      text-align:center;
+      color:#6b7280;
+      border:1px dashed #d1d5db;
+      border-radius:12px;
+      background:#fff;
+    }
+    body.printing-preview #appRoot{
+      display:none !important;
+    }
+    body.printing-preview #printContainer{
+      display:block;
+      margin-top:0;
+    }
+    body.printing-preview #printContainer .print-summary{
+      font-size:12px;
+      margin-bottom:8px;
+      font-weight:600;
+    }
+    body.printing-preview #printContainer .print-preview-page{
+      box-shadow:none;
+      border:none;
+    }
+    body.printing-preview #printContainer .print-preview-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+      table-layout:auto;
+    }
+    body.printing-preview #printContainer .print-preview-table th,
+    body.printing-preview #printContainer .print-preview-table td{
+      border:1px solid #ccc;
+      padding:6px;
+      text-align:left;
+      word-break:break-word;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      page-break-inside:avoid;
+    }
+    body.printing-preview #printContainer .print-preview-table th{
+      position: static;
+      top:auto;
+    }
+    body.printing-preview #printContainer .print-preview-table th:first-child,
+    body.printing-preview #printContainer .print-preview-table td:first-child{
+      white-space:nowrap;
+      width:200px;
+    }
+    body.printing-preview #printContainer .print-preview-table th.rotate-header{
+      width:26px;
+      min-width:26px;
+      max-width:26px;
+      padding:4px 2px;
+      vertical-align:middle;
+      text-align:center;
+    }
+    body.printing-preview #printContainer .print-preview-table th.rotate-header .rotate-text{
+      display:inline-flex;
+      align-items:flex-end;
+      justify-content:center;
+      width:100%;
+      writing-mode:vertical-rl;
+      text-orientation:mixed;
+      transform:rotate(180deg);
+      white-space:pre-line;
+      font-weight:inherit;
+      line-height:1;
+    }
+    body.printing-preview #printContainer .print-preview-table th.student-name-header{
+      text-align:left;
+      font-weight:600;
+      width:200px;
+    }
+    body.printing-preview #printContainer .print-preview-table th.assignment-header{
+      text-align:center;
+      font-weight:600;
+    }
+    body.printing-preview #printContainer .print-preview-table th.student-name-spacer{
+      width:200px;
+    }
+    body.printing-preview #printContainer .print-preview-table td.assignment-cell{
+      width:26px;
+      min-width:26px;
+      text-align:center;
+    }
+    body.printing-preview #printContainer .print-preview-table th.assignment-spacer{
+      width:26px;
+      min-width:26px;
+    }
+    @media print{
+      @page{
+        size: landscape;
+        margin: 0.75in 0.5in 0.5in 0.5in; /* top right bottom left - more top margin for hole punch */
+      }
+      body{
+        margin: 0;
+        padding: 0;
+      }
+      #printContainer{
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+      .print-preview-page{
+        margin: 0;
+        padding: 0.5in 0.25in 0.25in 0.25in; /* top right bottom left */
+        box-shadow: none;
+        border: none;
+        width: 100%;
+        min-height: auto;
+        box-sizing: border-box;
+      }
+      .print-preview-table{
+        width: 100%;
+        margin: 0;
+      }
+      .class-template-page{
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        page-break-after: always;
+        padding: 0.5in 0.5in 0.65in 0.5in;
+      }
+      .page-footer{
+        position: static;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        margin-top: 12px;
+      }
+    }
+    #cols{
+      max-height: 280px;
+      overflow: auto;
+      margin-top: 8px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    /* Table */
+    table { border-collapse: collapse; width:100%; table-layout: fixed; }
+    th, td { border: 1px solid #e9e9e9; padding: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    th { position: sticky; top: 0; background: var(--thead); font-weight:600; cursor:pointer; }
+    th.sort-asc::after{ content:" ?"; color:#666; font-weight:700; }
+    th.sort-desc::after{ content:" ?"; color:#666; font-weight:700; }
+    td[contenteditable="true"] { background: var(--edit-bg); }
+    tr:nth-child(even) td:not(.mark-high):not(.mark-mid):not(.mark-low) { background:#fcfcfc; }
+    td.mark-high{
+      background:#e6f3c2;
+      color:#2b3b00;
+      font-weight:600;
+    }
+    td.mark-mid{
+      background:#fff1c2;
+      color:#5c4d00;
+      font-weight:600;
+    }
+    td.mark-low{
+      background:#ffe0df;
+      color:#5a0e0e;
+      font-weight:600;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 12px; border-radius:10px; border:1px solid var(--magenta);
+      background: linear-gradient(0deg, rgba(175,0,111,.08), rgba(175,0,111,.08)), #fff;
+      color: var(--magenta); font-weight:600; cursor:pointer; transition: transform .02s ease, box-shadow .15s ease;
+    }
+    .btn:hover { box-shadow: var(--focus-ring); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary {
+      border-color: var(--green);
+      color:#243000;
+      background: linear-gradient(0deg, rgba(193,216,47,.18), rgba(193,216,47,.18)), #fff;
+    }
+    .btn.warn {
+      border-color: var(--yellow);
+      background: linear-gradient(0deg, rgba(255,221,0,.18), rgba(255,221,0,.18)), #fff;
+      color:#5c4d00;
+    }
+    .btn:disabled { opacity:.55; cursor: default; box-shadow:none; }
+
+    /* Badges */
+    .badge { font-size:12px; background:var(--badge-bg); border:1px solid var(--badge-border);
+             padding:2px 8px; border-radius: 999px; color:#5a5200; }
+
+    /* Inputs */
+    input[type="text"]{
+      padding:8px 10px; border-radius:10px; border:1px solid #d7d7d7; outline:none; min-width:220px;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.02);
+    }
+    input[type="text"]:focus{ box-shadow: var(--focus-ring); border-color: var(--magenta); }
+    input[type="file"]{ accent-color: var(--magenta); }
+    input[type="checkbox"]{ accent-color: var(--green); }
+
+    /* Dropzone */
+    .dropzone {
+      width:220px;
+      min-height:30px;
+      border: 2px dashed var(--drop-dash);
+      border-radius: 12px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:4px;
+      text-align:left;
+      padding:12px 16px;
+      user-select:none;
+      cursor:pointer;
+      background:#fff;
+    
+    }
+    .dropzone strong { color: var(--magenta); display:block; font-size:16px; }
+    .dropzone small { display:block; color:var(--muted); margin-top:4px; }
+    .dropzone.hover {
+      outline: none; box-shadow: var(--focus-ring);
+      background: var(--drop-hover); border-color: var(--green);
+    }
+
+    /* Modal (Bulk Edit Headers) */
+    .modal-backdrop{ position:fixed; inset:0; background:var(--modal-backdrop); display:none; align-items:center; justify-content:center; z-index:999; }
+    .modal{ width:min(900px, 96vw); background:#fff; border-radius:14px; border:1px solid #e6e6e6; box-shadow:0 12px 44px rgba(0,0,0,.18); overflow:hidden; }
+    .modal header{ padding:12px 16px; background:#fafafa; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; }
+    .modal header h3{ margin:0; font-size:18px; font-weight:700; }
+    .modal .content{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:12px; }
+    .modal .section{ border:1px solid #efefef; border-radius:10px; padding:10px; }
+    .modal footer{ padding:12px; background:#fafafa; border-top:1px solid #eee; display:flex; gap:8px; justify-content:flex-end; }
+    body.dark-mode .modal header{
+      background:#252a38;
+      border-bottom:1px solid #2a2f3e;
+    }
+    body.dark-mode .modal footer{
+      background:#252a38;
+      border-top:1px solid #2a2f3e;
+    }
+    body.dark-mode .modal .section{
+      border-color:#2a2f3e;
+      background:#151a24;
+    }
+
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .grid label{ font-size:12px; color:#555; }
+    body.dark-mode .grid label{
+      color:#dfe6ff;
+    }
+    .preview-list{ max-height:300px; overflow:auto; border:1px solid #eee; border-radius:8px; padding:8px; }
+    body.dark-mode .preview-list{
+      border-color:#2d3342;
+      background:#151a24;
+    }
+    .preview-row{ display:flex; gap:8px; align-items:center; padding:4px 0; border-bottom:1px dashed #f1f1f1; }
+    body.dark-mode .preview-row{
+      border-bottom:1px dashed #3a4254;
+    }
+    .chip{ font-size:12px; padding:2px 6px; border-radius:999px; border:1px solid #ddd; background:#fafafa; }
+    .transpose-chip{
+      display:none;
+      align-items:center;
+      gap:6px;
+      font-weight:600;
+      background:#f4f9d0;
+      border-color:#d9e782;
+      color:#2f3a00;
+    }
+    .transpose-chip .dot{
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background:#c1d82f;
+      display:inline-block;
+    }
+    .transpose-chip.show{
+      display:inline-flex;
+    }
+    .chip.preview-chip{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:40px;
+    }
+    .preview-chip-modified{
+      border-color:#c1d82f;
+    }
+    body.dark-mode .chip.preview-chip{
+      background:#1f2330;
+      border-color:#2a2f3e;
+      color:#f7f9ff;
+    }
+    body.dark-mode .preview-chip-modified{
+      border-color:#8fbf2f;
+    }
+    .muted{ color:var(--muted); }
+    .spacer{ flex:1; }
+    .transpose-banner{
+      display:none;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px dashed #d9e782;
+      background:linear-gradient(0deg, rgba(193,216,47,.15), rgba(193,216,47,.15)), #fff;
+      font-size:13px;
+      color:#2f3a00;
+    }
+    .transpose-banner .icon{
+      font-weight:700;
+      font-size:16px;
+    }
+    .transpose-banner.show{
+      display:flex;
+    }
+    body.dark-mode .transpose-chip{
+      background:#2f381c;
+      border-color:#4a5a28;
+      color:#e8ffb0;
+    }
+    body.dark-mode .transpose-chip .dot{
+      background:#8fbf2f;
+    }
+    body.dark-mode .transpose-banner{
+      border-color:#4a5a28;
+      background:linear-gradient(0deg, rgba(143,191,47,.08), rgba(143,191,47,.08)), #1a1e25;
+      color:#e8ffb0;
+    }
+    .extras-list{
+      max-height:200px;
+      overflow:auto;
+      border:1px solid #eee;
+      border-radius:8px;
+      padding:8px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      background:#fff;
+    }
+    .extras-list label{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:13px;
+    }
+    #commentsPreview{
+      max-height:1000px;
+      overflow:auto;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .comment-card{
+      border:1px solid #eee;
+      border-radius:10px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      background:#fff;
+    }
+    .comment-card header{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .comment-card header span{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .comment-card textarea{
+      width:100%;
+      min-height:200px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      padding:8px;
+      resize:vertical;
+    }
+    .mark-chip{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:6px;
+      font-weight:600;
+      font-size:13px;
+    }
+    .mark-high{ color:#1f3a07; background:#cbe592; }
+    .mark-mid{ color:#5c4d00; background:#ffe58d; }
+    .mark-low{ color:#5a0e0e; background:#ffc8c8; }
+    .print-header{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      margin-bottom:8px;
+    }
+    .print-header strong{
+      font-size:16px;
+    }
+    .column-panel,
+    .row-panel{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .side-stack{
+      flex: 0 0 320px;
+      max-width: 360px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .file-panel{
+      flex: 1 1 100%;
+    }
+    .data-panel{
+      flex:1 1 auto;
+      min-width:0;
+    }
+    .column-panel .controls,
+    .row-panel .controls{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    #rows{
+      max-height: 280px;
+      overflow:auto;
+      margin-top:8px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+    #filesList{
+      max-height: 280px;
+      overflow:auto;
+      margin-top:8px;
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap:6px;
+    }
+    .row-item{
+      padding:4px 6px;
+      border-radius:8px;
+    }
+    .row-item label{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .performance-filters{
+      margin-top:12px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .performance-filters .performance-buttons{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .file-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      border-radius:8px;
+      border:1px solid #eee;
+      cursor:pointer;
+    }
+    .file-item.active{
+      border-color: var(--green);
+      background: linear-gradient(0deg, rgba(193,216,47,.18), rgba(193,216,47,.18)), #fff;
+    }
+    .file-item{
+      display:flex;
+      flex-direction:column;
+    }
+    .file-item span{
+      flex:1;
+      white-space:normal;
+      word-break:break-word;
+    }
+    .file-item .file-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .file-item .btn{
+      padding:2px 8px;
+      font-size:12px;
+      border-radius:8px;
+      align-self:flex-start;
+    }
+    .embedded-files-panel{
+      width:50%;
+      max-width:50%;
+      border:1px solid var(--panel-border);
+      border-radius:12px;
+      padding:10px 12px;
+      background:#fff;
+      box-shadow:0 1px 0 rgba(0,0,0,.03);
+      margin:0;
+      display:flex;
+      flex-direction:column;
+      gap:1px;
+      margin-top: -4px;
+      max-height: 200px;
+      margin-top:-50px;
+    }
+    .col-row{
+      display:flex;
+      align-items:center;
+      padding:4px 8px;
+      border-radius:8px;
+      gap:8px;
+      border:1px solid transparent;
+      transition:background .2s ease, border-color .2s ease;
+    }
+    .col-row.has-data{
+      background:linear-gradient(0deg, rgba(193,216,47,.14), rgba(193,216,47,.14)), #fff;
+      border-color:rgba(193,216,47,.6);
+    }
+    .col-row.drag-over{ background:rgba(193,216,47,.18); }
+    .col-row.dragging{ opacity:.5; }
+    .no-sort{ cursor:default !important; }
+    td.readonly{
+      background:#f6f6f6;
+      color:#555;
+    }
+    tbody th.row-header{
+      background: var(--thead);
+      text-align:left;
+      font-weight:600;
+      white-space:nowrap;
+    }
+    .corner-header{
+      background: var(--thead);
+    }
+    .is-transposed tbody th.row-header,
+    .is-transposed .corner-header{
+      white-space:normal;
+      min-width:210px;
+    }
+    body.dark-mode tbody th.row-header{
+      background:#1a1e25;
+      color:#f6f8ff;
+      border-color:#2a2e34;
+    }
+    body.dark-mode .corner-header{
+      background:#1a1e25;
+      color:#f6f8ff;
+      border-color:#2a2e34;
+    }
+    .btn.toggle{
+      border-style:dashed;
+    }
+    .btn.toggle.active{
+      border-color: var(--green);
+      background: linear-gradient(0deg, rgba(193,216,47,.18), rgba(193,216,47,.18)), #fff;
+      color:#243000;
+    }
+    body.wrap-headers th{
+      white-space: normal;
+      line-height: 1.3;
+    }
+    body.wrap-headers .corner-header{
+      white-space: normal;
+    }
+    .table-wrapper{
+      overflow:auto;
+      max-height: none;
+    }
+    .warning-banner{
+      display:none;
+      margin:12px 0;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid var(--yellow);
+      background:linear-gradient(0deg, rgba(255,221,0,.16), rgba(255,221,0,.16)), #fffdf4;
+      color:#5c4d00;
+      font-size:13px;
+    }
+    .warning-banner.show{ display:flex; align-items:center; gap:8px; }
+    .warning-banner svg{ width:16px; height:16px; fill:#5c4d00; }
+    td.readonly{
+      background:#f7f7f7;
+      color:#555;
+    }
+    @media (max-width: 960px){
+      .table-wrapper{ max-height: 65vh; }
+      .row.main-layout{
+        flex-wrap:wrap;
+      }
+      .side-stack,
+      .file-panel,
+      .data-panel{
+        flex: 1 1 100%;
+        max-width: 100%;
+      }
+      .embedded-files-panel{ max-width:100%; }
+    }
+  </style>
+
+  <!-- SheetJS (XLSX) and PapaParse (CSV) from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  
+</head>
+<body>
+  <div id="appRoot">
+  <h1 style="display:flex; align-items:center; gap:10px;">
+    <span>TEACHER TOOLs</span>
+    <span class="badge" style="background:#e9f4bf; border-color:#c1d82f; color:#2f3a00;">SORT + UNDO/REDO + SETTINGS + HEADER TOOLS</span>
+    <span class="spacer"></span>
+    <div class="zoom-controls">
+      <button class="btn" id="zoomOutBtn" type="button">Zoom -</button>
+      <button class="btn" id="zoomInBtn" type="button">Zoom +</button>
+      <button class="btn toggle" id="darkModeBtn" type="button">Dark: OFF</button>
+    </div>
+  </h1>
+
+  <div class="row">
+    <div class="panel file-panel" style="width:100%;">
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div id="dropzone" class="dropzone" title="Click or drag a CSV/XLSX here">
+          <div>
+            <strong>Drop a file here </strong> <small class="muted">CSV XLSX XLS</small> 
+          </div>
+        </div>
+
+        <div style="flex:1 1 320px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; justify-content:space-between;">
+            <b>OPEN FILE</b>
+            <span class="badge" id="meta" title="File info" style="display:none;"></span>
+            <div style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="btn primary" id="exportCsvBtn" disabled>Export Visible (CSV)</button>
+              <button class="btn" id="exportXlsxBtn" disabled>Export Visible (XLSX)</button>
+              <button class="btn" id="printViewBtn" disabled>Print View</button>
+              <button class="btn warn" id="resetBtn" disabled>Reset Filters</button>
+            </div>
+          </div>
+          <!-- Hidden native input; triggered by clicking the dropzone -->
+          <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
+          <div id="status" class="muted"></div>
+
+          <div class="embedded-files-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b>FILES</b>
+              <span class="badge" id="fileCount">0</span>
+            </div>
+            <div id="filesList"></div>
+            <div id="filesWarning" class="warning-banner" style="margin:0;">
+              <span style="font-weight:600;">!</span>
+              <span id="filesWarningText"></span>
+            </div>
+            <div class="muted" style="font-size:12px;">Tip: upload multiple CSV/XLSX files and click to switch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="renamePrompt" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:360px;">
+      <header>
+        <h3>Rename File</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content">
+        <label style="display:block; font-size:13px; margin-bottom:6px;">New name</label>
+        <input id="renameInput" type="text" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;" />
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="renameCancel">Cancel</button>
+        <button class="btn primary" id="renameSave">Save</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="markWarningModal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>Color Marks Warning</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="display:block; padding:16px;">
+        <p id="markWarningMessage" style="margin:0; color:var(--ink);">Your marks are not in percent format. Continue anyway?</p>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="markWarningCancel">Cancel</button>
+        <button class="btn primary" id="markWarningContinue">Continue</button>
+      </footer>
+    </div>
+  </div>
+  <div id="printPreviewModal" class="modal-backdrop" style="display:none;">
+    <div class="modal print-preview-modal" style="max-width:1400px; width:96vw;">
+      <header>
+        <h3>Print Preview</h3>
+        <span class="spacer"></span>
+        <button class="btn" id="printPreviewClose">Close</button>
+      </header>
+      <div class="content" style="display:grid; grid-template-columns:260px 1fr; gap:16px; padding:16px;">
+        <div class="print-meta-form">
+          <label>
+            Teacher name
+            <input id="printTeacherInput" type="text" placeholder="e.g. Ms. Rivera" style="padding:8px; border-radius:8px; border:1px solid #d7d7d7;" />
+          </label>
+          <label>
+            Class / course information
+            <input id="printClassInput" type="text" placeholder="e.g. Grade 7 Math - Section B" style="padding:8px; border-radius:8px; border:1px solid #d7d7d7;" />
+          </label>
+          <label>
+            Report title
+            <input id="printTitleInput" type="text" placeholder="e.g. Unit 4 Performance Snapshot" style="padding:8px; border-radius:8px; border:1px solid #d7d7d7;" />
+          </label>
+          <div class="muted" style="font-size:12px;">Edits appear in the preview instantly.</div>
+          <div>
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Term</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T1" id="printTermT1" checked />
+                Term 1
+              </label>
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T2" id="printTermT2" />
+                Term 2
+              </label>
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T3" id="printTermT3" />
+                Term 3
+              </label>
+            </div>
+          </div>
+          <div class="print-helpers">
+            <div class="print-template-panel">
+              <h4>Templates</h4>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="attendance" checked />
+                Attendance Sheet
+              </label>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="marking" />
+                Marking Sheet
+              </label>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="drill" />
+                Drill Sheet
+              </label>
+            </div>
+            <div class="print-class-panel">
+              <h4>Classes to Print</h4>
+              <div id="printClassList" class="print-class-list"></div>
+              <div class="muted" style="font-size:11px;">Select the rosters that should be included.</div>
+            </div>
+          </div>
+        </div>
+        <div id="printPreviewContent"></div>
+      </div>
+      <footer>
+        <button class="btn" id="printPreviewCancel">Close</button>
+        <button class="btn primary" id="printPreviewPrint">Print</button>
+      </footer>
+    </div>
+  </div>
+  <div class="row main-layout" style="margin-top:12px;">
+    <div class="side-stack">
+      <div class="panel column-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>VISIBLE COLUMNS</b>
+          <span class="badge" id="colCount"></span>
+        </div>
+        <input id="colSearch" type="text" placeholder="Search columns..." style="margin-top:8px; width:(100%-20px); padding:6px 10px; border-radius:8px; border:1px solid #d7d7d7;" />
+        <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button class="btn toggle" id="columnDataFilterBtn" type="button">Data Columns: OFF</button>
+          <span class="muted" style="font-size:12px;">Show only columns that contain data.</span>
+        </div>
+        <div class="term-buttons" style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn" id="termBtn1" type="button">TERM 1</button>
+          <button class="btn" id="termBtn2" type="button">TERM 2</button>
+          <button class="btn" id="termBtn3" type="button">TERM 3</button>
+        </div>
+        <div id="cols"></div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn primary" id="selectAll">Select All</button>
+          <button class="btn" id="clearAll">Clear</button>
+        </div>
+        <div class="muted" style="margin-top:8px; font-size:12px;">Tip: column toggles & edits support <b>Ctrl+Z / Ctrl+Y</b>.</div>
+      </div>
+
+      <div class="panel row-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>VISIBLE ROWS</b>
+          <span class="badge" id="rowCount"></span>
+        </div>
+      <div id="rows"></div>
+      <div class="controls">
+        <button class="btn primary" id="selectAllRows">Select All</button>
+        <button class="btn" id="clearRows">Clear</button>
+      </div>
+        <div class="performance-filters">
+          <div style="font-size:12px; font-weight:600;">Performance filter (Calculated Final Grade)</div>
+          <div class="performance-buttons">
+            <button class="btn toggle" id="rowFilterGood" type="button">Good</button>
+            <button class="btn toggle" id="rowFilterMid" type="button">Mid</button>
+            <button class="btn toggle" id="rowFilterNeeds" type="button">Needs Support</button>
+            <button class="btn" id="rowFilterClear" type="button">Show All</button>
+          </div>
+          <div class="muted" id="rowFilterStatus" style="font-size:12px;"></div>
+        </div>
+        <div class="muted" style="font-size:12px;">Tip: rows stay hidden until you re-check them.</div>
+      </div>
+    </div>
+
+    <div class="panel data-panel">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+        <b>DATA</b>
+        <input id="search" type="text" placeholder="Type to filter rows..." style="flex:1 1 240px; min-width:180px;" />
+        <label class="muted" style="display:flex; align-items:center; gap:4px; font-size:13px;">
+          <input type="checkbox" id="wrapHeadersToggle" />
+          Wrap headers
+        </label>
+        <label class="muted" style="display:flex; align-items:center; gap:4px; font-size:13px;">
+          <input type="checkbox" id="markColorsToggle" checked />
+          Color marks
+        </label>
+        <button class="btn" id="editHeadersBtn" disabled>Edit Headers</button>
+        <button class="btn" id="commentsBtn" disabled>Report Comments</button>
+        <button class="btn toggle" id="transposeBtn" title="Swap rows and columns">Transpose: OFF</button>
+        <span id="transposeStatusChip" class="chip transpose-chip" role="status" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span>
+          Transposed view
+        </span>
+        <span id="counts" class="badge"></span>
+      </div>
+      <div id="transposeBanner" class="transpose-banner" role="status" aria-live="polite">
+        <span class="icon">&#8693;</span>
+        <div>
+          Transposed view is ON &mdash; rows become columns, and exports reflect this layout.
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table id="grid">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Bulk Edit Headers -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <header>
+        <h3>Bulk Edit Column Headers</h3>
+        <span class="spacer"></span>
+        <span class="chip" id="headerCountChip">0 headers</span>
+      </header>
+      <div class="content">
+        <div class="section">
+          <div class="grid">
+            <div>
+              <label>Find</label>
+              <input id="hdrFind" type="text" placeholder="text or regex if /pattern/">
+            </div>
+            <div>
+              <label>Replace With</label>
+              <input id="hdrReplace" type="text" placeholder="">
+            </div>
+            <div>
+              <label>Remove first N</label>
+              <input id="hdrRmStart" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label>Remove last N</label>
+              <input id="hdrRmEnd" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label>Remove between prefix</label>
+              <input id="hdrBetweenPre" type="text" placeholder='e.g. "("'>
+            </div>
+            <div>
+              <label>?and suffix</label>
+              <input id="hdrBetweenSuf" type="text" placeholder='e.g. ")"'>
+            </div>
+            <div>
+              <label>Add prefix</label>
+              <input id="hdrAddPre" type="text" placeholder="e.g. col_">
+            </div>
+            <div>
+              <label>Add suffix</label>
+              <input id="hdrAddSuf" type="text" placeholder="e.g. _x">
+            </div>
+          </div>
+
+          <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+            <label><input type="checkbox" id="hdrCase" /> Case-insensitive</label>
+            <label><input type="checkbox" id="hdrTrim" checked/> Trim spaces</label>
+            <label><input type="checkbox" id="hdrCollapse" /> Collapse spaces ? underscore</label>
+            <label><input type="checkbox" id="hdrLower" /> Lowercase</label>
+            <label><input type="checkbox" id="hdrInclusive" /> Remove prefix/suffix too (inclusive)</label>
+            <label>
+              Normalize:
+              <select id="hdrNormalize">
+                <option value="">(none)</option>
+                <option value="snake">snake_case</option>
+                <option value="title">Title Case</option>
+                <option value="kebab">kebab-case</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <b>Preview</b>
+            <span class="muted" id="previewNote">before ? after</span>
+          </div>
+          <div id="hdrPreview" class="preview-list"></div>
+        </div>
+      </div>
+      <footer>
+        <button class="btn" id="hdrCancel">Cancel</button>
+        <button class="btn primary" id="hdrApply">Apply</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="commentsModal" class="modal-backdrop">
+    <div class="modal comments-modal">
+      <header>
+        <h3>Report Card Comments</h3>
+        <span class="spacer"></span>
+        <button class="btn" id="commentsCloseBtn">Close</button>
+      </header>
+      <div class="content">
+        <div class="section" style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <label style="font-size:12px;">Mark column</label>
+            <select id="commentGradeSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">
+              <option value="">Select column...</option>
+            </select>
+          </div>
+          <div class="grid">
+            <div>
+              <label>High threshold (%)</label>
+              <input id="commentHighThreshold" type="number" min="0" max="100" value="90" />
+            </div>
+            <div>
+              <label>Mid threshold (%)</label>
+              <input id="commentMidThreshold" type="number" min="0" max="100" value="75" />
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Exceeds template</label>
+              <button class="btn" type="button" id="commentHighRestructure">Restructure</button>
+            </div>
+            <textarea id="commentHighTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Meets template</label>
+              <button class="btn" type="button" id="commentMidRestructure">Restructure</button>
+            </div>
+            <textarea id="commentMidTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Growth template</label>
+              <button class="btn" type="button" id="commentLowRestructure">Restructure</button>
+            </div>
+            <textarea id="commentLowTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <label style="font-size:12px;">Include assessment columns</label>
+            <div id="commentExtrasList" class="extras-list"></div>
+          </div>
+          <div class="muted" style="font-size:12px;">
+            Use tokens like <code>{name}</code>, <code>{first}</code>, <code>{last}</code>, <code>{mark}</code>. Selected columns are appended as “Header: value” so you can reference multiple marks.
+          </div>
+        </div>
+        <div class="section" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <b>Preview</b>
+            <span id="commentsCount" class="badge">0</span>
+            <span class="muted" id="commentsStatus"></span>
+            <span class="spacer"></span>
+            <button class="btn" id="commentsCopyAll">Copy All</button>
+          </div>
+          <div id="commentsPreview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ==== State ====
+  const STUDENT_NAME_LABEL = "Student Name";
+  const END_OF_LINE_COL = "End-of-line indicator";
+  const END_OF_LINE_VALUE = "#";
+  const FINAL_GRADE_COLUMN = "Calculated Final Grade";
+  const MIN_ZOOM = 0.8;
+  const MAX_ZOOM = 1.4;
+  const ZOOM_STEP = 0.1;
+  const COMMENT_DEFAULTS = {
+    gradeColumn: "",
+    highThreshold: 90,
+    midThreshold: 75,
+    highTemplate: "{name} approaches every lesson with curiosity and initiative, frequently extending ideas beyond the core expectation. Their current mark of {mark} showcases precise reasoning, fluent computation, and articulate communication. {name} routinely finishes core tasks early and then designs extension questions to deepen understanding. During collaborative tasks they summarize peer strategies, highlight mathematical connections, and keep teams focused. Feedback is implemented immediately; {name} keeps a reflection log to track goals and next steps. Next term will emphasize multi-step investigations and contest-style problems, and {name} is ready to mentor classmates through those challenges. Keep nurturing this blend of creativity and disciplined practice.",
+    midTemplate: "{name} demonstrates steady progress and thoughtful engagement with new material. With a current mark of {mark} they meet expectations on most outcomes and are beginning to take more academic risks. {name} listens attentively, asks clarifying questions, and revisits notes to strengthen recall. When feedback is provided they revise solutions, highlight learning points, and try similar problems independently. Continued focus on showing complete reasoning and checking units will unlock even higher accuracy. Next term we will target multi-step problems and timed practice to build automaticity. I appreciate the consistent effort and positive attitude {name} brings to every session.",
+    lowTemplate: "{name} is developing foundational skills and currently holds {mark}. They contribute ideas willingly yet benefit from additional guided practice to solidify routines. {name} responds well to checklists that break complex tasks into smaller checkpoints. During conferences we co-create goals, model sample solutions, and celebrate each successful attempt. Home review of vocabulary and worked examples will help transfer strategies across contexts. We will continue providing targeted small-group lessons, manipulatives, and sentence frames for explanations. With this supportive plan {name} will keep growing in confidence and accuracy.",
+    extraColumns: []
+  };
+  const TEMPLATE_VARIANTS = {
+    high: [
+      [
+        "{name} approaches every lesson with curiosity and initiative, frequently extending ideas beyond the core expectation.",
+        "Their current mark of {mark} showcases precise reasoning, fluent computation, and articulate communication.",
+        "{name} routinely finishes core tasks early and then designs extension questions to deepen understanding.",
+        "During collaborative tasks they summarize peer strategies, highlight mathematical connections, and keep teams focused.",
+        "Feedback is implemented immediately; {name} keeps a reflection log to track goals and next steps.",
+        "Next term will emphasize multi-step investigations and contest-style problems, and {name} is ready to mentor classmates through those challenges.",
+        "Keep nurturing this blend of creativity and disciplined practice."
+      ],
+      [
+        "{name} demonstrates sophisticated problem solving and eagerly applies concepts to authentic contexts.",
+        "Earning {mark} reflects a balance of accuracy, fluency, and elegant explanation.",
+        "They lead group discussions by asking probing questions and pushing peers to justify reasoning with evidence.",
+        "{name} voluntarily revisits enrichment problems to test alternate strategies and records insights in a math journal.",
+        "When challenges arise, they persevere, consult resources, and articulate what was learned from the attempt.",
+        "Upcoming investigations will involve open-ended projects where {name} can showcase creativity and leadership.",
+        "This exemplary work ethic continues to inspire the class community."
+      ],
+      [
+        "{name} consistently applies higher-order thinking to connect new ideas with past learning.",
+        "The {mark} standing highlights precision in calculations and clarity in written reasoning.",
+        "They offer insightful reflections after each assessment, naming strategies that led to success.",
+        "{name} regularly volunteers to model solutions at the board, guiding peers through alternate pathways.",
+        "They thrive when challenged with open-ended tasks and seek feedback to polish each presentation.",
+        "Our next unit’s inquiry projects will provide another platform for {name} to innovate and lead.",
+        "This combination of humility and excellence makes {name} a role model in the classroom."
+      ],
+      [
+        "{name} immerses themselves in complex scenarios, often extending assignments into independent research.",
+        "Their {mark} average represents both speed and accuracy while maintaining elegant work habits.",
+        "{name} articulates mathematical thinking using precise vocabulary and visual models.",
+        "During collaborative work they facilitate equitable participation and encourage classmates to justify claims.",
+        "They synthesize teacher feedback into concrete goals and track progress through self-designed rubrics.",
+        "The upcoming contests and investigations will allow {name} to stretch creativity even further.",
+        "Please continue providing enrichment opportunities that match this remarkable drive."
+      ],
+      [
+        "{name} excels at transferring skills across novel contexts and frequently mentors peers.",
+        "Holding {mark} demonstrates mastery of both procedural fluency and conceptual depth.",
+        "They avidly explore optional resources, from math circles to challenge problems, and bring insights back to class.",
+        "{name} communicates respectfully, posing questions that push the entire group to think critically.",
+        "Each reflection they submit includes personal goals, evidence of growth, and next steps.",
+        "Next term we will co-design capstone tasks so {name} can pursue individualized investigations.",
+        "Their joyful perseverance continues to elevate our learning community."
+      ]
+    ],
+    mid: [
+      [
+        "{name} demonstrates steady progress and thoughtful engagement with new material.",
+        "With a current mark of {mark} they meet expectations on most outcomes and are beginning to take more academic risks.",
+        "{name} listens attentively, asks clarifying questions, and revisits notes to strengthen recall.",
+        "When feedback is provided they revise solutions, highlight learning points, and try similar problems independently.",
+        "Continued focus on showing complete reasoning and checking units will unlock even higher accuracy.",
+        "Next term we will target multi-step problems and timed practice to build automaticity.",
+        "I appreciate the consistent effort and positive attitude {name} brings to every session."
+      ],
+      [
+        "{name} contributes to discussions and is learning to explain ideas with greater precision.",
+        "The mark of {mark} shows that most foundational outcomes are secure while a few concepts still need polishing.",
+        "{name} benefits from pausing to plan before solving and from circling final answers for clarity.",
+        "Independent study habits are improving; they now reference worked examples and annotate steps in the margin.",
+        "Regular review of math vocabulary and mental math warmups will support faster recall.",
+        "Upcoming tasks will emphasize reasoning through word problems, and {name} is ready for that stretch.",
+        "Keep encouraging them to ask why and to celebrate the steady growth they are achieving."
+      ],
+      [
+        "{name} arrives prepared and engages respectfully in class conversations, often paraphrasing instructions for peers.",
+        "Their {mark} result reflects reliable achievement with occasional slips when rushing.",
+        "{name} benefits from colour-coding steps and checking each computation with a different method.",
+        "They respond well to feedback, adjusting strategies and noting reminders in the margin.",
+        "Daily warmups plus end-of-lesson summaries will sharpen accuracy and long-term retention.",
+        "In the coming unit we will emphasize logical proofs, and {name} is poised to participate fully.",
+        "Celebrating each milestone continues to boost their motivation."
+      ],
+      [
+        "{name} is strengthening stamina with extended tasks and currently maintains {mark}.",
+        "They clarify misunderstandings quickly by referencing anchor charts or mini-videos.",
+        "{name} benefits from organizing work in a table before solving each part of a problem.",
+        "They now use peer feedback more thoughtfully, acknowledging next steps and trying again.",
+        "Consistent practice with estimation and mental math will raise confidence on quizzes.",
+        "Next term we will incorporate more hands-on explorations, which suit {name}'s learning style.",
+        "Their cooperative spirit and steady effort are appreciated."
+      ],
+      [
+        "{name} is beginning to generalize patterns and explain reasoning aloud.",
+        "A {mark} average indicates that essential concepts are solid while advanced applications still need refinement.",
+        "{name} thrives when given structured graphic organizers to plan multi-step solutions.",
+        "They have started keeping a checklist of common errors, which has reduced avoidable mistakes.",
+        "Targeted practice on fraction/decimal conversions will further support success.",
+        "Upcoming projects will allow {name} to demonstrate learning through visuals and presentations.",
+        "With continued encouragement, their confidence will keep rising."
+      ]
+    ],
+    low: [
+      [
+        "{name} is developing foundational skills and currently holds {mark}.",
+        "They contribute ideas willingly yet benefit from additional guided practice to solidify routines.",
+        "{name} responds well to checklists that break complex tasks into smaller checkpoints.",
+        "During conferences we co-create goals, model sample solutions, and celebrate each successful attempt.",
+        "Home review of vocabulary and worked examples will help transfer strategies across contexts.",
+        "We will continue providing targeted small-group lessons, manipulatives, and sentence frames for explanations.",
+        "With this supportive plan {name} will keep growing in confidence and accuracy."
+      ],
+      [
+        "{name} is building stamina with multi-step questions and presently has {mark}.",
+        "They are most successful when given sentence starters and graphic organizers to capture thinking.",
+        "Short, daily practice sessions help {name} remember procedures before tackling longer assignments.",
+        "In class we model strategies, rehearse them aloud, and then let {name} teach the process back to a peer.",
+        "Families can reinforce progress by celebrating each checkpoint mastered rather than focusing solely on the final score.",
+        "Next term we will provide more manipulatives and visuals so abstract ideas feel concrete.",
+        "With patience and consistent routines, {name}'s confidence and accuracy will continue to climb."
+      ],
+      [
+        "{name} is learning to manage productive struggle and currently sits at {mark}.",
+        "They participate enthusiastically but sometimes rush through steps, so we slow down and highlight key words.",
+        "{name} benefits from using math sentence frames to describe operations before computing.",
+        "We often use think-alouds so they can mimic the language of reasoning.",
+        "Daily review of flashcards and quick drills at home will help facts stick.",
+        "Small wins are carefully celebrated so momentum feels tangible.",
+        "Together we will keep building routines that lead to confident, independent problem solving."
+      ],
+      [
+        "{name} continues to develop number sense, and their current {mark} reflects gradual improvements.",
+        "They feel most confident when manipulatives or visuals are introduced alongside symbolic notation.",
+        "{name} benefits from frequent check-ins during independent practice to maintain focus.",
+        "We use personalized goal sheets that outline the exact skills being targeted each week.",
+        "Families can support by asking {name} to explain the 'why' behind each step rather than just the answer.",
+        "Next unit we will embed more game-based reviews to keep engagement high.",
+        "With ongoing collaboration, {name}'s perseverance and accuracy will steadily grow."
+      ],
+      [
+        "{name} is developing perseverance with challenging questions and currently holds {mark}.",
+        "They appreciate when instructions are chunked and when model solutions are close at hand.",
+        "{name} benefits from rehearsing vocabulary aloud before tackling written tasks.",
+        "We encourage them to highlight clues in word problems to maintain direction.",
+        "Extra practice on math facts and estimation at home will strengthen automaticity.",
+        "More scaffolded group work next term will allow {name} to observe peer strategies in real time.",
+        "Every incremental success is acknowledged so motivation remains high."
+      ]
+    ]
+  };
+
+  let rows = [];           // [{col:val,...}]
+  let originalRows = [];   // deep clone for Reset
+  let allColumns = [];     // all column names
+  let visibleColumns = []; // chosen columns
+  let columnOrder = [];    // current order for all columns
+  let filteredIdx = [];    // current row indices after filter
+  let sortState = {key:null, dir:null}; // dir: 'asc'|'desc'|null
+  let currentFileName = null;
+  let isTransposed = false;
+  let firstNameKey = null;
+  let lastNameKey = null;
+  let studentNameColumn = null;
+let wrapHeadersEnabled = false;
+let visibleRowSet = null;
+let studentNameWarning = '';
+let darkModeEnabled = false;
+let commentConfig = getDefaultCommentConfig();
+let generatedComments = [];
+let zoomLevel = 1;
+const templateIndices = { high:0, mid:0, low:0 };
+let columnFilterText = '';
+let dataColumnsOnly = false;
+const MARK_COLUMN_HINTS = ['grade','mark','score','percent','percentage','assessment','average','result'];
+let markColorsEnabled = true;
+let pendingMarkWarningAction = null;
+let performanceFilterLevel = null;
+let printMeta = { teacher:'', classInfo:'', title:'', term:'T1' };
+const PRINT_TEMPLATE_DEFS = {
+  attendance: { id:'attendance', label:'Attendance Sheet' },
+  marking: { id:'marking', label:'Marking Sheet' },
+  drill: { id:'drill', label:'Drill Sheet' }
+};
+const PRINT_EXTRA_BLANK_ROWS = 5;
+let selectedTemplateIds = new Set(['attendance']);
+let selectedClassIds = new Set();
+
+  // Undo/Redo stacks
+  let undoStack = [];
+  let redoStack = [];
+  const UNDO_LIMIT = 50;
+
+  let draggingCol = null;
+
+  // Persisted UI prefs
+  const LS_KEY = "teacher_tools_settings";
+
+  // Multi-file state
+  const fileContexts = [];
+  let activeContext = null;
+  let nextFileId = 1;
+
+  // ==== Elements ====
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file');
+  const colsDiv   = document.getElementById('cols');
+  const table     = document.getElementById('grid');
+  const tableWrapper = document.querySelector('.table-wrapper');
+  const thead     = table.querySelector('thead');
+  const tbody     = table.querySelector('tbody');
+  const statusEl  = document.getElementById('status');
+  const metaEl    = document.getElementById('meta');
+  const countsEl  = document.getElementById('counts');
+  const colCountEl= document.getElementById('colCount');
+  const rowCountEl= document.getElementById('rowCount');
+  const selectAllColsBtn = document.getElementById('selectAll');
+  const clearAllColsBtn = document.getElementById('clearAll');
+  const termBtn1 = document.getElementById('termBtn1');
+  const termBtn2 = document.getElementById('termBtn2');
+  const termBtn3 = document.getElementById('termBtn3');
+  const exportCsv = document.getElementById('exportCsvBtn');
+  const exportXlsx= document.getElementById('exportXlsxBtn');
+  const printViewBtn = document.getElementById('printViewBtn');
+  const resetBtn  = document.getElementById('resetBtn');
+  const searchEl  = document.getElementById('search');
+  const editHeadersBtn = document.getElementById('editHeadersBtn');
+  const transposeBtn = document.getElementById('transposeBtn');
+  const transposeStatusChip = document.getElementById('transposeStatusChip');
+  const transposeBanner = document.getElementById('transposeBanner');
+  const filesList = document.getElementById('filesList');
+  const fileCountEl = document.getElementById('fileCount');
+  const rowsDiv   = document.getElementById('rows');
+  const selectAllRowsBtn = document.getElementById('selectAllRows');
+  const clearRowsBtn = document.getElementById('clearRows');
+  const rowFilterGoodBtn = document.getElementById('rowFilterGood');
+  const rowFilterMidBtn = document.getElementById('rowFilterMid');
+  const rowFilterNeedsBtn = document.getElementById('rowFilterNeeds');
+  const rowFilterClearBtn = document.getElementById('rowFilterClear');
+  const rowFilterStatusEl = document.getElementById('rowFilterStatus');
+  const wrapHeadersToggle = document.getElementById('wrapHeadersToggle');
+  const markColorsToggle = document.getElementById('markColorsToggle');
+  const filesWarningEl = document.getElementById('filesWarning');
+  const filesWarningTextEl = document.getElementById('filesWarningText');
+  const colSearchInput = document.getElementById('colSearch');
+  const columnDataFilterBtn = document.getElementById('columnDataFilterBtn');
+  const darkModeBtn = document.getElementById('darkModeBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const commentsBtn = document.getElementById('commentsBtn');
+  const commentsModal = document.getElementById('commentsModal');
+  const commentsCloseBtn = document.getElementById('commentsCloseBtn');
+  const commentsCopyAllBtn = document.getElementById('commentsCopyAll');
+  const commentGradeSelect = document.getElementById('commentGradeSelect');
+  const commentHighThresholdInput = document.getElementById('commentHighThreshold');
+  const commentMidThresholdInput = document.getElementById('commentMidThreshold');
+  const commentHighTemplateInput = document.getElementById('commentHighTemplate');
+  const commentMidTemplateInput = document.getElementById('commentMidTemplate');
+  const commentLowTemplateInput = document.getElementById('commentLowTemplate');
+  const commentHighRestructureBtn = document.getElementById('commentHighRestructure');
+  const commentMidRestructureBtn = document.getElementById('commentMidRestructure');
+  const commentLowRestructureBtn = document.getElementById('commentLowRestructure');
+  const commentExtrasList = document.getElementById('commentExtrasList');
+  const commentsPreviewEl = document.getElementById('commentsPreview');
+  const commentsStatusEl = document.getElementById('commentsStatus');
+  const commentsCountEl = document.getElementById('commentsCount');
+  const printContainer = document.getElementById('printContainer');
+  const printTeacherInput = document.getElementById('printTeacherInput');
+  const printClassInput = document.getElementById('printClassInput');
+  const printTitleInput = document.getElementById('printTitleInput');
+  const printPreviewModal = document.getElementById('printPreviewModal');
+  const printPreviewContent = document.getElementById('printPreviewContent');
+  const printPreviewCloseBtn = document.getElementById('printPreviewClose');
+  const printPreviewCancelBtn = document.getElementById('printPreviewCancel');
+  const printPreviewPrintBtn = document.getElementById('printPreviewPrint');
+  const printClassList = document.getElementById('printClassList');
+  const printTemplateInputs = Array.from(document.querySelectorAll('input[name="printTemplate"]'));
+  const printTermInputs = Array.from(document.querySelectorAll('input[name="printTerm"]'));
+  const renamePrompt = document.getElementById('renamePrompt');
+  const renameInput = document.getElementById('renameInput');
+  const renameCancel = document.getElementById('renameCancel');
+  const renameSave = document.getElementById('renameSave');
+  let renameTargetId = null;
+  const markWarningModal = document.getElementById('markWarningModal');
+  const markWarningContinue = document.getElementById('markWarningContinue');
+  const markWarningCancel = document.getElementById('markWarningCancel');
+  const markWarningMessage = document.getElementById('markWarningMessage');
+
+  const initialSettings = loadSettings();
+  setWrapHeaders(!!initialSettings.wrapHeaders, false);
+  setDarkMode(!!initialSettings.darkMode, false);
+  zoomLevel = typeof initialSettings.zoom === 'number' ? initialSettings.zoom : 1;
+  setZoom(zoomLevel, false);
+  markColorsEnabled = initialSettings.markColors !== false;
+  if (markColorsToggle) markColorsToggle.checked = markColorsEnabled;
+  dataColumnsOnly = !!initialSettings.dataColumnsOnly;
+  updateColumnDataFilterButton();
+  commentConfig = loadCommentConfigForFile(currentFileName);
+  //metaEl.textContent = 'No file loaded';
+
+  // Modal elements
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const hdrFind = document.getElementById('hdrFind');
+  const hdrReplace = document.getElementById('hdrReplace');
+  const hdrRmStart = document.getElementById('hdrRmStart');
+  const hdrRmEnd = document.getElementById('hdrRmEnd');
+  const hdrBetweenPre = document.getElementById('hdrBetweenPre');
+  const hdrBetweenSuf = document.getElementById('hdrBetweenSuf');
+  const hdrAddPre = document.getElementById('hdrAddPre');
+  const hdrAddSuf = document.getElementById('hdrAddSuf');
+  const hdrCase = document.getElementById('hdrCase');
+  const hdrTrim = document.getElementById('hdrTrim');
+  const hdrCollapse = document.getElementById('hdrCollapse');
+  const hdrLower = document.getElementById('hdrLower');
+  const hdrInclusive = document.getElementById('hdrInclusive');
+  const hdrNormalize = document.getElementById('hdrNormalize');
+  const hdrPreview = document.getElementById('hdrPreview');
+  const hdrApply = document.getElementById('hdrApply');
+  const hdrCancel = document.getElementById('hdrCancel');
+  const headerCountChip = document.getElementById('headerCountChip');
+
+  isTransposed = !!(initialSettings.transposed);
+  updateTransposeButton();
+
+  // ==== Dropzone logic ====
+  dropzone.addEventListener('click', () => fileInput.click());
+  ;['dragenter','dragover'].forEach(ev =>
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('hover'); })
+  );
+  ;['dragleave','dragend','drop'].forEach(ev =>
+    dropzone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('hover'); })
+  );
+  dropzone.addEventListener('drop', async (e) => {
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (!files.length) return;
+    await handleFiles(files);
+  });
+  fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    await handleFiles(files);
+    e.target.value = "";
+  });
+  wrapHeadersToggle.addEventListener('change', (e) => {
+    setWrapHeaders(e.target.checked, true);
+    render();
+  });
+  if (markColorsToggle){
+    markColorsToggle.addEventListener('change', (e) => {
+      if (e.target.checked && rows.length && !datasetHasPercentSymbol()){
+        e.target.checked = false;
+        showMarkWarning('Your marks are not in percent format. Continue anyway?', () => applyMarkColorSetting(true));
+        return;
+      }
+      applyMarkColorSetting(!!e.target.checked);
+    });
+  }
+  if (commentsBtn){
+    commentsBtn.addEventListener('click', openCommentsModal);
+  }
+  if (commentsCloseBtn){
+    commentsCloseBtn.addEventListener('click', closeCommentsModal);
+  }
+  if (commentsModal){
+    commentsModal.addEventListener('click', (e) => {
+      if (e.target === commentsModal) closeCommentsModal();
+    });
+  }
+  if (markWarningContinue){
+    markWarningContinue.addEventListener('click', () => {
+      closeMarkWarningModal();
+      const action = pendingMarkWarningAction;
+      pendingMarkWarningAction = null;
+      if (typeof action === 'function') action();
+    });
+  }
+  if (markWarningCancel){
+    markWarningCancel.addEventListener('click', () => {
+      closeMarkWarningModal();
+      pendingMarkWarningAction = null;
+    });
+  }
+  [printTeacherInput, printClassInput, printTitleInput].forEach(input => {
+    if (!input) return;
+    input.addEventListener('input', handlePrintMetaInputChange);
+  });
+  printTermInputs.forEach(radio => {
+    radio.addEventListener('change', handlePrintMetaInputChange);
+  });
+  printTemplateInputs.forEach(input => {
+    input.addEventListener('change', handleTemplateSelectionChange);
+  });
+  [printPreviewCloseBtn, printPreviewCancelBtn].forEach(btn => {
+    if (btn){
+      btn.addEventListener('click', () => {
+        closePrintPreviewModal();
+      });
+    }
+  });
+  if (printPreviewPrintBtn){
+    printPreviewPrintBtn.addEventListener('click', () => {
+      launchPrintDialog();
+    });
+  }
+  if (colSearchInput){
+    colSearchInput.addEventListener('input', (e) => {
+      columnFilterText = e.target.value || '';
+      rebuildColsUI();
+    });
+  }
+  if (columnDataFilterBtn){
+    columnDataFilterBtn.addEventListener('click', () => {
+      setDataColumnsOnly(!dataColumnsOnly);
+    });
+  }
+  if (rowFilterGoodBtn){
+    rowFilterGoodBtn.addEventListener('click', () => handlePerformanceFilterRequest('high'));
+  }
+  if (rowFilterMidBtn){
+    rowFilterMidBtn.addEventListener('click', () => handlePerformanceFilterRequest('mid'));
+  }
+  if (rowFilterNeedsBtn){
+    rowFilterNeedsBtn.addEventListener('click', () => handlePerformanceFilterRequest('low'));
+  }
+  if (rowFilterClearBtn){
+    rowFilterClearBtn.addEventListener('click', () => clearPerformanceFilter());
+  }
+  [commentGradeSelect, commentHighThresholdInput, commentMidThresholdInput,
+    commentHighTemplateInput, commentMidTemplateInput, commentLowTemplateInput].forEach(el => {
+      if (!el) return;
+      const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(eventName, handleCommentSettingsChange);
+    });
+  if (commentsCopyAllBtn){
+    commentsCopyAllBtn.addEventListener('click', copyAllComments);
+  }
+  if (commentHighRestructureBtn){
+    commentHighRestructureBtn.addEventListener('click', () => restructureTemplate('high'));
+  }
+  if (commentMidRestructureBtn){
+    commentMidRestructureBtn.addEventListener('click', () => restructureTemplate('mid'));
+  }
+  if (commentLowRestructureBtn){
+    commentLowRestructureBtn.addEventListener('click', () => restructureTemplate('low'));
+  }
+  if (commentsPreviewEl){
+    commentsPreviewEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-copy-index]');
+      if (!btn) return;
+      const idx = Number(btn.dataset.copyIndex);
+      copyCommentByIndex(idx);
+    });
+  }
+  if (darkModeBtn){
+    darkModeBtn.addEventListener('click', () => {
+      setDarkMode(!darkModeEnabled);
+    });
+  }
+  if (zoomInBtn){
+    zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
+  }
+  if (zoomOutBtn){
+    zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
+  }
+  renameCancel.addEventListener('click', () => closeRenameModal());
+  renameSave.addEventListener('click', saveRename);
+  renamePrompt.addEventListener('click', (e) => { if (e.target === renamePrompt) closeRenameModal(); });
+  renameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){ e.preventDefault(); saveRename(); }
+  });
+  transposeBtn.addEventListener('click', () => {
+    isTransposed = !isTransposed;
+    updateTransposeButton();
+    saveSettings({ transposed: isTransposed });
+    if (activeContext) activeContext.isTransposed = isTransposed;
+    render();
+  });
+  colsDiv.addEventListener('dragover', (e) => {
+    if (!draggingCol) return;
+    e.preventDefault();
+  });
+  colsDiv.addEventListener('drop', (e) => {
+    if (!draggingCol) return;
+    if (e.target.closest && e.target.closest('.col-row')) return;
+    e.preventDefault();
+    moveColumnToEnd(draggingCol);
+  });
+
+  // ==== Keyboard (Undo/Redo) ====
+  document.addEventListener('keydown', (e) => {
+    const z = (e.key === 'z' || e.key === 'Z');
+    const y = (e.key === 'y' || e.key === 'Y');
+    if ((e.ctrlKey || e.metaKey) && z) { e.preventDefault(); doUndo(); }
+    if ((e.ctrlKey || e.metaKey) && y) { e.preventDefault(); doRedo(); }
+  });
+
+  // ==== Persistence ====
+  function loadSettings(){
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
+  }
+  function saveSettings(data){
+    localStorage.setItem(LS_KEY, JSON.stringify({...loadSettings(), ...data}));
+  }
+
+  // ==== Main file handler ====
+  async function handleFiles(files){
+    for (const file of files){
+      await handleFile(file);
+    }
+  }
+
+  async function handleFile(f){
+    if (activeContext){
+      activeContext.searchText = searchEl.value || "";
+      activeContext.isTransposed = isTransposed;
+    }
+    currentFileName = f.name;
+    commentConfig = loadCommentConfigForFile(currentFileName);
+    status('READING...');
+    const name = f.name.toLowerCase();
+    try{
+      rows = [];
+      originalRows = [];
+      allColumns = [];
+      columnOrder = [];
+      visibleColumns = [];
+      visibleRowSet = new Set();
+      filteredIdx = [];
+      sortState = {key:null, dir:null};
+      undoStack = [];
+      redoStack = [];
+      if (name.endsWith('.csv')) await loadCSV(f);
+      else await loadXLSX(f);
+      originalRows = JSON.parse(JSON.stringify(rows));
+      applySavedHeaderMapping();
+      initColumns();
+      initRows();
+      setupStudentNameColumn();
+      applyDefaultStudentSort();
+      if (!commentConfig.gradeColumn && allColumns.includes('Calculated Final Grade')){
+        commentConfig.gradeColumn = 'Calculated Final Grade';
+        persistCommentConfig();
+      }
+      const s = loadSettings();
+      isTransposed = !!s.transposed;
+      updateTransposeButton();
+      if (Object.prototype.hasOwnProperty.call(s, 'wrapHeaders')) {
+        setWrapHeaders(!!s.wrapHeaders, false);
+      }
+      if (Array.isArray(s.columnOrder)){
+        applyStoredColumnOrder(s.columnOrder);
+      }
+      if (Array.isArray(s.visibleColumns)) {
+        visibleColumns = s.visibleColumns.filter(c => allColumns.includes(c));
+        if (!visibleColumns.length){
+          visibleColumns = columnOrder.slice(0, Math.min(8, columnOrder.length));
+        }
+      }
+      syncVisibleOrder();
+      const rowPrefs = s.visibleRows || {};
+      if (currentFileName && Object.prototype.hasOwnProperty.call(rowPrefs, currentFileName)){
+        const stored = Array.isArray(rowPrefs[currentFileName]) ? rowPrefs[currentFileName] : [];
+        setVisibleRowsFromList(stored, true);
+      }else{
+        persistRowVisibility();
+      }
+      if (s.lastSearch != null){ searchEl.value = s.lastSearch; }
+      rebuildColsUI();
+      render();
+      resetPerformanceFilterState();
+      setDataActionButtonsDisabled(false);
+      editHeadersBtn.disabled = false;
+      commentsBtn.disabled = false;
+      transposeBtn.disabled = false;
+      metaEl.innerText = `${f.name} - ${rows.length} rows, ${allColumns.length} columns`;
+      status('READY');
+      registerContext(createContextRecord(f.name));
+    }catch(err){
+      status('ERROR: ' + err); console.error(err);
+    }
+  }
+
+  // ==== Loaders ====
+  async function loadCSV(file) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => { rows = res.data; resolve(); },
+        error: (err) => reject(err)
+      });
+    });
+  }
+  async function loadXLSX(file) {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+  }
+
+  // ==== Columns / Render ====
+  function initColumns(){
+    allColumns = rows.length ? Object.keys(rows[0]) : [];
+    columnOrder = [...allColumns];
+    visibleColumns = columnOrder.slice(0, Math.min(8, columnOrder.length));
+    enforceEndOfLineColumn();
+    ensureDefaultCommentGradeColumn();
+    filteredIdx = Array.from(rows.keys());
+    rebuildColsUI();
+  }
+  function getColumnPanelSortRank(name, originalIndex){
+    const lower = (name || '').toLowerCase();
+    if (name === STUDENT_NAME_LABEL) return { rank: 0, lesson: null, idx: originalIndex };
+    if (lower === 'orgid') return { rank: 1, lesson: null, idx: originalIndex };
+    const match = /^l\s*(\d+)/i.exec(name || '');
+    if (match){
+      return { rank: 2, lesson: Number(match[1]) || 0, idx: originalIndex };
+    }
+    return { rank: 3, lesson: null, idx: originalIndex };
+  }
+  function rebuildColsUI(){
+    colsDiv.innerHTML = "";
+    const query = (columnFilterText || '').toLowerCase().trim();
+    const filterData = !!dataColumnsOnly;
+    let rendered = 0;
+    const sortedColumns = columnOrder
+      .map((name, idx) => ({ name, idx, sort: getColumnPanelSortRank(name, idx) }))
+      .sort((a, b) => {
+        if (a.sort.rank !== b.sort.rank) return a.sort.rank - b.sort.rank;
+        if (a.sort.rank === 2 && b.sort.rank === 2){
+          if (a.sort.lesson !== b.sort.lesson) return a.sort.lesson - b.sort.lesson;
+        }
+        return a.sort.idx - b.sort.idx;
+      })
+      .map(entry => entry.name);
+    sortedColumns.forEach(c => {
+      const name = c || '';
+      if (query && !name.toLowerCase().includes(query)) return;
+      const isEndIndicator = (c === END_OF_LINE_COL);
+      const hasData = (!isEndIndicator && rows.length) ? columnHasData(c) : false;
+      if (filterData && !isEndIndicator && !hasData) return;
+      const id = 'c_' + c.replace(/[^a-z0-9_]/gi, '_');
+      const row = document.createElement('div');
+      row.className = 'col-row';
+      if (hasData) row.classList.add('has-data');
+      row.draggable = !isEndIndicator;
+      row.dataset.col = c;
+      row.innerHTML = `
+        <label style="flex:1; display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="${id}" ${visibleColumns.includes(c) ? 'checked':''} ${isEndIndicator ? 'disabled':''}/>
+          <span>${escapeHtml(c)}</span>
+        </label>
+        <span class="muted" style="font-size:11px; user-select:none;">&#8645;</span>
+      `;
+      colsDiv.appendChild(row);
+
+      const checkbox = row.querySelector('input');
+      if (!isEndIndicator){
+        checkbox.addEventListener('change', (ev) => {
+          const before = [...visibleColumns];
+          if (ev.target.checked) {
+            if (!visibleColumns.includes(c)) visibleColumns.push(c);
+          } else {
+            visibleColumns = visibleColumns.filter(x => x !== c);
+        }
+        syncVisibleOrder();
+        pushUndo({type:'setVisibleColumns', before, after:[...visibleColumns]});
+        saveSettings({ visibleColumns });
+        colCountEl.textContent = `${visibleColumns.length}/${allColumns.length}`;
+          render();
+        });
+      }
+
+      if (!isEndIndicator){
+        row.addEventListener('dragstart', (e) => {
+          draggingCol = c;
+          row.classList.add('dragging');
+          if (e.dataTransfer){
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', c);
+          }
+        });
+        row.addEventListener('dragend', () => {
+          draggingCol = null;
+          row.classList.remove('dragging');
+        });
+        row.addEventListener('dragover', (e) => {
+          if (!draggingCol || draggingCol === c) return;
+          e.preventDefault();
+          e.stopPropagation();
+          row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+        row.addEventListener('drop', (e) => {
+          if (!draggingCol || draggingCol === c) return;
+          e.preventDefault();
+          e.stopPropagation();
+          row.classList.remove('drag-over');
+          reorderColumns(draggingCol, c);
+        });
+      } else {
+        row.classList.add('muted');
+      }
+      rendered++;
+    });
+    if (!rendered){
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.style.fontSize = '12px';
+      empty.textContent = filterData ? 'No columns contain data yet.' : 'No columns match search.';
+      colsDiv.appendChild(empty);
+    }
+    colCountEl.textContent = `${visibleColumns.length}/${allColumns.length}`;
+  }
+  function setDataColumnsOnly(enabled){
+    const next = !!enabled;
+    if (dataColumnsOnly === next) return;
+    dataColumnsOnly = next;
+    updateColumnDataFilterButton();
+    saveSettings({ dataColumnsOnly });
+    rebuildColsUI();
+  }
+  function updateColumnDataFilterButton(){
+    if (!columnDataFilterBtn) return;
+    columnDataFilterBtn.textContent = `Data Columns: ${dataColumnsOnly ? 'ON' : 'OFF'}`;
+    columnDataFilterBtn.classList.toggle('active', dataColumnsOnly);
+  }
+  function initRows(){
+    visibleRowSet = new Set(Array.from(rows.keys()));
+    rebuildRowsUI();
+  }
+  function rebuildRowsUI(){
+    if (!(visibleRowSet instanceof Set)){
+      visibleRowSet = new Set(Array.from(rows.keys()));
+    }
+    rowsDiv.innerHTML = "";
+    const entries = rows.map((_, idx) => ({
+      idx,
+      label: (getRowLabel(idx) || '').toLowerCase()
+    }));
+    entries.sort((a,b) => {
+      const la = a.label;
+      const lb = b.label;
+      if (la < lb) return -1;
+      if (la > lb) return 1;
+      return a.idx - b.idx;
+    });
+    entries.forEach(entry => {
+      const idx = entry.idx;
+      const labelText = getRowLabel(idx);
+      const rowEl = document.createElement('div');
+      rowEl.className = 'row-item';
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = visibleRowSet.has(idx);
+      label.appendChild(checkbox);
+      const span = document.createElement('span');
+      span.textContent = labelText;
+      label.appendChild(span);
+      rowEl.appendChild(label);
+      rowsDiv.appendChild(rowEl);
+
+      checkbox.addEventListener('change', () => {
+        const before = getVisibleRowList();
+        if (checkbox.checked) visibleRowSet.add(idx);
+        else visibleRowSet.delete(idx);
+        const after = getVisibleRowList();
+        if (!arraysEqual(before, after)){
+          pushUndo({type:'setVisibleRows', beforeRows: before, afterRows: after});
+        }
+        persistRowVisibility();
+        rowCountEl.textContent = `${visibleRowSet.size}/${rows.length}`;
+        render();
+        performanceFilterLevel = null;
+        updatePerformanceFilterButtons();
+        updateRowFilterStatus('');
+      });
+    });
+    rowCountEl.textContent = `${visibleRowSet.size}/${rows.length}`;
+  }
+  function setAllRowsVisible(pushUndoEntry = true){
+    if (!(visibleRowSet instanceof Set)) visibleRowSet = new Set();
+    const before = pushUndoEntry ? getVisibleRowList() : [];
+    visibleRowSet = new Set(Array.from(rows.keys()));
+    const after = getVisibleRowList();
+    if (pushUndoEntry && !arraysEqual(before, after)){
+      pushUndo({type:'setVisibleRows', beforeRows: before, afterRows: after});
+    }
+    persistRowVisibility();
+    rebuildRowsUI();
+    render();
+  }
+  function getCalculatedFinalGradeValue(row){
+    if (!row) return null;
+    const raw = row[FINAL_GRADE_COLUMN];
+    const meta = deriveMarkMeta(raw, FINAL_GRADE_COLUMN);
+    return meta ? meta.value : null;
+  }
+  function collectPerformanceRows(level){
+    const results = [];
+    ensureCommentThresholds();
+    const high = Number(commentConfig.highThreshold) || COMMENT_DEFAULTS.highThreshold;
+    const mid = Number(commentConfig.midThreshold) || COMMENT_DEFAULTS.midThreshold;
+    rows.forEach((row, idx) => {
+      const val = getCalculatedFinalGradeValue(row);
+      if (val == null) return;
+      if (level === 'high' && val >= high) results.push(idx);
+      else if (level === 'mid' && val < high && val >= mid) results.push(idx);
+      else if (level === 'low' && val < mid) results.push(idx);
+    });
+    return results;
+  }
+  function getPerformanceFilterLabel(level){
+    switch(level){
+      case 'high': return 'Good';
+      case 'mid': return 'Mid';
+      case 'low': return 'Needs Support';
+      default: return 'All';
+    }
+  }
+  function updateRowFilterStatus(text){
+    if (rowFilterStatusEl) rowFilterStatusEl.textContent = text || '';
+  }
+  function updatePerformanceFilterButtons(){
+    const map = [
+      [rowFilterGoodBtn, 'high'],
+      [rowFilterMidBtn, 'mid'],
+      [rowFilterNeedsBtn, 'low']
+    ];
+    map.forEach(([btn, level]) => {
+      if (!btn) return;
+      btn.classList.toggle('active', performanceFilterLevel === level);
+    });
+  }
+  function handlePerformanceFilterRequest(level){
+    if (!rows.length){
+      updateRowFilterStatus('Load data to use performance filters.');
+      return;
+    }
+    if (!allColumns.includes(FINAL_GRADE_COLUMN)){
+      updateRowFilterStatus(`"${FINAL_GRADE_COLUMN}" column is required for performance filters.`);
+      return;
+    }
+    const apply = () => applyPerformanceFilter(level);
+    if (!columnHasPercentValues(FINAL_GRADE_COLUMN)){
+      showMarkWarning(`${FINAL_GRADE_COLUMN} must include % values to filter by performance. Continue anyway?`, apply);
+      return;
+    }
+    apply();
+  }
+  function applyPerformanceFilter(level){
+    const matches = collectPerformanceRows(level);
+    performanceFilterLevel = level;
+    updatePerformanceFilterButtons();
+    if (!matches.length){
+      updateRowFilterStatus('No students match this filter.');
+      return;
+    }
+    const before = getVisibleRowList();
+    visibleRowSet = new Set(matches);
+    const after = getVisibleRowList();
+    if (!arraysEqual(before, after)){
+      pushUndo({type:'setVisibleRows', beforeRows: before, afterRows: after});
+    }
+    persistRowVisibility();
+    rebuildRowsUI();
+    render();
+    updateRowFilterStatus(`${matches.length} students match (${getPerformanceFilterLabel(level)}).`);
+  }
+  function clearPerformanceFilter(){
+    performanceFilterLevel = null;
+    updatePerformanceFilterButtons();
+    updateRowFilterStatus('Showing all students.');
+    setAllRowsVisible(true);
+  }
+  function resetPerformanceFilterState(){
+    performanceFilterLevel = null;
+    updatePerformanceFilterButtons();
+    updateRowFilterStatus('');
+  }
+  function columnHasData(col){
+    if (!col || col === END_OF_LINE_COL || !rows.length) return false;
+    for (let i = 0; i < rows.length; i++){
+      const value = rows[i]?.[col];
+      if (value == null) continue;
+      if (typeof value === 'string'){
+        if (value.trim() !== '') return true;
+      }else{
+        return true;
+      }
+    }
+    return false;
+  }
+  function refreshColumnDataHighlights(targetCol){
+    if (!colsDiv) return;
+    const rowsToUpdate = targetCol
+      ? Array.from(colsDiv.querySelectorAll('.col-row')).filter(row => row.dataset.col === targetCol)
+      : Array.from(colsDiv.querySelectorAll('.col-row'));
+    rowsToUpdate.forEach(row => {
+      const col = row.dataset.col;
+      if (!col || col === END_OF_LINE_COL) return;
+      const hasData = columnHasData(col);
+      row.classList.toggle('has-data', hasData);
+    });
+  }
+  function handleColumnDataMutation(col = null){
+    if (dataColumnsOnly){
+      rebuildColsUI();
+    }else{
+      refreshColumnDataHighlights(col);
+    }
+  }
+  function setVisibleRowsFromList(list, allowEmpty = true){
+    visibleRowSet = new Set();
+    (list || []).forEach(idx => {
+      if (Number.isInteger(idx) && idx >= 0 && idx < rows.length){
+        visibleRowSet.add(idx);
+      }
+    });
+    if (!visibleRowSet.size && !allowEmpty){
+      visibleRowSet = new Set(Array.from(rows.keys()));
+    }
+    rebuildRowsUI();
+  }
+  function getVisibleRowList(){
+    if (!(visibleRowSet instanceof Set)) return [];
+    return Array.from(visibleRowSet).sort((a,b) => a - b);
+  }
+  function persistRowVisibility(){
+    if (!currentFileName || !(visibleRowSet instanceof Set)) return;
+    const settings = loadSettings();
+    const vr = {...(settings.visibleRows || {})};
+    vr[currentFileName] = getVisibleRowList();
+    saveSettings({ visibleRows: vr });
+  }
+  function createContextRecord(name){
+    return {
+      id: nextFileId++,
+      name,
+      originalName: name,
+      rows,
+      originalRows,
+      allColumns,
+      columnOrder,
+      visibleColumns,
+      visibleRowSet,
+      sortState,
+      undoStack,
+      redoStack,
+      isTransposed,
+      searchText: searchEl.value || "",
+      firstNameKey,
+      lastNameKey,
+      studentNameColumn,
+      studentNameWarning,
+      commentConfig: {
+        ...commentConfig,
+        extraColumns: [...(commentConfig.extraColumns || [])]
+      }
+    };
+  }
+  function registerContext(ctx){
+    fileContexts.push(ctx);
+    activeContext = ctx;
+    currentFileName = ctx.name;
+    updateFilesUI();
+    highlightActiveFile();
+    syncActiveContext();
+    renderWarning('');
+  }
+  function setActiveContext(id){
+    if (activeContext && activeContext.id === id){
+      renderWarning(activeContext.studentNameWarning || '');
+      return;
+    }
+    if (activeContext){
+      activeContext.searchText = searchEl.value || "";
+      activeContext.isTransposed = isTransposed;
+    }
+    const ctx = fileContexts.find(c => c.id === id);
+    if (!ctx) return;
+    rows = ctx.rows;
+    originalRows = ctx.originalRows;
+    allColumns = ctx.allColumns;
+    columnOrder = ctx.columnOrder;
+    visibleColumns = ctx.visibleColumns;
+    visibleRowSet = ctx.visibleRowSet;
+    sortState = ctx.sortState;
+    undoStack = ctx.undoStack;
+    redoStack = ctx.redoStack;
+    isTransposed = ctx.isTransposed;
+    firstNameKey = ctx.firstNameKey || null;
+    lastNameKey = ctx.lastNameKey || null;
+    studentNameColumn = ctx.studentNameColumn || null;
+    studentNameWarning = ctx.studentNameWarning || '';
+    commentConfig = {...COMMENT_DEFAULTS, ...(ctx.commentConfig || {})};
+    commentConfig.extraColumns = Array.isArray(commentConfig.extraColumns) ? [...commentConfig.extraColumns] : [];
+    currentFileName = ctx.name;
+    searchEl.value = ctx.searchText || "";
+    activeContext = ctx;
+    setDataActionButtonsDisabled(false);
+    editHeadersBtn.disabled = false;
+    commentsBtn.disabled = false;
+    transposeBtn.disabled = false;
+    updateTransposeButton();
+    enforceEndOfLineColumn();
+    ensureDefaultCommentGradeColumn();
+    rebuildColsUI();
+    rebuildRowsUI();
+    render();
+    resetPerformanceFilterState();
+    highlightActiveFile();
+    renderWarning(ctx.studentNameWarning || '');
+    status('READY');
+    selectedClassIds.add(ctx.id);
+    if (printPreviewModal && printPreviewModal.style.display === 'flex'){
+      renderPrintClassList();
+      renderPrintPreview();
+    }
+  }
+  function syncActiveContext(){
+    if (!activeContext || activeContext.name !== currentFileName) return;
+    activeContext.rows = rows;
+    activeContext.originalRows = originalRows;
+    activeContext.allColumns = allColumns;
+    activeContext.columnOrder = columnOrder;
+    activeContext.visibleColumns = visibleColumns;
+    activeContext.visibleRowSet = visibleRowSet;
+    activeContext.sortState = sortState;
+    activeContext.undoStack = undoStack;
+    activeContext.redoStack = redoStack;
+    activeContext.isTransposed = isTransposed;
+    activeContext.searchText = searchEl.value || "";
+    activeContext.firstNameKey = firstNameKey;
+    activeContext.lastNameKey = lastNameKey;
+    activeContext.studentNameColumn = studentNameColumn;
+    activeContext.studentNameWarning = studentNameWarning;
+    activeContext.commentConfig = {
+      ...commentConfig,
+      extraColumns: [...(commentConfig.extraColumns || [])]
+    };
+  }
+  function highlightActiveFile(){
+    Array.from(filesList.querySelectorAll('.file-item')).forEach(el => {
+      el.classList.toggle('active', activeContext && Number(el.dataset.id) === activeContext.id);
+    });
+    renderWarning(activeContext?.studentNameWarning || '');
+  }
+  function updateFilesUI(){
+    fileCountEl.textContent = String(fileContexts.length);
+    filesList.innerHTML = "";
+    fileContexts.forEach(ctx => {
+      const item = document.createElement('div');
+      item.className = 'file-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
+      item.dataset.id = ctx.id;
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = ctx.name;
+      const metaSpan = document.createElement('small');
+      metaSpan.className = 'muted';
+      metaSpan.textContent = `${ctx.rows.length}r x ${ctx.allColumns.length}c`;
+      row.appendChild(nameSpan);
+      row.appendChild(metaSpan);
+      item.appendChild(row);
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.gap = '4px';
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'btn';
+      renameBtn.textContent = 'Rename';
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openRenameModal(ctx);
+      });
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn warn';
+      removeBtn.textContent = 'X';
+      removeBtn.title = 'Remove file from session';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeContext(ctx.id);
+      });
+      actions.appendChild(renameBtn);
+      actions.appendChild(removeBtn);
+      item.appendChild(actions);
+      filesList.appendChild(item);
+    });
+    highlightActiveFile();
+    syncPrintClassSelection();
+    renderPrintClassList();
+    if (printPreviewModal && printPreviewModal.style.display === 'flex'){
+      renderPrintPreview();
+    }
+  }
+  function syncVisibleOrder(){
+    const set = new Set(visibleColumns);
+    visibleColumns = columnOrder.filter(c => set.has(c));
+  }
+  function applyStoredColumnOrder(order){
+    if (!Array.isArray(order)) return;
+    const seen = new Set();
+    const next = [];
+    order.forEach(c => {
+      if (allColumns.includes(c) && !seen.has(c)){
+        seen.add(c);
+        next.push(c);
+      }
+    });
+    allColumns.forEach(c => {
+      if (!seen.has(c)){
+        seen.add(c);
+        next.push(c);
+      }
+    });
+    columnOrder = next;
+  }
+  function reorderColumns(source, target){
+    const before = columnOrder.slice();
+    const srcIdx = columnOrder.indexOf(source);
+    const tgtIdx = columnOrder.indexOf(target);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+    if (srcIdx < tgtIdx && srcIdx === tgtIdx - 1) return;
+    const [moved] = columnOrder.splice(srcIdx, 1);
+    const insertIdx = srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx;
+    columnOrder.splice(insertIdx, 0, moved);
+    syncVisibleOrder();
+    pushUndo({type:'reorderColumns', beforeOrder: before, afterOrder: columnOrder.slice()});
+    saveSettings({ columnOrder });
+    rebuildColsUI();
+    rebuildRowsUI();
+    render();
+  }
+  function moveColumnToEnd(col){
+    const before = columnOrder.slice();
+    const idx = columnOrder.indexOf(col);
+    if (idx === -1 || idx === columnOrder.length - 1) return;
+    const [moved] = columnOrder.splice(idx, 1);
+    columnOrder.push(moved);
+    syncVisibleOrder();
+    pushUndo({type:'reorderColumns', beforeOrder: before, afterOrder: columnOrder.slice()});
+    saveSettings({ columnOrder });
+    rebuildColsUI();
+    render();
+    renderWarning(studentNameWarning || '');
+  }
+
+  function render(){
+    enforceEndOfLineColumn();
+    filterRows(searchEl.value);
+    applySort();
+    thead.innerHTML = "";
+    if (isTransposed){
+      renderTransposedHeader();
+      renderBodyTransposed();
+    }else{
+      renderNormalHeader();
+      renderBody();
+    }
+    syncActiveContext();
+    updateMeta();
+    updateFilesUI();
+    adjustTableSize();
+    if (commentsModal && commentsModal.style.display === 'flex'){
+      buildCommentExtrasList();
+      refreshCommentsPreview();
+    }
+  }
+
+  function renderNormalHeader(){
+    const tr = document.createElement('tr');
+    visibleColumns.forEach(c => {
+      const th = document.createElement('th');
+      th.textContent = c;
+      th.addEventListener('click', () => cycleSort(c, th));
+      if (sortState.key === c) th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : sortState.dir === 'desc' ? 'sort-desc' : '');
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+  }
+
+  function renderBody(){
+    tbody.innerHTML = "";
+    filteredIdx.forEach((i, rowPos) => {
+      const r = rows[i];
+      const tr = document.createElement('tr');
+      tr.dataset.rowIndex = i;
+      visibleColumns.forEach((c, colPos) => {
+        const td = document.createElement('td');
+        const isStudent = studentNameColumn && c === studentNameColumn;
+        const isEndIndicator = (c === END_OF_LINE_COL);
+    td.dataset.col = c;
+    td.contentEditable = (isStudent || isEndIndicator) ? "false" : "true";
+    if (isStudent || isEndIndicator) td.classList.add('readonly');
+        td.dataset.rpos = String(rowPos);
+        td.dataset.cpos = String(colPos);
+        if (!isEndIndicator){
+          td.addEventListener('focus', () => { td.dataset.old = td.textContent; });
+          td.addEventListener('blur', () => {
+            const oldVal = td.dataset.old ?? "";
+            const newVal = td.textContent;
+            if (oldVal !== newVal) {
+              const normalized = normalizeMarkInput(newVal, c);
+              pushUndo({type:'editCell', rowIndex:i, col:c, before:oldVal, after:newVal});
+              rows[i][c] = normalized;
+              if (!isStudent && isNameColumn(c)) refreshStudentNameForRow(i);
+              if (!isStudent){
+                const meta = applyMarkStyling(td, normalized, c);
+                td.textContent = meta ? formatMarkText(meta, normalized) : normalized ?? '';
+              }
+              handleColumnDataMutation(c);
+            }
+          });
+          td.addEventListener('keydown', handleCellNav);
+        }
+        if (isEndIndicator){
+          td.textContent = END_OF_LINE_VALUE;
+        }else{
+          const meta = (!isStudent) ? applyMarkStyling(td, r[c], c) : null;
+          td.textContent = meta ? formatMarkText(meta, r[c]) : (r[c] ?? "");
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    updateCounts();
+    autoFit();
+  }
+
+  function renderTransposedHeader(){
+    const tr = document.createElement('tr');
+    const corner = document.createElement('th');
+    corner.textContent = 'Field';
+    corner.className = 'corner-header no-sort';
+    tr.appendChild(corner);
+    if (!filteredIdx.length){
+      const th = document.createElement('th');
+      th.textContent = 'No rows match filter';
+      th.classList.add('no-sort', 'muted');
+      tr.appendChild(th);
+    }else{
+      for (const idx of filteredIdx){
+        const th = document.createElement('th');
+        th.textContent = getRowLabel(idx);
+        th.classList.add('no-sort');
+        tr.appendChild(th);
+      }
+    }
+    thead.appendChild(tr);
+  }
+
+  function renderBodyTransposed(){
+    tbody.innerHTML = "";
+    visibleColumns.forEach((col, rowPos) => {
+      const tr = document.createElement('tr');
+      tr.dataset.columnKey = col;
+      const rowHeader = document.createElement('th');
+      rowHeader.textContent = col;
+      rowHeader.className = 'row-header no-sort';
+      tr.appendChild(rowHeader);
+      filteredIdx.forEach((idx, colPos) => {
+        const td = document.createElement('td');
+        const isStudent = studentNameColumn && col === studentNameColumn;
+        const isEndIndicator = (col === END_OF_LINE_COL);
+        td.dataset.col = col;
+        td.dataset.rowIndex = String(idx);
+        td.contentEditable = (isStudent || isEndIndicator) ? "false" : "true";
+        if (isStudent || isEndIndicator) td.classList.add('readonly');
+        td.dataset.rpos = String(rowPos);
+        td.dataset.cpos = String(colPos);
+        if (!isEndIndicator){
+          td.addEventListener('focus', () => { td.dataset.old = td.textContent; });
+          td.addEventListener('blur', () => {
+            const oldVal = td.dataset.old ?? "";
+            const newVal = td.textContent;
+            if (oldVal !== newVal) {
+              const normalized = normalizeMarkInput(newVal, col);
+              pushUndo({type:'editCell', rowIndex:idx, col, before:oldVal, after:newVal});
+              rows[idx] = rows[idx] || {};
+              rows[idx][col] = normalized;
+              if (!isStudent && isNameColumn(col)) refreshStudentNameForRow(idx);
+              if (!isStudent){
+                const meta = applyMarkStyling(td, normalized, col);
+                td.textContent = meta ? formatMarkText(meta, normalized) : normalized ?? '';
+              }
+              handleColumnDataMutation(col);
+            }
+          });
+          td.addEventListener('keydown', handleCellNav);
+        }
+        if (isEndIndicator){
+          td.textContent = END_OF_LINE_VALUE;
+        }else{
+          const meta = (!isStudent) ? applyMarkStyling(td, rows[idx]?.[col], col) : null;
+          td.textContent = meta ? formatMarkText(meta, rows[idx]?.[col]) : (rows[idx]?.[col] ?? "");
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    updateCounts();
+  }
+
+  function updateCounts(){
+    if (isTransposed){
+      countsEl.textContent = `${visibleColumns.length} columns x ${filteredIdx.length} rows`;
+    }else{
+      countsEl.textContent = `${filteredIdx.length} / ${rows.length} rows`;
+    }
+  }
+
+  function getRowLabel(idx){
+    if (studentNameColumn){
+      const name = rows[idx]?.[studentNameColumn];
+      if (name) return name;
+    }
+    const key = columnOrder[0];
+    const raw = key ? rows[idx]?.[key] : null;
+    const text = raw != null && String(raw).trim() ? String(raw) : `Row ${idx + 1}`;
+    return text;
+  }
+  function handleCellNav(e){
+    if (e.key !== 'Enter' && e.key !== 'Tab') return;
+    const td = e.currentTarget;
+    const rowPos = Number(td.dataset.rpos);
+    const colPos = Number(td.dataset.cpos);
+    if (Number.isNaN(rowPos) || Number.isNaN(colPos)) return;
+    const maxRows = isTransposed ? visibleColumns.length : filteredIdx.length;
+    const maxCols = isTransposed ? filteredIdx.length : visibleColumns.length;
+    let targetRow = rowPos;
+    let targetCol = colPos;
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      if (e.shiftKey){
+        if (rowPos > 0) targetRow = rowPos - 1;
+      }else{
+        if (rowPos < maxRows - 1) targetRow = rowPos + 1;
+      }
+    }else if (e.key === 'Tab'){
+      e.preventDefault();
+      if (e.shiftKey){
+        if (colPos > 0){
+          targetCol = colPos - 1;
+        }else if (rowPos > 0){
+          targetRow = rowPos - 1;
+          targetCol = maxCols - 1;
+        }
+      }else{
+        if (colPos < maxCols - 1){
+          targetCol = colPos + 1;
+        }else if (rowPos < maxRows - 1){
+          targetRow = rowPos + 1;
+          targetCol = 0;
+        }
+      }
+    }
+    if (targetRow === rowPos && targetCol === colPos) return;
+    focusCell(targetRow, targetCol);
+  }
+  function focusCell(rowPos, colPos){
+    const cell = tbody.querySelector(`td[data-rpos="${rowPos}"][data-cpos="${colPos}"]`);
+    if (!cell) return;
+    cell.focus();
+    document.getSelection()?.selectAllChildren(cell);
+  }
+  function buildViewMatrix(options = {}){
+    const useTransposed = (typeof options.forceTransposed === 'boolean') ? options.forceTransposed : isTransposed;
+    if (useTransposed){
+      const headerRow = ['Field', ...filteredIdx.map(getRowLabel)];
+      const body = visibleColumns.map(col => {
+        const row = [col];
+        for (const idx of filteredIdx){
+          row.push(rows[idx]?.[col] ?? "");
+        }
+        return row;
+      });
+      return [headerRow, ...body];
+    }
+    const header = [...visibleColumns];
+    const body = filteredIdx.map(i => visibleColumns.map(c => rows[i]?.[c] ?? ""));
+    return [header, ...body];
+  }
+  function getTermWeekRange(term){
+    if (term === 'T2') return { start:14, end:26 };
+    if (term === 'T3') return { start:27, end:39 };
+    return { start:1, end:13 };
+  }
+  function detectLessonTerm(label){
+    if (!label) return null;
+    const text = String(label).toUpperCase();
+    const match = text.match(/L\s*(\d+)/);
+    if (!match) return null;
+    const num = Number(match[1]);
+    if (Number.isNaN(num)) return null;
+    if (num >= 1 && num <= 13) return { term:'T1', number:num };
+    if (num >= 14 && num <= 26) return { term:'T2', number:num };
+    if (num >= 27 && num <= 39) return { term:'T3', number:num };
+    return { term:'T1', number:num };
+  }
+  function getTermLabel(term){
+    if (term === 'T2') return 'Term 2';
+    if (term === 'T3') return 'Term 3';
+    return 'Term 1';
+  }
+  function buildTemplateColumns(ctx, templateId){
+    const base = [
+      { id:'index', label:'#', className:'index-col' },
+      { id:'name', label:'Student Name', className:'student-name-col' }
+    ];
+    if (templateId === 'attendance'){
+      const range = getTermWeekRange(printMeta.term || 'T1');
+      for (let week = range.start; week <= range.end; week++){
+        base.push({ id:`w${week}`, label:`Week ${week}` });
+      }
+    }else if (templateId === 'drill'){
+      for (let i = 1; i <= 10; i += 2){
+        base.push({ id:`drill${i}`, label:`Drill ${i}` });
+      }
+    }else if (templateId === 'marking'){
+      const source = Array.isArray(ctx?.columnOrder) && ctx.columnOrder.length
+        ? ctx.columnOrder
+        : Array.isArray(ctx?.allColumns) ? ctx.allColumns : [];
+      const seen = new Set();
+      source.forEach((colName, idx) => {
+        const label = String(colName || '').trim();
+        const termData = detectLessonTerm(label);
+        if (!termData) return;
+        const key = `${termData.term}:${termData.number}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        base.push({
+          id:`lesson-${termData.term}-${termData.number}-${idx}`,
+          label,
+          term: termData.term,
+          lessonNumber: termData.number
+        });
+      });
+      if (printMeta.term){
+        const termValue = printMeta.term.toUpperCase();
+        const allowed = base.filter(col => col.term === termValue);
+        if (allowed.length) {
+          return base.filter(col => col.id === 'index' || col.id === 'name' || col.term === termValue);
+        }
+      }
+    }
+    return base;
+  }
+  function getContextDisplayName(ctx){
+    if (!ctx) return '__________';
+    return ctx.name || '__________';
+  }
+  function deriveContextStudentName(ctx, row, displayIndex){
+    if (!ctx || !row) return `Student ${displayIndex + 1}`;
+    if (ctx.studentNameColumn){
+      const text = String(row[ctx.studentNameColumn] ?? '').trim();
+      if (text) return text;
+    }
+    const firstKey = ctx.firstNameKey;
+    const lastKey = ctx.lastNameKey;
+    const first = firstKey ? String(row[firstKey] ?? '').trim() : '';
+    const last = lastKey ? String(row[lastKey] ?? '').trim() : '';
+    const combined = `${first} ${last}`.trim();
+    if (combined) return combined;
+    const fallbackKey = ctx.columnOrder?.[0];
+    if (fallbackKey){
+      const fallback = String(row[fallbackKey] ?? '').trim();
+      if (fallback) return fallback;
+    }
+    return `Student ${displayIndex + 1}`;
+  }
+  function buildPrintRowOrder(ctx){
+    if (!ctx || !Array.isArray(ctx.rows) || !ctx.rows.length) return [];
+    const total = ctx.rows.length;
+    const visibleSet = (ctx.visibleRowSet instanceof Set && ctx.visibleRowSet.size)
+      ? ctx.visibleRowSet
+      : new Set(Array.from({ length: total }, (_, i) => i));
+    const q = (ctx.searchText || '').toLowerCase().trim();
+    const searchColumns = (Array.isArray(ctx.visibleColumns) && ctx.visibleColumns.length
+      ? ctx.visibleColumns
+      : Array.isArray(ctx.columnOrder) && ctx.columnOrder.length
+        ? ctx.columnOrder
+        : ctx.allColumns || []);
+    const order = [];
+    for (let i = 0; i < total; i++){
+      if (!visibleSet.has(i)) continue;
+      if (!q){
+        order.push(i);
+        continue;
+      }
+      const row = ctx.rows[i] || {};
+      const hit = searchColumns.some(col => String(row?.[col] ?? '').toLowerCase().includes(q));
+      if (hit) order.push(i);
+    }
+    const state = ctx.sortState || {};
+    if (state.key && state.dir){
+      const key = state.key;
+      const dir = state.dir;
+      order.sort((a,b) => {
+        const va = ctx.rows[a]?.[key];
+        const vb = ctx.rows[b]?.[key];
+        if (va == null && vb == null) return 0;
+        if (va == null) return dir === 'asc' ? -1 : 1;
+        if (vb == null) return dir === 'asc' ? 1 : -1;
+        const na = Number(va);
+        const nb = Number(vb);
+        const bothNum = !Number.isNaN(na) && !Number.isNaN(nb);
+        const cmp = bothNum ? (na - nb) : String(va).localeCompare(String(vb));
+        return dir === 'asc' ? cmp : -cmp;
+      });
+    }
+    return order;
+  }
+  function getContextRowsForPrint(ctx){
+    if (!ctx || !Array.isArray(ctx.rows)) return [];
+    const order = buildPrintRowOrder(ctx);
+    const rowsForPrint = order.map((rowIdx, displayIndex) => {
+      const row = ctx.rows[rowIdx] || {};
+      const name = deriveContextStudentName(ctx, row, displayIndex);
+      return { rowIdx, name };
+    });
+    for (let i = 0; i < PRINT_EXTRA_BLANK_ROWS; i++){
+      rowsForPrint.push({ rowIdx: null, name: '' });
+    }
+    return rowsForPrint;
+  }
+  function createPrintEmptyState(message){
+    const wrap = document.createElement('div');
+    wrap.className = 'print-preview-empty';
+    wrap.textContent = message;
+    return wrap;
+  }
+  function getSelectedPrintTemplates(){
+    if (!selectedTemplateIds.size){
+      // default to attendance if nothing chosen
+      selectedTemplateIds.add('attendance');
+      printTemplateInputs.forEach(input => {
+        if (input.value === 'attendance') input.checked = true;
+      });
+    }
+    return Array.from(selectedTemplateIds);
+  }
+  function getSelectedPrintContexts(){
+    const valid = new Map(fileContexts.map(ctx => [ctx.id, ctx]));
+    const contexts = [];
+    selectedClassIds.forEach(id => {
+      if (valid.has(id)) contexts.push(valid.get(id));
+    });
+    if (!contexts.length && activeContext){
+      contexts.push(activeContext);
+      selectedClassIds.add(activeContext.id);
+    }
+    return contexts;
+  }
+  function renderTemplatePage(ctx, templateId){
+    const columns = buildTemplateColumns(ctx, templateId);
+    if (!columns.length) return null;
+    const students = getContextRowsForPrint(ctx);
+    const longestNameLength = students.reduce((max, entry) => {
+      const len = (entry.name || '').length;
+      return len > max ? len : max;
+    }, 0);
+    const nameColumnWidth = Math.min(520, Math.max(180, longestNameLength * 9 + 40));
+    const teacherName = (printMeta.teacher || '').trim() || '__________';
+    const classDisplay = (printMeta.classInfo || '').trim() || getContextDisplayName(ctx);
+    const termLabel = getTermLabel(printMeta.term);
+    const templateLabel = PRINT_TEMPLATE_DEFS[templateId]?.label || 'Template';
+
+    const page = document.createElement('div');
+    page.className = 'class-template-page';
+
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    const title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = templateLabel;
+    header.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'page-meta';
+    const pieces = [`Class: ${classDisplay}`, `Teacher: ${teacherName}`];
+    if (printMeta.title){
+      pieces.push(printMeta.title);
+    }
+    meta.textContent = pieces.join('   ');
+    header.appendChild(meta);
+    page.appendChild(header);
+
+    if (templateId === 'drill'){
+      const drillNote = document.createElement('div');
+      drillNote.className = 'drill-note';
+      drillNote.innerHTML = `<strong>Drill Type(s):</strong> _______________________________`;
+      page.appendChild(drillNote);
+    }
+
+    const table = document.createElement('table');
+    table.className = 'template-table';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    columns.forEach(col => {
+      const th = document.createElement('th');
+      th.textContent = col.label;
+      if (col.className) th.classList.add(col.className);
+      if (col.id === 'name'){
+        th.style.minWidth = `${nameColumnWidth}px`;
+        th.style.width = `${nameColumnWidth}px`;
+      }
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    if (!students.length){
+      const emptyRow = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = columns.length;
+      cell.textContent = 'No students available.';
+      emptyRow.appendChild(cell);
+      tbody.appendChild(emptyRow);
+    }else{
+      students.forEach((entry, idx) => {
+        const tr = document.createElement('tr');
+        columns.forEach(col => {
+          const td = document.createElement('td');
+          if (col.id === 'index'){
+            td.textContent = String(idx + 1);
+          }else if (col.id === 'name'){
+            td.textContent = entry.name || '';
+            td.classList.add('student-name-cell');
+            td.style.minWidth = `${nameColumnWidth}px`;
+            td.style.width = `${nameColumnWidth}px`;
+          }else{
+            td.innerHTML = '&nbsp;';
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+    table.appendChild(tbody);
+    page.appendChild(table);
+
+    const footer = document.createElement('div');
+    footer.className = 'page-footer';
+    footer.innerHTML = `<span>Teacher: ${teacherName}</span><span>Class: ${classDisplay}</span><span>${termLabel}</span>`;
+    page.appendChild(footer);
+    return page;
+  }
+  function renderPrintPreview(){
+    if (!printPreviewContent) return;
+    printPreviewContent.innerHTML = "";
+    const contexts = getSelectedPrintContexts();
+    if (!contexts.length){
+      printPreviewContent.appendChild(createPrintEmptyState('Select at least one roster to print.'));
+      return;
+    }
+    const templates = getSelectedPrintTemplates();
+    if (!templates.length){
+      printPreviewContent.appendChild(createPrintEmptyState('Select at least one template.'));
+      return;
+    }
+    const stack = document.createElement('div');
+    stack.className = 'template-page-stack';
+    contexts.forEach(ctx => {
+      templates.forEach(templateId => {
+        const page = renderTemplatePage(ctx, templateId);
+        if (page) stack.appendChild(page);
+      });
+    });
+    if (!stack.children.length){
+      stack.appendChild(createPrintEmptyState('No students available to print.'));
+    }
+    printPreviewContent.appendChild(stack);
+  }
+  function syncPrintClassSelection(){
+    const validIds = new Set(fileContexts.map(ctx => ctx.id));
+    selectedClassIds = new Set([...selectedClassIds].filter(id => validIds.has(id)));
+    if (!selectedClassIds.size){
+      if (activeContext){
+        selectedClassIds.add(activeContext.id);
+      }else if (fileContexts.length){
+        selectedClassIds.add(fileContexts[0].id);
+      }
+    }
+  }
+  function handlePrintClassSelection(id, checked){
+    if (checked){
+      selectedClassIds.add(id);
+    }else{
+      selectedClassIds.delete(id);
+    }
+    if (!selectedClassIds.size && activeContext){
+      selectedClassIds.add(activeContext.id);
+    }
+    renderPrintPreview();
+  }
+  function renderPrintClassList(){
+    if (!printClassList) return;
+    syncPrintClassSelection();
+    printClassList.innerHTML = "";
+    if (!fileContexts.length){
+      const msg = document.createElement('div');
+      msg.className = 'muted';
+      msg.style.fontSize = '12px';
+      msg.textContent = 'Load files to enable printing.';
+      printClassList.appendChild(msg);
+      return;
+    }
+    fileContexts.forEach(ctx => {
+      const label = document.createElement('label');
+      label.className = 'print-class-option';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = String(ctx.id);
+      checkbox.checked = selectedClassIds.has(ctx.id);
+      checkbox.addEventListener('change', () => handlePrintClassSelection(ctx.id, checkbox.checked));
+      const name = document.createElement('span');
+      name.textContent = ctx.name;
+      const meta = document.createElement('small');
+      meta.textContent = `${ctx.rows.length} students`;
+      label.appendChild(checkbox);
+      label.appendChild(name);
+      label.appendChild(meta);
+      printClassList.appendChild(label);
+    });
+  }
+  function setDataActionButtonsDisabled(disabled){
+    [exportCsv, exportXlsx, resetBtn, printViewBtn].forEach(btn => {
+      if (btn) btn.disabled = disabled;
+    });
+  }
+  function updateTransposeButton(){
+    transposeBtn.textContent = `Transpose: ${isTransposed ? 'ON' : 'OFF'}`;
+    transposeBtn.classList.toggle('active', isTransposed);
+    document.body.classList.toggle('is-transposed', isTransposed);
+    if (transposeStatusChip){
+      transposeStatusChip.classList.toggle('show', isTransposed);
+    }
+    if (transposeBanner){
+      transposeBanner.classList.toggle('show', isTransposed);
+    }
+  }
+  function setWrapHeaders(enabled, persist = true){
+    wrapHeadersEnabled = !!enabled;
+    document.body.classList.toggle('wrap-headers', wrapHeadersEnabled);
+    if (wrapHeadersToggle) wrapHeadersToggle.checked = wrapHeadersEnabled;
+    if (persist) saveSettings({ wrapHeaders: wrapHeadersEnabled });
+  }
+  function setDarkMode(enabled, persist = true){
+    darkModeEnabled = !!enabled;
+    document.body.classList.toggle('dark-mode', darkModeEnabled);
+    if (darkModeBtn){
+      darkModeBtn.textContent = `Dark: ${darkModeEnabled ? 'ON' : 'OFF'}`;
+      darkModeBtn.classList.toggle('active', darkModeEnabled);
+    }
+    if (persist) saveSettings({ darkMode: darkModeEnabled });
+  }
+  function setZoom(level, persist = true){
+    let next = Number(level);
+    if (Number.isNaN(next)) next = 1;
+    next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    zoomLevel = next;
+    document.documentElement.style.setProperty('--zoom-factor', zoomLevel);
+    if (zoomInBtn) zoomInBtn.disabled = zoomLevel >= MAX_ZOOM - 0.001;
+    if (zoomOutBtn) zoomOutBtn.disabled = zoomLevel <= MIN_ZOOM + 0.001;
+    if (persist) saveSettings({ zoom: zoomLevel });
+  }
+  function setupStudentNameColumn(){
+    firstNameKey = null;
+    lastNameKey = null;
+    studentNameColumn = null;
+    studentNameWarning = '';
+    if (!rows.length){
+      return;
+    }
+    const findByName = (label) => allColumns.find(c => normalizeHeader(c) === label) || null;
+    firstNameKey = findByName('first name');
+    lastNameKey = findByName('last name');
+    if (!firstNameKey || !lastNameKey){
+      const label = currentFileName ? ` in ${currentFileName}` : '';
+      studentNameWarning = `Missing "First Name" and "Last Name" columns${label}.`;
+      return;
+    }
+    studentNameColumn = STUDENT_NAME_LABEL;
+    const prioritizeStudentColumn = (list) => {
+      const base = Array.isArray(list) ? list.filter(c => c !== studentNameColumn) : [];
+      base.unshift(studentNameColumn);
+      return base;
+    };
+    allColumns = prioritizeStudentColumn(allColumns);
+    columnOrder = prioritizeStudentColumn(columnOrder);
+    addStudentNames(rows);
+    addStudentNames(originalRows);
+    if (!visibleColumns.includes(studentNameColumn)){
+      visibleColumns = prioritizeStudentColumn(visibleColumns);
+      saveSettings({ visibleColumns });
+    }else{
+      visibleColumns = prioritizeStudentColumn(visibleColumns);
+    }
+    syncVisibleOrder();
+  }
+  function applyDefaultStudentSort(){
+    if (!rows.length) return;
+    if (!studentNameColumn) return;
+    sortState = { key: studentNameColumn, dir: 'asc' };
+    saveSettings({ sortState });
+  }
+  function updateMeta(){
+    if (!activeContext){
+      metaEl.textContent = 'No file loaded';
+      return;
+    }
+    metaEl.textContent = `${activeContext.name} - ${rows.length} rows, ${allColumns.length} columns`;
+  }
+
+  // ==== Sorting ====
+  function cycleSort(col, th){
+    const prev = {...sortState};
+    // cycle: null -> asc -> desc -> null
+    if (sortState.key !== col){ sortState = {key:col, dir:'asc'}; }
+    else if (sortState.dir === 'asc'){ sortState.dir = 'desc'; }
+    else if (sortState.dir === 'desc'){ sortState = {key:null, dir:null}; }
+    else { sortState = {key:col, dir:'asc'}; }
+    pushUndo({type:'sort', before:prev, after:{...sortState}});
+    saveSettings({ sortState });
+    applySort();
+    render(); // re-draw header arrows
+  }
+  function applySort(){
+    if (!sortState.key || !sortState.dir) return;
+    const key = sortState.key, dir = sortState.dir;
+    filteredIdx.sort((a,b) => {
+      const va = rows[a]?.[key]; const vb = rows[b]?.[key];
+      if (va == null && vb == null) return 0;
+      if (va == null) return dir==='asc'? -1 : 1;
+      if (vb == null) return dir==='asc'? 1 : -1;
+      const na = Number(va), nb = Number(vb);
+      const bothNum = !Number.isNaN(na) && !Number.isNaN(nb);
+      const cmp = bothNum ? (na - nb) : String(va).localeCompare(String(vb));
+      return dir==='asc' ? cmp : -cmp;
+    });
+  }
+
+  // ==== Filtering ====
+  searchEl.addEventListener('input', () => {
+    const prev = loadSettings().lastSearch || "";
+    const next = searchEl.value;
+    pushUndo({type:'search', beforeText: prev, afterText: next});
+    saveSettings({ lastSearch: next });
+    if (activeContext) activeContext.searchText = next;
+    render();
+  });
+  function filterRows(query){
+    const q = (query || "").toLowerCase().trim();
+    filteredIdx = [];
+    const activeSet = visibleRowSet instanceof Set ? visibleRowSet : new Set(Array.from(rows.keys()));
+    if (!activeSet.size) return; // all rows hidden
+    for (let i = 0; i < rows.length; i++) {
+      if (!activeSet.has(i)) continue;
+      if (!q) { filteredIdx.push(i); continue; }
+      const r = rows[i];
+      const hit = visibleColumns.some(c => String(r[c] ?? "").toLowerCase().includes(q));
+      if (hit) filteredIdx.push(i);
+    }
+  }
+
+  // ==== Auto-fit widths ====
+  function autoFit(){
+    if (isTransposed) return;
+    const maxChars = 30;
+    const headerCells = thead.querySelectorAll('th');
+    const widths = visibleColumns.map(c => Math.min(maxChars, Math.max(6, String(c).length)) * 9 + 18);
+    const sample = Math.min(filteredIdx.length, 300);
+    for (let r = 0; r < sample; r++) {
+      const obj = rows[filteredIdx[r]];
+      visibleColumns.forEach((c, i) => {
+        const w = Math.min(maxChars, String(obj[c] ?? '').length) * 9 + 18;
+        widths[i] = Math.max(widths[i], w);
+      });
+    }
+    headerCells.forEach((th, i) => th.style.width = widths[i] + 'px');
+    const firstRow = tbody.querySelector('tr');
+    if (firstRow) {
+      firstRow.querySelectorAll('td').forEach((td, i) => td.style.width = widths[i] + 'px');
+    }
+  }
+
+  function adjustTableSize(){
+    if (!tableWrapper || !table) return;
+    if (isTransposed){
+      table.style.tableLayout = 'auto';
+      const minWidth = Math.max(filteredIdx.length, 1) * 160 + 220;
+      table.style.minWidth = `${minWidth}px`;
+      table.style.width = `${minWidth}px`;
+      tableWrapper.style.overflowX = 'auto';
+    }else{
+      table.style.tableLayout = 'fixed';
+      table.style.minWidth = '';
+      table.style.width = '100%';
+      tableWrapper.style.overflowX = 'auto';
+    }
+  }
+
+  // ==== Export / Reset ====
+  selectAllColsBtn.addEventListener('click', () => {
+    const before = [...visibleColumns];
+    visibleColumns = columnOrder.slice();
+    pushUndo({type:'setVisibleColumns', before, after:[...visibleColumns]});
+    saveSettings({ visibleColumns });
+    rebuildColsUI();
+    render();
+  });
+  clearAllColsBtn.addEventListener('click', () => {
+    const before = [...visibleColumns];
+    visibleColumns = [];
+    pushUndo({type:'setVisibleColumns', before, after:[...visibleColumns]});
+    saveSettings({ visibleColumns });
+    rebuildColsUI();
+    render();
+  });
+  if (termBtn1) termBtn1.addEventListener('click', () => selectLessonRange(1, 13));
+  if (termBtn2) termBtn2.addEventListener('click', () => selectLessonRange(14, 26));
+  if (termBtn3) termBtn3.addEventListener('click', () => selectLessonRange(27, 39));
+  selectAllRowsBtn.addEventListener('click', () => {
+    setAllRowsVisible(true);
+    performanceFilterLevel = null;
+    updatePerformanceFilterButtons();
+    updateRowFilterStatus('');
+  });
+  clearRowsBtn.addEventListener('click', () => {
+    if (!(visibleRowSet instanceof Set)) return;
+    const before = getVisibleRowList();
+    visibleRowSet.clear();
+    const after = getVisibleRowList();
+    if (!arraysEqual(before, after)){
+      pushUndo({type:'setVisibleRows', beforeRows: before, afterRows: after});
+    }
+    persistRowVisibility();
+    rebuildRowsUI();
+    render();
+    performanceFilterLevel = null;
+    updatePerformanceFilterButtons();
+    updateRowFilterStatus('');
+  });
+  filesList.addEventListener('click', (e) => {
+    const item = e.target.closest('.file-item');
+    if (!item) return;
+    const id = Number(item.dataset.id);
+    if (Number.isNaN(id)) return;
+    setActiveContext(id);
+  });
+
+  exportCsv.onclick = () => {
+    const matrix = buildViewMatrix();
+    const csv = Papa.unparse(matrix);
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const safe = (currentFileName || 'visible_export').replace(/[\\/:*?"<>|]+/g, '_');
+    a.download = `${safe}.csv`;
+    a.click();
+  };
+  exportXlsx.onclick = () => {
+    const arr = buildViewMatrix();
+    const ws = XLSX.utils.aoa_to_sheet(arr);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "data");
+    const safe = (currentFileName || 'visible_export').replace(/[\\/:*?"<>|]+/g, '_');
+    XLSX.writeFile(wb, `${safe}.xlsx`);
+  };
+  resetBtn.onclick = () => {
+    const before = deepClone(rows);
+    rows = deepClone(originalRows);
+    filteredIdx = Array.from(rows.keys());
+    pushUndo({type:'replaceRows', before, after: deepClone(rows)});
+    searchEl.value = ""; saveSettings({ lastSearch: "" });
+    sortState = {key:null, dir:null}; saveSettings({ sortState });
+    const beforeRows = getVisibleRowList();
+    visibleRowSet = new Set(Array.from(rows.keys()));
+    const afterRows = getVisibleRowList();
+    if (!arraysEqual(beforeRows, afterRows)){
+      pushUndo({type:'setVisibleRows', beforeRows, afterRows});
+    }
+    persistRowVisibility();
+    rebuildRowsUI();
+    render();
+    handleColumnDataMutation();
+    resetPerformanceFilterState();
+  };
+  if (printViewBtn){
+    printViewBtn.addEventListener('click', () => {
+      if (!rows.length){
+        updateRowFilterStatus('Load data before printing.');
+        return;
+      }
+      openPrintPreviewModal();
+    });
+  }
+  
+  async function capturePreviewImage() {
+    try {
+      // 1) Ensure we have the elements we expect
+      const src = document.getElementById('printPreviewContent'); // what you see in the modal
+      const dst = document.getElementById('printContainer');      // what gets printed in print mode
+      if (!src || !dst) {
+        console.warn('PRINT: preview or container missing.');
+        return false; // nothing to print
+      }
+
+      // 2) Clear previous content and clone current preview
+      dst.innerHTML = '';
+      const clone = src.cloneNode(true);
+      // Optional: remove scroll constraints that preview uses
+      clone.style.maxHeight = 'none';
+      clone.style.overflow = 'visible';
+
+      // 3) Insert into print container
+      dst.appendChild(clone);
+
+      // 4) If you later *must* render to an image, uncomment the block below:
+      /*
+      if (window.html2canvas) {
+        const canvas = await html2canvas(src, {backgroundColor: '#ffffff', scale: 2});
+        dst.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        img.style.width = '100%';
+        dst.appendChild(img);
+      }
+      */
+
+      return true; // signal success
+    } catch (err) {
+      console.error('PRINT: capturePreviewImage failed', err);
+      return false;
+    }
+  }
+
+
+  async function launchPrintDialog(){
+    const ready = await capturePreviewImage();
+    if (!ready) return;
+    closePrintPreviewModal();
+    document.body.classList.add('printing-preview');
+    try {
+      window.print();
+    } finally {
+      document.body.classList.remove('printing-preview');
+      if (printContainer) printContainer.innerHTML = "";
+    }
+  }
+
+  // ==== Undo/Redo ====
+  function pushUndo(op){
+    undoStack.push(op);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    redoStack.length = 0; // clear redo on new action
+  }
+  function doUndo(){
+    if (!undoStack.length) return;
+    const op = undoStack.pop(); redoStack.push(op);
+    const full = applyInverse(op);
+    if (full) return;
+    render();
+  }
+  function doRedo(){
+    if (!redoStack.length) return;
+    const op = redoStack.pop(); undoStack.push(op);
+    const full = applyForward(op);
+    if (full) return;
+    render();
+  }
+  function applyInverse(op){
+    switch(op.type){
+      case 'editCell':
+        rows[op.rowIndex] = rows[op.rowIndex] || {};
+        rows[op.rowIndex][op.col] = op.before;
+        handleColumnDataMutation(op.col);
+        break;
+      case 'setVisibleColumns':
+        visibleColumns = [...op.before];
+        syncVisibleOrder();
+        rebuildColsUI();
+        saveSettings({ visibleColumns });
+        render();
+        return true;
+      case 'setVisibleRows':
+        setVisibleRowsFromList(op.beforeRows);
+        persistRowVisibility();
+        render();
+        return true;
+      case 'search':
+        searchEl.value = op.beforeText;
+        saveSettings({ lastSearch: op.beforeText });
+        render();
+        return true;
+      case 'sort': sortState = {...op.before}; saveSettings({ sortState }); applySort(); break;
+      case 'replaceRows':
+        rows = deepClone(op.before);
+        filteredIdx = Array.from(rows.keys());
+        handleColumnDataMutation();
+        break;
+      case 'renameHeaders': renameColumns(op.beforeMapping, false, op.applyAll); return true;
+      case 'reorderColumns':
+        columnOrder = [...op.beforeOrder];
+        syncVisibleOrder();
+        rebuildColsUI();
+        saveSettings({ columnOrder });
+        render();
+        return true;
+    }
+    return false;
+  }
+  function applyForward(op){
+    switch(op.type){
+      case 'editCell':
+        rows[op.rowIndex] = rows[op.rowIndex] || {};
+        rows[op.rowIndex][op.col] = op.after;
+        handleColumnDataMutation(op.col);
+        break;
+      case 'setVisibleColumns':
+        visibleColumns = [...op.after];
+        syncVisibleOrder();
+        rebuildColsUI();
+        saveSettings({ visibleColumns });
+        render();
+        return true;
+      case 'setVisibleRows':
+        setVisibleRowsFromList(op.afterRows);
+        persistRowVisibility();
+        render();
+        return true;
+      case 'search':
+        searchEl.value = op.afterText;
+        saveSettings({ lastSearch: op.afterText });
+        render();
+        return true;
+      case 'sort': sortState = {...op.after}; saveSettings({ sortState }); applySort(); break;
+      case 'replaceRows':
+        rows = deepClone(op.after);
+        filteredIdx = Array.from(rows.keys());
+        handleColumnDataMutation();
+        break;
+      case 'renameHeaders': renameColumns(op.afterMapping, false); return true;
+      case 'reorderColumns':
+        columnOrder = [...op.afterOrder];
+        syncVisibleOrder();
+        rebuildColsUI();
+        saveSettings({ columnOrder });
+        render();
+        return true;
+    }
+    return false;
+  }
+
+  // ==== Header Tools (Phase 1.5) ====
+  editHeadersBtn.addEventListener('click', openHeaderModal);
+  [hdrFind,hdrReplace,hdrRmStart,hdrRmEnd,hdrBetweenPre,hdrBetweenSuf,hdrAddPre,hdrAddSuf,hdrCase,hdrTrim,hdrCollapse,hdrLower,hdrInclusive,hdrNormalize]
+    .forEach(el => el.addEventListener('input', refreshHeaderPreview));
+  hdrCancel.addEventListener('click', closeHeaderModal);
+  hdrApply.addEventListener('click', () => {
+    const mapping = computeHeaderMapping();
+    if (!Object.keys(mapping).length){ closeHeaderModal(); return; }
+    const beforeMap = invertMapping(mapping); // reverse mapping for undo
+    pushUndo({type:'renameHeaders', beforeMapping:beforeMap, afterMapping:mapping});
+    renameColumns(mapping, true);
+    closeHeaderModal();
+  });
+
+  function openHeaderModal(){
+    headerCountChip.textContent = `${allColumns.length} headers`;
+    refreshHeaderPreview();
+    modalBackdrop.style.display = 'flex';
+  }
+  function closeHeaderModal(){ modalBackdrop.style.display = 'none'; }
+
+  function computeHeaderMapping(){
+    const rules = {
+      find: hdrFind.value,
+      replace: hdrReplace.value,
+      rmStart: parseInt(hdrRmStart.value || "0", 10),
+      rmEnd: parseInt(hdrRmEnd.value || "0", 10),
+      bPre: hdrBetweenPre.value,
+      bSuf: hdrBetweenSuf.value,
+      inclusive: hdrInclusive.checked,
+      addPre: hdrAddPre.value,
+      addSuf: hdrAddSuf.value,
+      caseIns: hdrCase.checked,
+      trim: hdrTrim.checked,
+      collapse: hdrCollapse.checked,
+      lower: hdrLower.checked,
+      norm: hdrNormalize.value
+    };
+    const map = {};
+    for (const name of allColumns){
+      let out = name;
+
+      // find/replace (supports /regex/ form)
+      if (rules.find){
+        if (rules.find.startsWith('/') && rules.find.lastIndexOf('/') > 0){
+          const last = rules.find.lastIndexOf('/');
+          const pat = rules.find.slice(1, last);
+          const flags = rules.caseIns ? 'i' : '';
+          try{
+            const re = new RegExp(pat, flags);
+            out = out.replace(re, rules.replace);
+          }catch{}
+        }else{
+          const src = rules.caseIns ? new RegExp(escapeRegExp(rules.find), 'ig') : new RegExp(escapeRegExp(rules.find), 'g');
+          out = out.replace(src, rules.replace);
+        }
+      }
+
+      // remove first/last N
+      if (rules.rmStart>0) out = out.slice(rules.rmStart);
+      if (rules.rmEnd>0) out = out.slice(0, Math.max(0, out.length - rules.rmEnd));
+
+      // remove between prefix/suffix
+      if (rules.bPre && rules.bSuf){
+        const preIdx = out.indexOf(rules.bPre);
+        const sufIdx = out.indexOf(rules.bSuf, preIdx + rules.bPre.length);
+        if (preIdx >= 0 && sufIdx > preIdx){
+          if (rules.inclusive) {
+            out = out.slice(0, preIdx) + out.slice(sufIdx + rules.bSuf.length);
+          } else {
+            out = out.slice(0, preIdx + rules.bPre.length) + out.slice(sufIdx);
+          }
+        }
+      }
+
+      // trim / collapse / lower
+      if (rules.trim) out = out.trim();
+      if (rules.collapse) out = out.replace(/\s+/g, '_');
+      if (rules.lower) out = out.toLowerCase();
+
+      // normalize case
+      if (rules.norm === 'snake'){
+        out = out.trim().replace(/\s+/g, '_').replace(/[^\w]/g, '_').replace(/_+/g,'_').replace(/^_+|_+$/g,'').toLowerCase();
+      } else if (rules.norm === 'title'){
+        out = out.replace(/[_\-]+/g,' ').replace(/\s+/g,' ')
+                 .split(' ').map(w => w ? (w[0].toUpperCase() + w.slice(1).toLowerCase()) : '').join(' ').trim();
+      } else if (rules.norm === 'kebab'){
+        out = out.trim().replace(/\s+/g, '-').replace(/[^\w\-]/g,'-').replace(/-+/g,'-').replace(/^-+|-+$/g,'').toLowerCase();
+      }
+
+      // add pre/suf
+      if (rules.addPre) out = rules.addPre + out;
+      if (rules.addSuf) out = out + rules.addSuf;
+
+      if (out !== name) map[name] = out;
+    }
+    return map;
+  }
+
+  function refreshHeaderPreview(){
+    const map = computeHeaderMapping();
+    hdrPreview.innerHTML = "";
+    const keys = allColumns;
+    keys.forEach(k => {
+      const after = map[k] ?? k;
+      const row = document.createElement('div'); row.className = 'preview-row';
+      row.innerHTML = `<span class="chip preview-chip">${escapeHtml(k)}</span> ? <span class="chip preview-chip ${after===k ? '' : 'preview-chip-modified'}">${escapeHtml(after)}</span>`;
+      hdrPreview.appendChild(row);
+    });
+  }
+
+  function renameColumns(mapping, persist, applyAll){
+    if (!Object.keys(mapping).length) return;
+    Object.keys(mapping).forEach(key => {
+      if (key === END_OF_LINE_COL || mapping[key] === END_OF_LINE_COL){
+        delete mapping[key];
+      }
+    });
+    rows = remapRows(rows, mapping);
+    originalRows = remapRows(originalRows, mapping);
+    // remap headers
+    allColumns = allColumns.map(c => mapping[c] || c);
+    visibleColumns = visibleColumns.map(c => mapping[c] || c);
+    columnOrder = columnOrder.map(c => mapping[c] || c);
+    if (firstNameKey) firstNameKey = mapping[firstNameKey] || firstNameKey;
+    if (lastNameKey) lastNameKey = mapping[lastNameKey] || lastNameKey;
+    if (studentNameColumn) studentNameColumn = mapping[studentNameColumn] || studentNameColumn;
+    if (commentConfig && Array.isArray(commentConfig.extraColumns)){
+      commentConfig.extraColumns = commentConfig.extraColumns.map(c => mapping[c] || c);
+    }
+    syncVisibleOrder();
+    const updates = { columnOrder, visibleColumns };
+    saveSettings(updates);
+    if (persist && currentFileName){
+      persistHeaderMapping(currentFileName, mapping);
+    }
+    // re-evaluate student names if needed
+    setupStudentNameColumn();
+    enforceEndOfLineColumn();
+    // Re-render everything
+    rebuildColsUI();
+    render();
+  }
+
+  // ==== Report Comments ====
+  function getDefaultCommentConfig(){
+    return {
+      ...COMMENT_DEFAULTS,
+      extraColumns: [...(COMMENT_DEFAULTS.extraColumns || [])]
+    };
+  }
+function loadCommentConfigForFile(name){
+  const s = loadSettings();
+  const map = s.commentSettings || {};
+  const cfg = (name && map[name]) ? map[name] : {};
+  const merged = {...COMMENT_DEFAULTS, ...cfg};
+  merged.extraColumns = Array.isArray(merged.extraColumns) ? [...merged.extraColumns] : [];
+  if (merged.gradeColumn && !allColumns.includes(merged.gradeColumn)){
+    merged.gradeColumn = "";
+  }
+  return merged;
+}
+  function persistCommentConfig(){
+    if (!currentFileName) return;
+    const s = loadSettings();
+    const all = {...(s.commentSettings || {})};
+    all[currentFileName] = {
+      ...commentConfig,
+      extraColumns: [...(commentConfig.extraColumns || [])]
+    };
+    saveSettings({ commentSettings: all });
+  }
+  function openCommentsModal(){
+    if (!rows.length) return;
+    ensureDefaultCommentGradeColumn();
+    if (commentConfig.gradeColumn && !columnHasPercentValues(commentConfig.gradeColumn)){
+      showMarkWarning('Your marks are not in percent format. Continue anyway?', () => openCommentsModalInternal());
+      return;
+    }
+    openCommentsModalInternal();
+  }
+  function openCommentsModalInternal(){
+    populateCommentGradeOptions();
+    buildCommentExtrasList();
+    applyCommentSettingsToInputs();
+    refreshCommentsPreview();
+    if (commentsModal) commentsModal.style.display = 'flex';
+  }
+  function closeCommentsModal(){
+    if (commentsModal) commentsModal.style.display = 'none';
+  }
+  function populateCommentGradeOptions(){
+    if (!commentGradeSelect) return;
+    ensureDefaultCommentGradeColumn();
+    const selected = commentConfig.gradeColumn || "";
+    commentGradeSelect.innerHTML = '<option value="">Select column...</option>';
+    allColumns.forEach(col => {
+      const option = document.createElement('option');
+      option.value = col;
+      option.textContent = col;
+      if (col === selected) option.selected = true;
+      commentGradeSelect.appendChild(option);
+    });
+  }
+  function buildCommentExtrasList(){
+    if (!commentExtrasList) return;
+    commentExtrasList.innerHTML = "";
+    const dataColumns = allColumns.filter(col => columnHasData(col));
+    if (!dataColumns.length){
+      const msg = document.createElement('div');
+      msg.className = 'muted';
+      msg.textContent = 'Load data with marks to choose columns.';
+      commentExtrasList.appendChild(msg);
+      return;
+    }
+    const extrasSet = new Set((commentConfig.extraColumns || []).filter(col => dataColumns.includes(col)));
+    if (commentConfig.extraColumns && commentConfig.extraColumns.length !== extrasSet.size){
+      commentConfig.extraColumns = Array.from(extrasSet);
+      persistCommentConfig();
+    }
+    dataColumns.forEach(col => {
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = extrasSet.has(col);
+      checkbox.addEventListener('change', () => handleExtraColumnToggle(col, checkbox.checked));
+      const span = document.createElement('span');
+      span.textContent = col;
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      commentExtrasList.appendChild(label);
+    });
+  }
+  function applyCommentSettingsToInputs(){
+    if (!commentGradeSelect) return;
+    ensureDefaultCommentGradeColumn();
+    commentGradeSelect.value = commentConfig.gradeColumn || "";
+    if (commentHighThresholdInput) commentHighThresholdInput.value = commentConfig.highThreshold;
+    if (commentMidThresholdInput) commentMidThresholdInput.value = commentConfig.midThreshold;
+    if (commentHighTemplateInput) commentHighTemplateInput.value = commentConfig.highTemplate;
+    if (commentMidTemplateInput) commentMidTemplateInput.value = commentConfig.midTemplate;
+    if (commentLowTemplateInput) commentLowTemplateInput.value = commentConfig.lowTemplate;
+  }
+  function handleCommentSettingsChange(){
+    if (commentGradeSelect) commentConfig.gradeColumn = commentGradeSelect.value;
+    if (commentHighThresholdInput){
+      commentConfig.highThreshold = clampNumber(commentHighThresholdInput.value, COMMENT_DEFAULTS.highThreshold);
+    }
+    if (commentMidThresholdInput){
+      commentConfig.midThreshold = clampNumber(commentMidThresholdInput.value, COMMENT_DEFAULTS.midThreshold);
+    }
+    ensureCommentThresholds();
+    if (commentHighTemplateInput) commentConfig.highTemplate = commentHighTemplateInput.value || COMMENT_DEFAULTS.highTemplate;
+    if (commentMidTemplateInput) commentConfig.midTemplate = commentMidTemplateInput.value || COMMENT_DEFAULTS.midTemplate;
+    if (commentLowTemplateInput) commentConfig.lowTemplate = commentLowTemplateInput.value || COMMENT_DEFAULTS.lowTemplate;
+    persistCommentConfig();
+    syncActiveContext();
+    refreshCommentsPreview();
+  }
+  function handleExtraColumnToggle(col, checked){
+    if (!col) return;
+    const next = new Set(commentConfig.extraColumns || []);
+    if (checked) next.add(col);
+    else next.delete(col);
+    commentConfig.extraColumns = Array.from(next);
+    persistCommentConfig();
+    syncActiveContext();
+    refreshCommentsPreview();
+  }
+  function ensureDefaultCommentGradeColumn(){
+    if (commentConfig.gradeColumn && allColumns.includes(commentConfig.gradeColumn)) return;
+    let candidate = allColumns.find(c => c === 'Calculated Final Grade');
+    if (!candidate){
+      candidate = allColumns.find(c => isLikelyMarkColumn(c));
+    }
+    if (candidate){
+      commentConfig.gradeColumn = candidate;
+      persistCommentConfig();
+      if (commentGradeSelect) commentGradeSelect.value = candidate;
+    }
+  }
+  function restructureTemplate(kind){
+    const nextTemplate = buildTemplateVariant(kind);
+    if (!nextTemplate) return;
+    switch(kind){
+      case 'high':
+        if (commentHighTemplateInput) commentHighTemplateInput.value = nextTemplate;
+        commentConfig.highTemplate = nextTemplate;
+        break;
+      case 'mid':
+        if (commentMidTemplateInput) commentMidTemplateInput.value = nextTemplate;
+        commentConfig.midTemplate = nextTemplate;
+        break;
+      case 'low':
+        if (commentLowTemplateInput) commentLowTemplateInput.value = nextTemplate;
+        commentConfig.lowTemplate = nextTemplate;
+        break;
+      default:
+        return;
+    }
+    persistCommentConfig();
+    syncActiveContext();
+    refreshCommentsPreview();
+  }
+  function buildTemplateVariant(kind){
+    const pool = TEMPLATE_VARIANTS[kind];
+    if (!pool || !pool.length) return '';
+    if (templateIndices[kind] == null) templateIndices[kind] = 0;
+    const idx = templateIndices[kind] % pool.length;
+    templateIndices[kind] = (idx + 1) % pool.length;
+    const choice = pool[idx];
+    if (!Array.isArray(choice)) return String(choice || '');
+    return choice.join(' ');
+  }
+  function ensureCommentThresholds(){
+    if (commentConfig.highThreshold < commentConfig.midThreshold){
+      commentConfig.highThreshold = commentConfig.midThreshold;
+      if (commentHighThresholdInput) commentHighThresholdInput.value = commentConfig.highThreshold;
+    }
+    commentConfig.highThreshold = clampNumber(commentConfig.highThreshold, COMMENT_DEFAULTS.highThreshold);
+    commentConfig.midThreshold = clampNumber(commentConfig.midThreshold, COMMENT_DEFAULTS.midThreshold);
+  }
+  function clampNumber(value, fallback){
+    const num = Number(value);
+    if (Number.isNaN(num)) return fallback;
+    return Math.min(100, Math.max(0, num));
+  }
+  function refreshCommentsPreview(){
+    if (!commentsPreviewEl) return;
+    generatedComments = [];
+    commentsPreviewEl.innerHTML = "";
+    if (!rows.length){
+      if (commentsStatusEl) commentsStatusEl.textContent = 'No data loaded.';
+      if (commentsCountEl) commentsCountEl.textContent = '0';
+      return;
+    }
+    ensureDefaultCommentGradeColumn();
+    if (!commentConfig.gradeColumn){
+      if (commentsStatusEl) commentsStatusEl.textContent = 'Select a mark column to generate comments.';
+      if (commentsCountEl) commentsCountEl.textContent = '0';
+      return;
+    }
+    const activeSet = visibleRowSet instanceof Set ? visibleRowSet : new Set(Array.from(rows.keys()));
+    const indices = filteredIdx.length ? filteredIdx : Array.from(rows.keys());
+    let missingMarks = 0;
+    indices.forEach(idx => {
+      if (!activeSet.has(idx)) return;
+      const row = rows[idx];
+      const raw = row?.[commentConfig.gradeColumn];
+      const markMeta = deriveMarkMeta(raw, commentConfig.gradeColumn);
+      const markValue = markMeta ? Number(markMeta.raw) : null;
+      if (markValue == null) missingMarks++;
+      const template = selectTemplateForMark(markValue);
+      if (!template) return;
+      const comment = fillTemplateWithRow(template, row, markValue, raw, idx);
+      const name = getRowLabel(idx);
+      generatedComments.push({ name, comment });
+      const card = document.createElement('div');
+      card.className = 'comment-card';
+      const header = document.createElement('header');
+      const title = document.createElement('strong');
+      title.textContent = name;
+      const markBadge = document.createElement('span');
+      markBadge.textContent = markMeta ? `${markMeta.raw} %` : formatMarkDisplay(raw);
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn';
+      copyBtn.style.marginLeft = 'auto';
+      copyBtn.textContent = 'Copy';
+      copyBtn.dataset.copyIndex = String(generatedComments.length - 1);
+      header.appendChild(title);
+      header.appendChild(markBadge);
+      header.appendChild(copyBtn);
+      card.appendChild(header);
+      const textArea = document.createElement('textarea');
+      textArea.value = comment;
+      textArea.dataset.idx = String(idx);
+      textArea.addEventListener('input', () => {
+        generatedComments[idx].comment = textArea.value;
+      });
+      card.appendChild(textArea);
+      commentsPreviewEl.appendChild(card);
+    });
+    if (commentsStatusEl){
+      if (!generatedComments.length){
+        commentsStatusEl.textContent = 'No marks found in the selected column.';
+      }else if (missingMarks === generatedComments.length){
+        commentsStatusEl.textContent = 'Marks are not in percent format. Continue anyway?';
+      }else{
+        commentsStatusEl.textContent = '';
+      }
+    }
+    if (commentsCountEl){
+      commentsCountEl.textContent = String(generatedComments.length);
+    }
+  }
+  function selectTemplateForMark(mark){
+    if (mark == null) return commentConfig.lowTemplate;
+    if (mark >= commentConfig.highThreshold) return commentConfig.highTemplate;
+    if (mark >= commentConfig.midThreshold) return commentConfig.midTemplate;
+    return commentConfig.lowTemplate;
+  }
+  function fillTemplateWithRow(template, row, markNum, rawMark, rowIndex){
+    const first = firstNameKey ? (row?.[firstNameKey] ?? '') : '';
+    const last = lastNameKey ? (row?.[lastNameKey] ?? '') : '';
+    const name = row?.[studentNameColumn] || buildStudentName(row) || getRowLabel(rowIndex);
+    const displayMark = markNum != null ? `${markNum.toFixed(1)}%` : (rawMark != null ? String(rawMark) : '');
+    const base = (template || '').replace(/\{(name|first|last|mark)\}/gi, (_, token) => {
+      switch(token.toLowerCase()){
+        case 'name': return name;
+        case 'first': return first;
+        case 'last': return last;
+        case 'mark': return displayMark;
+        default: return '';
+      }
+    });
+    return (base + buildExtraAssessmentsText(row)).trim();
+  }
+  function buildExtraAssessmentsText(row){
+    const cols = Array.isArray(commentConfig.extraColumns) ? commentConfig.extraColumns : [];
+    if (!cols.length) return '';
+    const parts = [];
+    cols.forEach(col => {
+      if (!col) return;
+      const value = row?.[col];
+      if (value == null || String(value).trim() === '') return;
+      parts.push(`${col}: ${value}`);
+    });
+    if (!parts.length) return '';
+    return ` Recent assessments: ${parts.join('; ')}.`;
+  }
+  function copyCommentByIndex(idx){
+    if (idx == null || idx < 0 || idx >= generatedComments.length) return;
+    const entry = generatedComments[idx];
+    copyTextToClipboard(entry.comment);
+    markCopyButton(idx);
+  }
+  function copyAllComments(){
+    if (!generatedComments.length){
+      if (commentsStatusEl) commentsStatusEl.textContent = 'No comments to copy.';
+      return;
+    }
+    const bundle = generatedComments.map(entry => `${entry.name}: ${entry.comment}`).join('\n\n');
+    copyTextToClipboard(bundle);
+  }
+  function markCopyButton(idx){
+    const btn = commentsPreviewEl?.querySelector(`button[data-copy-index="${idx}"]`);
+    if (!btn) return;
+    btn.textContent = 'Copied';
+    btn.classList.add('primary');
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('primary');
+      btn.disabled = false;
+    }, 1500);
+  }
+  async function copyTextToClipboard(text){
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText){
+      try{
+        await navigator.clipboard.writeText(text);
+        if (commentsStatusEl) commentsStatusEl.textContent = 'Copied to clipboard.';
+      }catch{
+        fallbackCopy(text);
+      }
+    }else{
+      fallbackCopy(text);
+    }
+    setTimeout(() => {
+      if (commentsStatusEl) commentsStatusEl.textContent = '';
+    }, 2000);
+  }
+  function fallbackCopy(text){
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    document.body.appendChild(helper);
+    helper.select();
+    document.execCommand('copy');
+    document.body.removeChild(helper);
+    if (commentsStatusEl) commentsStatusEl.textContent = 'Copied.';
+  }
+  function formatMarkDisplay(raw){
+    if (raw == null || raw === '') return '—';
+    const meta = deriveMarkMeta(raw, commentConfig.gradeColumn || '');
+    return formatMarkText(meta, raw);
+  }
+  function openRenameModal(ctx){
+    renameTargetId = ctx.id;
+    renameInput.value = ctx.name;
+    renamePrompt.style.display = 'flex';
+    setTimeout(() => {
+      renameInput.focus();
+      renameInput.select();
+    }, 0);
+  }
+  function closeRenameModal(){
+    renamePrompt.style.display = 'none';
+    renameInput.value = '';
+    renameTargetId = null;
+  }
+  function saveRename(){
+    if (renameTargetId == null){ closeRenameModal(); return; }
+    const name = renameInput.value.trim();
+    if (!name){ closeRenameModal(); return; }
+    renameContext(renameTargetId, name);
+    closeRenameModal();
+  }
+  function renameContext(id, newName){
+    const ctx = fileContexts.find(c => c.id === id);
+    if (!ctx) return;
+    ctx.name = newName;
+    if (activeContext && activeContext.id === id){
+      currentFileName = newName;
+      metaEl.textContent = `${newName} - ${rows.length} rows, ${allColumns.length} columns`;
+    }
+    updateFilesUI();
+  }
+  function showMarkWarning(message, onContinue){
+    if (markWarningMessage) markWarningMessage.textContent = message;
+    pendingMarkWarningAction = typeof onContinue === 'function' ? onContinue : null;
+    if (markWarningModal) markWarningModal.style.display = 'flex';
+  }
+  function closeMarkWarningModal(){
+    if (markWarningModal) markWarningModal.style.display = 'none';
+  }
+  function openPrintPreviewModal(){
+    if (!printPreviewModal) return;
+    syncPrintMetaInputs();
+    renderPrintClassList();
+    renderPrintPreview();
+    printPreviewModal.style.display = 'flex';
+  }
+  function closePrintPreviewModal(){
+    if (printPreviewModal) printPreviewModal.style.display = 'none';
+  }
+  function syncPrintMetaInputs(){
+    if (printTeacherInput) printTeacherInput.value = printMeta.teacher || '';
+    if (printClassInput) printClassInput.value = printMeta.classInfo || '';
+    if (printTitleInput) printTitleInput.value = printMeta.title || '';
+    const termValue = printMeta.term || 'T1';
+    printTermInputs.forEach(radio => {
+      radio.checked = radio.value === termValue;
+    });
+    printTemplateInputs.forEach(input => {
+      input.checked = selectedTemplateIds.has(input.value);
+    });
+  }
+  function handlePrintMetaInputChange(){
+    printMeta.teacher = (printTeacherInput?.value || '').trim();
+    printMeta.classInfo = (printClassInput?.value || '').trim();
+    printMeta.title = (printTitleInput?.value || '').trim();
+    const checkedTerm = printTermInputs.find(radio => radio.checked)?.value;
+    if (checkedTerm) printMeta.term = checkedTerm;
+    renderPrintPreview();
+  }
+  function handleTemplateSelectionChange(){
+    selectedTemplateIds = new Set(
+      printTemplateInputs
+        .filter(input => input.checked)
+        .map(input => input.value)
+    );
+    renderPrintPreview();
+  }
+  function removeContext(id){
+    const idx = fileContexts.findIndex(c => c.id === id);
+    if (idx === -1) return;
+    fileContexts.splice(idx, 1);
+    if (activeContext && activeContext.id === id){
+      activeContext = null;
+      if (fileContexts.length){
+        const fallback = fileContexts[Math.min(idx, fileContexts.length - 1)];
+        setActiveContext(fallback.id);
+      }else{
+        resetToEmptyState();
+        updateFilesUI();
+      }
+    }else{
+      updateFilesUI();
+    }
+  }
+  function resetToEmptyState(){
+    rows = [];
+    originalRows = [];
+    allColumns = [];
+    columnOrder = [];
+    visibleColumns = [];
+    filteredIdx = [];
+    visibleRowSet = new Set();
+    sortState = {key:null, dir:null};
+    undoStack = [];
+    redoStack = [];
+    firstNameKey = null;
+    lastNameKey = null;
+    studentNameColumn = null;
+    studentNameWarning = '';
+    currentFileName = null;
+    metaEl.textContent = 'No file loaded';
+    countsEl.textContent = '';
+    colCountEl.textContent = '0';
+    rowCountEl.textContent = '0';
+    colsDiv.innerHTML = '';
+    rowsDiv.innerHTML = '';
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    setDataActionButtonsDisabled(true);
+    editHeadersBtn.disabled = true;
+    commentsBtn.disabled = true;
+    transposeBtn.disabled = true;
+    highlightActiveFile();
+    renderWarning('');
+    resetPerformanceFilterState();
+  }
+
+  function applySavedHeaderMapping(){
+    if (!currentFileName) return;
+    const s = loadSettings();
+    const mAll = s.headerMaps || {};
+    const mapping = mAll[currentFileName] || {};
+    if (Object.keys(mapping).length){
+      renameColumns(mapping, false);
+    }
+  }
+  function remapRows(data, mapping){
+    if (!Array.isArray(data)) return [];
+    return data.map(obj => {
+      const newObj = {};
+      Object.keys(obj || {}).forEach(k => {
+        const nk = mapping[k] || k;
+        newObj[nk] = obj[k];
+      });
+      return newObj;
+    });
+  }
+  function applyMappingToContext(ctx, mapping){
+    if (!ctx || !Object.keys(mapping).length) return;
+    ctx.rows = remapRows(ctx.rows, mapping);
+    ctx.originalRows = remapRows(ctx.originalRows, mapping);
+    ctx.allColumns = ctx.allColumns.map(c => mapping[c] || c);
+    ctx.visibleColumns = ctx.visibleColumns.map(c => mapping[c] || c);
+    ctx.columnOrder = ctx.columnOrder.map(c => mapping[c] || c);
+    if (ctx.firstNameKey) ctx.firstNameKey = mapping[ctx.firstNameKey] || ctx.firstNameKey;
+    if (ctx.lastNameKey) ctx.lastNameKey = mapping[ctx.lastNameKey] || ctx.lastNameKey;
+    if (ctx.studentNameColumn) ctx.studentNameColumn = mapping[ctx.studentNameColumn] || ctx.studentNameColumn;
+    if (ctx.commentConfig && Array.isArray(ctx.commentConfig.extraColumns)){
+      ctx.commentConfig.extraColumns = ctx.commentConfig.extraColumns.map(c => mapping[c] || c);
+    }
+    stampEndIndicator(ctx.rows);
+    stampEndIndicator(ctx.originalRows);
+    ctx.allColumns = ensureListHasEnd(ctx.allColumns);
+    ctx.columnOrder = ensureListHasEnd(ctx.columnOrder);
+    const set = new Set(ctx.visibleColumns);
+    set.add(END_OF_LINE_COL);
+    ctx.visibleColumns = ctx.columnOrder.filter(c => set.has(c));
+  }
+  function persistHeaderMapping(fileName, mapping){
+    if (!fileName) return;
+    const s = loadSettings();
+    const all = s.headerMaps || {};
+    all[fileName] = {...(all[fileName] || {}), ...mapping};
+    saveSettings({ headerMaps: all });
+  }
+
+  function invertMapping(map){
+    const inv = {};
+    for (const [k,v] of Object.entries(map)) inv[v] = k;
+    return inv;
+  }
+
+  // ==== Utils ====
+  function isLikelyMarkColumn(name){
+    const lower = (name || '').toLowerCase();
+    if (!lower) return false;
+    return MARK_COLUMN_HINTS.some(token => lower.includes(token));
+  }
+  function datasetHasPercentSymbol(){
+    const markCols = allColumns.filter(isLikelyMarkColumn);
+    const colsToScan = markCols.length ? markCols : allColumns;
+    if (!colsToScan.length) return false;
+    const maxRows = Math.min(rows.length, 300);
+    for (let i = 0; i < maxRows; i++){
+      const row = rows[i];
+      if (!row) continue;
+      for (const col of colsToScan){
+        const val = row[col];
+        if (typeof val === 'string' && val.includes('%')) return true;
+      }
+    }
+    return false;
+  }
+  function columnHasPercentValues(col){
+    if (!col) return false;
+    const maxRows = Math.min(rows.length, 500);
+    for (let i = 0; i < maxRows; i++){
+      const val = rows[i]?.[col];
+      if (typeof val === 'string' && val.includes('%')) return true;
+    }
+    return false;
+  }
+  function deriveMarkMeta(value, columnName){
+    const rawStr = String(value ?? '').trim();
+    if (!rawStr) return null;
+    const hint = isLikelyMarkColumn(columnName) || rawStr.includes('%');
+    if (!hint) return null;
+    const match = rawStr.replace(/,/g,'').match(/-?\d+(\.\d+)?/);
+    if (!match) return null;
+    let num = parseFloat(match[0]);
+    if (Number.isNaN(num)) return null;
+    if (num < 0) num = 0;
+    if (num > 100) num = 100;
+    const className = num > 79 ? 'mark-high' : (num >= 70 ? 'mark-mid' : 'mark-low');
+    const formattedNumber = Number(num.toFixed(2)).toString();
+    return { className, raw: formattedNumber, value: num, hasPercent: rawStr.includes('%') };
+  }
+  function applyMarkStyling(td, value, columnName){
+    td.classList.remove('mark-high','mark-mid','mark-low');
+    const meta = deriveMarkMeta(value ?? td.textContent, columnName);
+    if (meta && markColorsEnabled){
+      td.classList.add(meta.className);
+    }
+    return meta;
+  }
+  function normalizeMarkInput(value, columnName){
+    const raw = value == null ? '' : String(value).trim();
+    const meta = deriveMarkMeta(raw, columnName);
+    if (!meta) return raw;
+    return meta.hasPercent ? `${meta.raw} %` : meta.raw;
+  }
+  function formatMarkText(meta, rawValue){
+    if (!meta) return rawValue ?? '';
+    return meta.hasPercent ? `${meta.raw} %` : meta.raw;
+  }
+  function applyMarkColorSetting(enabled){
+    markColorsEnabled = !!enabled;
+    if (markColorsToggle) markColorsToggle.checked = markColorsEnabled;
+    saveSettings({ markColors: markColorsEnabled });
+    render();
+  }
+  function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function status(msg){ statusEl.textContent = msg; }
+  function renderWarning(msg){
+    if (msg){
+      filesWarningTextEl.textContent = msg;
+      filesWarningEl.classList.add('show');
+    } else {
+      filesWarningEl.classList.remove('show');
+      filesWarningTextEl.textContent = '';
+    }
+  }
+  function normalizeHeader(name){ return String(name || '').trim().toLowerCase(); }
+  function addStudentNames(data){
+    if (!studentNameColumn || !firstNameKey || !lastNameKey || !Array.isArray(data)) return;
+    data.forEach(row => {
+      if (!row) return;
+      row[studentNameColumn] = buildStudentName(row);
+    });
+  }
+  function buildStudentName(row){
+    if (!row) return '';
+    const first = String(row[firstNameKey] ?? '').trim();
+    const last = String(row[lastNameKey] ?? '').trim();
+    if (first && last) return `${first} ${last}`;
+    return first || last || '';
+  }
+  function refreshStudentNameForRow(rowIndex){
+    if (!studentNameColumn || rowIndex == null) return;
+    const row = rows[rowIndex];
+    if (!row) return;
+    row[studentNameColumn] = buildStudentName(row);
+    updateStudentNameCells(rowIndex);
+    handleColumnDataMutation(studentNameColumn);
+  }
+  function updateStudentNameCells(rowIndex){
+    if (!studentNameColumn) return;
+    const value = rows[rowIndex]?.[studentNameColumn] ?? '';
+    const rowEl = tbody.querySelector(`tr[data-row-index="${rowIndex}"]`);
+    if (rowEl){
+      const cell = rowEl.querySelector(`td[data-col="${studentNameColumn}"]`);
+      if (cell) cell.textContent = value;
+    }
+    const transposedRow = tbody.querySelector(`tr[data-column-key="${studentNameColumn}"]`);
+    if (transposedRow){
+      const idxPos = filteredIdx.indexOf(rowIndex);
+      if (idxPos !== -1){
+        const cell = transposedRow.querySelector(`td[data-cpos="${idxPos}"]`);
+        if (cell) cell.textContent = value;
+      }
+    }
+  }
+  function isNameColumn(col){
+    return !!col && (col === firstNameKey || col === lastNameKey);
+  }
+  function arraysEqual(a,b){
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++){
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+  function stampEndIndicator(data){
+    if (!Array.isArray(data)) return;
+    data.forEach(row => {
+      if (!row || typeof row !== 'object') return;
+      row[END_OF_LINE_COL] = END_OF_LINE_VALUE;
+    });
+  }
+  function ensureListHasEnd(list){
+    const base = Array.isArray(list) ? list.slice() : [];
+    const filtered = base.filter(c => c !== END_OF_LINE_COL);
+    filtered.push(END_OF_LINE_COL);
+    return filtered;
+  }
+  function enforceEndOfLineColumn(){
+    stampEndIndicator(rows);
+    stampEndIndicator(originalRows);
+    allColumns = ensureListHasEnd(allColumns);
+    columnOrder = ensureListHasEnd(columnOrder);
+    if (!visibleColumns.includes(END_OF_LINE_COL)) visibleColumns.push(END_OF_LINE_COL);
+    syncVisibleOrder();
+    if (!visibleColumns.includes(END_OF_LINE_COL)){
+      visibleColumns.push(END_OF_LINE_COL);
+      syncVisibleOrder();
+    }
+  }
+
+  function getLessonNumber(col){
+    if (!col) return null;
+    const text = String(col).toUpperCase();
+    const match = text.match(/L\s*(\d+)/);
+    if (!match) return null;
+    const num = Number(match[1]);
+    return Number.isNaN(num) ? null : num;
+  }
+  function selectLessonRange(min, max){
+    if (!Array.isArray(columnOrder) || !columnOrder.length) return;
+    const before = [...visibleColumns];
+    const next = [];
+    const addUnique = (col) => {
+      if (!col) return;
+      if (!columnOrder.includes(col)) return;
+      if (next.includes(col)) return;
+      next.push(col);
+    };
+    const studentCol = studentNameColumn
+      || columnOrder.find(col => normalizeHeader(col) === normalizeHeader(STUDENT_NAME_LABEL));
+    addUnique(studentCol);
+    const orgCol = columnOrder.find(col => normalizeHeader(col) === 'orgid');
+    addUnique(orgCol);
+    columnOrder.forEach(col => {
+      const num = getLessonNumber(col);
+      if (num == null) return;
+      if (num >= min && num <= max) addUnique(col);
+    });
+    addUnique(END_OF_LINE_COL);
+    if (next.length <= 2) return; // only reserved columns, no lessons found
+    visibleColumns = next;
+    pushUndo({type:'setVisibleColumns', before, after:[...visibleColumns]});
+    saveSettings({ visibleColumns });
+    rebuildColsUI();
+    render();
+  }
+</script>
+</div>
+<div id="printContainer"></div>
+</body>
+</html>

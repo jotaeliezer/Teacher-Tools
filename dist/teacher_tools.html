@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Teacher TOOLs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles/teacher_tools.css" />
+
+
+
+  <!-- SheetJS (XLSX) and PapaParse (CSV) from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  
+</head>
+<body>
+<div id="appRoot" class="app-shell">
+  <div class="app-header">
+    <a class="header-brand header-brand-link" href="home.html" aria-label="Go to TeacherTools home">
+      <img src="icon/teacher_tools_logo2.png" alt="TT logo" class="brand-logo">
+      <h1>TEACHER TOOLs</h1>
+    </a>
+    <span class="spacer"></span>
+    <div class="zoom-controls">
+      <button class="btn zoom-btn" id="zoomOutBtn" type="button">Zoom -</button>
+      <button class="btn zoom-btn" id="zoomInBtn" type="button">Zoom +</button>
+      <button class="btn" id="hintsBtn" type="button">Hints</button>
+      <button class="btn toggle dark-toggle" id="darkModeBtn" type="button">Dark: OFF</button>
+    </div>
+  </div>
+  <div id="hintsModal" class="modal-backdrop">
+    <div class="modal hints-modal">
+      <header>
+        <h3>Quick Hints</h3>
+      </header>
+      <div class="content">
+        <ul class="hints-list">
+          <li><strong>Load data:</strong> Drop or click to upload CSV/XLSX files; switch between them via the Files list.</li>
+          <li><strong>View & sort:</strong> Click column headers to sort; use undo/redo to back out accidental edits.</li>
+          <li><strong>Hide/show columns:</strong> Toggle columns in the header tools; keep the end marker to preserve row edges.</li>
+          <li><strong>Rename headers:</strong> Use header tools to rename/remap columns so names stay consistent across files.</li>
+          <li><strong>Filters:</strong> Apply text or mark-based filters to narrow the table; reset filters to start fresh.</li>
+          <li><strong>Mark colors:</strong> Enable mark highlighting to color-code numeric/percent columns.</li>
+          <li><strong>Export/print:</strong> Export visible columns to CSV/XLSX or open Print View for formatted pages.</li>
+          <li><strong>Comments builder:</strong> Use the builder panel to generate, customize, and copy report text.</li>
+          <li><strong>Dark mode & zoom:</strong> Toggle dark mode and adjust zoom for comfortable viewing.</li>
+        </ul>
+      </div>
+      <footer>
+        <button class="btn" type="button" id="hintsCloseBtn">Close</button>
+        <button class="btn primary" type="button" id="hintsGotItBtn">Got it</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel file-panel" style="width:100%;">
+      <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div id="dropzone" class="dropzone" title="Click or drag a CSV/XLSX here">
+          <div>
+            <strong>Drop a file here </strong> <small class="muted">CSV XLSX XLS</small> 
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; min-width:180px;">
+          <button class="btn" id="loadDirBtn" type="button" style="width:100%;">Load from Folder</button>
+          <small class="muted" style="max-width:220px; line-height:1.3;">Pick a folder with CSV/XLSX files to load them without dragging each time.</small>
+          <small class="muted" id="lastFolderLabel" style="max-width:220px; line-height:1.3;">No saved folder.</small>
+        </div>
+
+        <div style="flex:1 1 320px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%; justify-content:space-between;">
+            
+            <span class="badge" id="meta" title="File info" style="display:none;"></span>
+            <div style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="btn primary" id="exportCsvBtn" disabled>Export Visible (CSV)</button>
+              <button class="btn" id="exportXlsxBtn" disabled>Export Visible (XLSX)</button>
+              <button class="btn warn" id="resetBtn" disabled>Reset Filters</button>
+            </div>
+          </div>
+          <!-- Hidden native input; triggered by clicking the dropzone -->
+          <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
+          <div id="status" class="muted"></div>
+
+          <div class="embedded-files-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b>FILES</b>
+              <span class="badge" id="fileCount">0</span>
+            </div>
+            <div id="filesList"></div>
+            <div id="filesWarning" class="warning-banner" style="margin:0;">
+              <span style="font-weight:600;">!</span>
+              <span id="filesWarningText"></span>
+            </div>
+            <div class="muted" style="font-size:12px;">Tip: upload multiple CSV/XLSX files and click to switch.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
+    <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
+    <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
+  </div>
+  <div id="renamePrompt" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:360px;">
+      <header>
+        <h3>Rename File</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content">
+        <label style="display:block; font-size:13px; margin-bottom:6px;">New name</label>
+        <input id="renameInput" type="text" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;" />
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="renameCancel">Cancel</button>
+        <button class="btn primary" id="renameSave">Save</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="markWarningModal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>Color Marks Warning</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="display:block; padding:16px;">
+        <p id="markWarningMessage" style="margin:0; color:var(--ink);">Your marks are not in percent format. Continue anyway?</p>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="markWarningCancel">Cancel</button>
+        <button class="btn primary" id="markWarningContinue">Continue</button>
+      </footer>
+    </div>
+  </div>
+  <div id="folderPrompt" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>Load Saved Folder</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content">
+        <p id="folderPromptText" style="margin:0 0 12px 0;">Load files from saved folder?</p>
+        <small class="muted">You can pick a different folder if needed.</small>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="folderPromptCancel">Cancel</button>
+        <button class="btn primary" id="folderPromptConfirm">Load</button>
+      </footer>
+    </div>
+  </div>
+<div id="printPreviewModal" class="tab-section" style="display:none;">
+  <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
+    <header style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
+      <h3 style="margin:0;">Print Preview</h3>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="printCommentsBtn">Comments</button>
+      <button class="btn" id="printPreviewClose">Back to Data</button>
+    </header>
+      <div class="content" style="display:grid; grid-template-columns:320px 1fr; gap:18px; padding:0 0 14px 0;">
+        <div class="print-meta-form">
+          <label>
+            Teacher name
+            <input id="printTeacherInput" type="text" placeholder="e.g. Ms. Rivera" style="padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:15px;" />
+          </label>
+          <label>
+            Class / course information
+            <input id="printClassInput" type="text" placeholder="e.g. Grade 7 Math - Section B" style="padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:15px;" />
+          </label>
+          <label>
+            Report title
+            <input id="printTitleInput" type="text" placeholder="e.g. Unit 4 Performance Snapshot" style="padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:15px;" />
+          </label>
+          <div class="muted" style="font-size:12px;">Edits appear in the preview instantly.</div>
+          <div>
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Term</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T1" id="printTermT1" checked />
+                Term 1
+              </label>
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T2" id="printTermT2" />
+                Term 2
+              </label>
+              <label class="template-option" style="margin:0;">
+                <input type="radio" name="printTerm" value="T3" id="printTermT3" />
+                Term 3
+              </label>
+            </div>
+          </div>
+          <div class="print-helpers">
+            <div class="print-template-panel" style="font-size:15px;">
+              <h4>Templates</h4>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="attendance" checked />
+                Attendance Sheet
+              </label>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="marking" />
+                Marking Sheet
+              </label>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="drill" />
+                Drill Sheet
+              </label>
+              <label class="template-option">
+                <input type="checkbox" name="printTemplate" value="reportCard" />
+                Report Card (per student)
+              </label>
+            </div>
+            <div class="print-template-panel" style="font-size:15px;">
+              <h4>Report Card Student</h4>
+              <select id="printReportStudentSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">
+              </select>
+              <div class="muted" style="font-size:11px;">Choose which student to render on report cards.</div>
+            </div>
+            <div class="print-class-panel" style="font-size:15px;">
+              <h4>Classes to Print</h4>
+              <div id="printClassList" class="print-class-list"></div>
+              <div class="muted" style="font-size:11px;">Select the rosters that should be included.</div>
+            </div>
+            <div id="printMarkingPanel" class="print-marking-panel" style="display:none; font-size:15px;">
+              <h4>Marking Columns</h4>
+              <div class="muted" style="font-size:12px;">Choose assignment headers to include on the marking sheet.</div>
+              <div class="print-marking-actions">
+                <button class="btn" type="button" id="printMarkingSelectAll">Select All</button>
+                <button class="btn" type="button" id="printMarkingClear">Clear</button>
+              </div>
+              <div id="printMarkingColumnsList" class="print-marking-list"></div>
+            </div>
+          </div>
+        </div>
+        <div id="printPreviewContent"></div>
+      </div>
+      <footer style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+        <button class="btn" id="printPreviewCancel">Back to Data</button>
+        <button class="btn primary" id="printPreviewPrint">Print</button>
+      </footer>
+    </div>
+  </div>
+  <div id="dataTabSection" class="tab-section active">
+  <div class="row main-layout" style="margin-top:12px;">
+    <div class="side-stack">
+      <div class="panel column-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>VISIBLE COLUMNS</b>
+          <span class="badge" id="colCount"></span>
+        </div>
+        <input id="colSearch" type="text" placeholder="Search columns..." style="margin-top:8px; width:(100%-20px); padding:6px 10px; border-radius:8px; border:1px solid #d7d7d7;" />
+        <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button class="btn toggle" id="columnDataFilterBtn" type="button">Data Columns: OFF</button>
+          <span class="muted" style="font-size:12px;">Show only columns that contain data.</span>
+        </div>
+        <div class="term-buttons" style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn" id="termBtn1" type="button">TERM 1</button>
+          <button class="btn" id="termBtn2" type="button">TERM 2</button>
+          <button class="btn" id="termBtn3" type="button">TERM 3</button>
+        </div>
+        <div id="cols"></div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn primary" id="selectAll">Select All</button>
+          <button class="btn" id="clearAll">Clear</button>
+        </div>
+        <div class="muted" style="margin-top:8px; font-size:12px;">Tip: column toggles & edits support <b>Ctrl+Z / Ctrl+Y</b>.</div>
+      </div>
+
+      <div class="panel row-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <b>VISIBLE ROWS</b>
+          <span class="badge" id="rowCount"></span>
+        </div>
+      <div id="rows"></div>
+      <div class="controls">
+        <button class="btn primary" id="selectAllRows">Select All</button>
+        <button class="btn" id="clearRows">Clear</button>
+      </div>
+        <div class="performance-filters">
+          <div style="font-size:12px; font-weight:600;">Performance filter (Calculated Final Grade)</div>
+          <div class="performance-buttons">
+            <button class="btn toggle" id="rowFilterGood" type="button">Good</button>
+            <button class="btn toggle" id="rowFilterMid" type="button">Mid</button>
+            <button class="btn toggle" id="rowFilterNeeds" type="button">Needs Support</button>
+            <button class="btn" id="rowFilterClear" type="button">Show All</button>
+          </div>
+          <div class="muted" id="rowFilterStatus" style="font-size:12px;"></div>
+        </div>
+        <div class="muted" style="font-size:12px;">Tip: rows stay hidden until you re-check them.</div>
+      </div>
+    </div>
+
+    <div class="panel data-panel">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+        <b>DATA</b>
+        <input id="search" type="text" placeholder="Type to filter rows..." style="flex:1 1 240px; min-width:180px;" />
+        <label class="muted" style="display:flex; align-items:center; gap:4px; font-size:13px;">
+          <input type="checkbox" id="wrapHeadersToggle" />
+          Wrap headers
+        </label>
+        <label class="muted" style="display:flex; align-items:center; gap:4px; font-size:13px;">
+          <input type="checkbox" id="markColorsToggle" checked />
+          Color marks
+        </label>
+        <button class="btn btn-anim" id="editHeadersBtn" disabled>Edit Headers</button>
+        <button class="btn toggle" id="transposeBtn" title="Swap rows and columns">Transpose: OFF</button>
+        <span id="counts" class="badge"></span>
+      </div>
+      <div id="transposeBanner" class="transpose-banner" role="status" aria-live="polite">
+        <span class="icon">&#8693;</span>
+        <div>
+          Transposed view is ON &mdash; rows become columns, and exports reflect this layout.
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table id="grid">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+    </div>
+  </div>
+  <div id="printCommentsDrawer" class="print-comments-drawer">
+    <div class="print-comments-head">
+      <h4>Comment Bank</h4>
+      <span class="spacer"></span>
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px;">
+        Pronouns:
+        <input type="radio" name="printPronoun" id="printCommentsPronounMale" value="male" checked /> Male
+        <input type="radio" name="printPronoun" id="printCommentsPronounFemale" value="female" /> Female
+      </label>
+      <button class="btn" type="button" id="printCommentsClose">Close</button>
+    </div>
+    <div id="printCommentsList" class="print-comments-list"></div>
+  </div>
+</div>
+
+</div>
+
+  <!-- Modal: Bulk Edit Headers -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <header>
+        <h3>Bulk Edit Column Headers</h3>
+        <span class="spacer"></span>
+        <span class="chip" id="headerCountChip">0 headers</span>
+      </header>
+      <div class="content">
+        <div class="section">
+          <div class="grid">
+            <div>
+              <label>Find</label>
+              <input id="hdrFind" type="text" placeholder="text or regex if /pattern/">
+            </div>
+            <div>
+              <label>Replace With</label>
+              <input id="hdrReplace" type="text" placeholder="">
+            </div>
+            <div>
+              <label>Remove first N</label>
+              <input id="hdrRmStart" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label>Remove last N</label>
+              <input id="hdrRmEnd" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label>Remove between prefix</label>
+              <input id="hdrBetweenPre" type="text" placeholder='e.g. "("'>
+            </div>
+            <div>
+              <label>?and suffix</label>
+              <input id="hdrBetweenSuf" type="text" placeholder='e.g. ")"'>
+            </div>
+            <div>
+              <label>Add prefix</label>
+              <input id="hdrAddPre" type="text" placeholder="e.g. col_">
+            </div>
+            <div>
+              <label>Add suffix</label>
+              <input id="hdrAddSuf" type="text" placeholder="e.g. _x">
+            </div>
+          </div>
+
+          <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+            <label><input type="checkbox" id="hdrCase" /> Case-insensitive</label>
+            <label><input type="checkbox" id="hdrTrim" checked/> Trim spaces</label>
+            <label><input type="checkbox" id="hdrCollapse" /> Collapse spaces → underscore</label>
+            <label><input type="checkbox" id="hdrLower" /> Lowercase</label>
+            <label><input type="checkbox" id="hdrInclusive" /> Remove prefix/suffix too (inclusive)</label>
+            <label>
+              Normalize:
+              <select id="hdrNormalize">
+                <option value="">(none)</option>
+                <option value="snake">snake_case</option>
+                <option value="title">Title Case</option>
+                <option value="kebab">kebab-case</option>
+              </select>
+            </label>
+          </div>
+          <div style="margin-top:8px;">
+            <label style="display:flex; flex-direction:column; gap:4px; font-size:12px;">
+              Target headers containing
+              <input id="hdrTargetFilter" type="text" placeholder="Comma-separated fragments; leave blank for all" />
+              <small class="muted" style="font-size:11px;">Only headers containing any fragment will be edited.</small>
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <b>Preview</b>
+            <span class="muted" id="previewNote">before ? after</span>
+          </div>
+          <div id="hdrPreview" class="preview-list"></div>
+        </div>
+      </div>
+      <footer>
+        <button class="btn" id="hdrCancel">Cancel</button>
+        <button class="btn primary" id="hdrApply">Apply</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="commentsModal" class="tab-section" style="display:none;">
+    <div class="panel comments-modal" style="width:100%; box-shadow:none;">
+      <header style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; padding:8px 12px 10px 12px; margin-bottom:8px;">
+        <h3 style="margin:0;">Report Card Comments</h3>
+        <span class="spacer"></span>
+        <button class="btn" id="commentsCloseBtn">Back to Data</button>
+      </header>
+      <div class="content" style="display:block; padding:12px;">
+        <div style="display:grid; grid-template-columns:1fr; gap:16px; width:100%;">
+          <div class="modal-column comments-column">
+            <div class="section" style="display:flex; flex-direction:column; gap:10px;">
+            <div class="term-buttons" style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn" type="button" id="commentTermAllBtn" aria-pressed="true">All Terms</button>
+              <button class="btn" type="button" id="commentTermT1Btn">Term 1</button>
+              <button class="btn" type="button" id="commentTermT2Btn">Term 2</button>
+              <button class="btn" type="button" id="commentTermT3Btn">Term 3</button>
+            </div>
+            <div>
+              <label style="font-size:12px;">Mark column</label>
+              <select id="commentGradeSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">
+                <option value="">Select column...</option>
+              </select>
+          </div>
+          <div class="grid">
+            <div>
+              <label>High threshold (%)</label>
+              <input id="commentHighThreshold" type="number" min="0" max="100" value="90" />
+            </div>
+            <div>
+              <label>Mid threshold (%)</label>
+              <input id="commentMidThreshold" type="number" min="0" max="100" value="75" />
+            </div>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Exceeds template</label>
+              <button class="btn" type="button" id="commentHighRestructure">Restructure</button>
+            </div>
+            <textarea id="commentHighTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Meets template</label>
+              <button class="btn" type="button" id="commentMidRestructure">Restructure</button>
+            </div>
+            <textarea id="commentMidTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px;">Growth template</label>
+              <button class="btn" type="button" id="commentLowRestructure">Restructure</button>
+            </div>
+            <textarea id="commentLowTemplate" style="width:100%; min-height:140px;"></textarea>
+          </div>
+          <div>
+            <label style="font-size:12px;">Include assessment columns</label>
+            <div id="commentExtrasList" class="extras-list"></div>
+          </div>
+          <div class="muted" style="font-size:12px;">
+            Use tokens like <code>{name}</code>, <code>{first}</code>, <code>{last}</code>, <code>{mark}</code>. Selected columns are appended as "Header: value" so you can reference multiple marks.
+          </div>
+          <div class="section preview-section" style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;" class="preview-header">
+              <b>Preview</b>
+              <span id="commentsCount" class="badge">0</span>
+              <span class="muted" id="commentsStatus"></span>
+              <span class="spacer"></span>
+              <button class="btn" id="commentsCopyAll">Copy All</button>
+            </div>
+            <div id="commentsPreview"></div>
+          </div>
+        </div>
+        </div>
+        <div class="modal-column builder-column">
+          <div class="report-builder">
+            <div class="builder-grid">
+            <div class="builder-card">
+              <h4>Student Details</h4>
+              <label>Student
+                <select id="builderStudentSelect"></select>
+              </label>
+              <label>Display name
+                <input type="text" id="builderStudentName" />
+              </label>
+              <div class="builder-pronouns">
+                <label><input type="radio" name="builderPronoun" value="male" id="builderPronounMale" checked> He / Him</label>
+                <label><input type="radio" name="builderPronoun" value="female" id="builderPronounFemale"> She / Her</label>
+              </div>
+              <button class="btn" type="button" id="builderPrefillBtn">Use Data Values</button>
+            </div>
+            <div class="builder-card">
+              <h4>Performance Levels</h4>
+              <label>Core Performance
+                <select id="builderCorePerformance">
+                  <option value="">-- Select Level --</option>
+                  <option value="good1">Good - Version 1</option>
+                  <option value="good2">Good - Version 2</option>
+                  <option value="good3">Good - Version 3</option>
+                  <option value="average1">Average - Version 1</option>
+                  <option value="average2">Average - Version 2</option>
+                  <option value="average3">Average - Version 3</option>
+                  <option value="newstu1">New Student - Version 1</option>
+                  <option value="newstu2">New Student - Version 2</option>
+                  <option value="newstu3">New Student - Version 3</option>
+                  <option value="poor1">Needs Support - Version 1</option>
+                  <option value="poor2">Needs Support - Version 2</option>
+                  <option value="poor3">Needs Support - Version 3</option>
+                </select>
+              </label>
+              
+              <div class="builder-helper">Select the performance level to generate the appropriate comment template.</div>
+              <label style="margin-top:8px;">Term label
+                <select id="builderTermSelector">
+                  <option value="">-- None --</option>
+                  <option value="Term 1">Term 1</option>
+                  <option value="Term 2">Term 2</option>
+                  <option value="Term 3">Term 3</option>
+                </select>
+              </label>
+            </div>
+            <div class="builder-card">
+              <h4>Include Assignment Columns</h4>
+              <div class="builder-helper">Check the assignments you want to reference in the comment.</div>
+              <div id="builderAssignmentsList" class="extras-list" style="max-height:200px; overflow:auto;">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
+            
+            <div class="builder-card">
+              <h4>Custom Comment</h4>
+              <label>
+                <span>Add optional closing text</span>
+                <textarea id="builderCustomComment" rows="5" placeholder="Type additional custom comments..."></textarea>
+              </label>
+            </div>
+          </div>
+            <div class="builder-card builder-output-card">
+              <h4>Generated Report</h4>
+              <div class="button-group">
+                <button class="btn" type="button" id="builderGenerateBtn">Generate</button>
+                <button class="btn" type="button" id="builderCopyBtn">Copy</button>
+                <button class="btn" type="button" id="builderSaveBtn">Save</button>
+                <button class="btn" type="button" id="builderClearBtn">Clear</button>
+                <button class="btn" type="button" id="savedReportsOpenBtn">Saved Comments</button>
+              </div>
+              <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate." style="width:100%; min-height:140px; padding:12px; border:1px solid #d7dae3; border-radius:8px; resize:vertical; font-size:14px; line-height:1.5;"></textarea>
+            </div>
+            <div class="builder-card comment-bank-card">
+              <h4>Comment Bank</h4>
+              <div class="builder-helper" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span>Check the statements you want to include for this student.</span>
+                <button class="btn" type="button" id="builderCommentOrderToggle">Order: Selection</button>
+              </div>
+              <div id="builderSelectedComments" class="selected-comments" style="display:none;">
+                <h5 style="margin:0 0 6px 0;">Selected Comments</h5>
+                <div id="builderSelectedTags" class="builder-selected-tags"></div>
+              </div>
+              <div id="builderCommentBank" class="builder-comment-bank"></div>
+            </div>
+            </div>
+          </div>
+        </div>
+        </div>
+        <div id="savedReportsBackdrop" class="side-panel-backdrop" style="display:none;"></div>
+        <div id="savedReportsPanel" class="side-panel" style="display:none;">
+          <header class="side-panel-header">
+            <h4 style="margin:0;">Saved Comments</h4>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button class="btn warn" type="button" id="savedReportsClearBtn">Clear All</button>
+              <button class="btn" type="button" id="savedReportsCloseBtn">Close</button>
+            </div>
+          </header>
+          <div class="muted" style="font-size:12px; margin-bottom:8px;">Stored locally (up to 200).</div>
+          <div id="savedReportsList" class="saved-reports-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+<script src="scripts/state.js"></script>
+<script src="scripts/main.js"></script>
+<script src="scripts/comments.js"></script>
+<script src="scripts/animations.js"></script>
+
+</div>
+<footer class="site-footer footer-merged">
+  <div class="footer-links">
+    <a class="btn primary btn-nav" href="home.html">Home</a>
+    <a class="btn primary btn-nav" href="pricing.html">Pricing</a>
+    <a class="btn primary btn-nav" href="faq.html">FAQ</a>
+    <a class="btn primary btn-nav" href="contact.html">Contact</a>
+  </div>
+  <span class="nav-beta">Local-only beta</span>
+</footer>
+<div id="printContainer"></div>
+</body>
+</html>

@@ -1,0 +1,700 @@
+--- dist_noq
++++ current
+@@ -281,14 +281,10 @@
+       if (!Number.isNaN(idx)) prefillBuilderFromRow(idx);
+     });
+   }
+-  if (builderPrefillBtn){
+-    builderPrefillBtn.addEventListener('click', () => {
+-      const idx = Number(builderStudentSelect.value);
+-      if (!Number.isNaN(idx)) prefillBuilderFromRow(idx, { preserveIdentity: true });
+-    });
+-  }
++  // "Use Data Values" button removed; keep display name/pronouns always synced to selection.
+   if (builderCorePerformanceSelect){
+     builderCorePerformanceSelect.addEventListener('change', () => {
++      updatePerformanceSelectStyle();
+       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+     });
+   }
+@@ -1024,6 +1020,144 @@
+       partB: "By adopting stronger habits and reaching out early with questions, [Student] can make meaningful progress next term. I’ll continue to guide and support [him/her] through these adjustments."
+     }
+   };
++  const REPORT_BUILDER_TEMPLATE_VARIANTS = {
++    good1: {
++      partA: [
++        "[Student] has had an excellent first term, demonstrating a strong grasp of the course concepts. [Student]'s overall standing is [AVG%], reflecting solid mastery across units. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] is having a very strong term, showing confident understanding across units. [Student] currently holds [AVG%], which reflects reliable mastery and careful work. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "[Student]'s strong work ethic and positive attitude have been evident throughout the term. I am confident [he/she] will continue to excel as we move forward into Term 2.",
++        "[Student] combines effort with precision, and I expect continued success as we move into the next term."
++      ]
++    },
++    good2: {
++      partA: [
++        "[Student] has demonstrated exceptional understanding of the material this term, holding an overall mark of [AVG%]. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [His/Her] problem-solving assignments showcase careful thinking and clear presentation. [CC_COMMENTARY]",
++        "[Student] has consistently shown high-level understanding this term, with an overall [AVG%]. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [His/Her] work is organized and thorough. [CC_COMMENTARY]"
++      ],
++      partB: [
++        "I am pleased with [Student]'s progress and look forward to seeing [him/her] build on this strong foundation in the coming term.",
++        "[Student] has built a strong foundation and is well positioned for continued success."
++      ]
++    },
++    good3: {
++      partA: [
++        "[Student] has exceeded expectations this term with outstanding performance across all areas. With an overall [AVG%], [he/she] is performing at a high level across the course. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] has been performing at an exceptional level this term. The overall [AVG%] highlights strong mastery across the curriculum. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "I hope to see [Student] continue to be a leader in the classroom as we move forward. [He/She] is on track for an exceptional year ahead.",
++        "[Student] is poised to continue leading by example with consistent effort and high achievement."
++      ]
++    },
++    average1: {
++      partA: [
++        "[Student] has built a solid [AVG%] foundation this term, meeting many core expectations while still growing in a few areas. [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] holds [AVG%] this term and is meeting many expectations, with a few areas that still need reinforcement. [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "With steady routines and the same positive attitude, I'm confident [he/she] will keep climbing next term.",
++        "With consistent routines and continued effort, [he/she] should see steady gains next term."
++      ]
++    },
++    average2: {
++      partA: [
++        "[Student] has made steady gains this term, though results vary across tasks. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] With regular review of past work, [he/she] can turn this into consistent success. [CC_COMMENTARY]",
++        "[Student] has shown steady progress, even if outcomes fluctuate across tasks. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Consistent review will help turn this into reliable results. [CC_COMMENTARY]"
++      ],
++      partB: [
++        "[He/She] has shown [he/she] can succeed; next term is about applying those habits every week.",
++        "[He/She] has the ability to succeed; next term is about applying those habits consistently."
++      ]
++    },
++    average3: {
++      partA: [
++        "[Student] has a reasonable start around [AVG%], showing understanding of many concepts and working to connect the tougher ones. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] is working at around [AVG%], showing solid understanding on many outcomes while still building confidence in the more complex ones. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "With a bit more practice and questions early, I expect [he/she] to feel more confident and keep improving.",
++        "With more steady practice and early questions, [he/she] should continue to gain confidence."
++      ]
++    },
++    newstu1: {
++      partA: [
++        "[Student] is new to the program and has performed well while adapting to the pace and expectations. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] is adjusting to the program and has performed well while learning the routines and expectations. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "[Student] shows curiosity and willingness to try new routines; with continued practice and support, [he/she] will keep growing in confidence each week.",
++        "With continued practice and support, [Student] will keep building confidence and independence."
++      ]
++    },
++    newstu2: {
++      partA: [
++        "[Student] has recently joined, is learning our structures, and has performed fairly while applying concepts more consistently. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] is settling into the program and is beginning to apply concepts more consistently. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "As [he/she] builds regular study habits and asks questions early, we'll see steady growth'especially impressive on top of adjusting as a new student.",
++        "As routines become more familiar, I expect steady growth from [Student] each term."
++      ]
++    },
++    newstu3: {
++      partA: [
++        "[Student] is in the early stages of the program and, while still finding routines for the pace, has shown fair performance given the transition. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] is still adjusting to the pace and routines, but has shown fair performance during the transition. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "There is clear opportunity to adapt habits and gain confidence'commendable effort so far as a new student. I will continue to guide [him/her] so these changes feel manageable and supportive.",
++        "As routines settle, [Student] should gain confidence; I will continue to guide [him/her] through these changes."
++      ]
++    },
++    poor1: {
++      partA: [
++        "[Student] has faced challenges this term and is still building routines that support learning. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] has encountered difficulty this term and is still developing consistent routines. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "There's good opportunity to adjust habits and see progress next term, and I'll support [him/her] in making those changes.",
++        "With structured support and practice, [Student] can make progress next term."
++      ]
++    },
++    poor2: {
++      partA: [
++        "[Student] has worked hard even as results haven't matched effort yet. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Building steady routines will help turn that effort into improvement. [CC_COMMENTARY]",
++        "[Student] has put in effort, though results have been uneven. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Consistent routines will help translate effort into progress. [CC_COMMENTARY]"
++      ],
++      partB: [
++        "Next term is a chance to apply these routines and see growth; with consistent effort and timely support, I believe [he/she] will move forward confidently.",
++        "With steady routines and timely support, [Student] can build confidence and make progress next term."
++      ]
++    },
++    poor3: {
++      partA: [
++        "[Student] has had a challenging term, but consistent routines and feedback can open a clear path for growth. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
++        "[Student] has faced a difficult term, but steady routines and feedback will support growth over time. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
++      ],
++      partB: [
++        "By adopting stronger habits and reaching out early with questions, [Student] can make meaningful progress next term. I'll continue to guide and support [him/her] through these adjustments.",
++        "With stronger habits and early questions, [Student] can make meaningful progress; I'll continue to support [him/her]."
++      ]
++    }
++  };
++  function getReportBuilderTemplate(coreLevel, context){
++    const base = REPORT_BUILDER_TEMPLATES[coreLevel];
++    const variants = REPORT_BUILDER_TEMPLATE_VARIANTS[coreLevel];
++    if (!base && !variants) return null;
++    const seedBase = `${context.studentName || ''}|${coreLevel}|${context.termLabel || ''}`;
++    const partA = pickVariant(variants.partA || base.partA, `${seedBase}|A`);
++    const partB = pickVariant(variants.partB || base.partB, `${seedBase}|B`);
++    const retestClause = pickVariant(variants.retestClause || base.retestClause || '', `${seedBase}|RC`);
++    const noRetestClause = pickVariant(variants.noRetestClause || base.noRetestClause || '', `${seedBase}|NRC`);
++    return {
++      partA,
++      partB,
++      retestClause,
++      noRetestClause
++    };
++  }
+   const REPORT_BUILDER_CC = {
+     excellent: "[Student]'s problem-solving tasks are consistently high-quality, showing both mathematical rigor and creative thinking. [He/She] has many strong scores on these tasks, showcasing resilience and insight.",
+     good: "[Student]'s problem-solving assignments are well-presented with organized solutions showing good effort and attention to detail.",
+@@ -1031,6 +1165,36 @@
+     below: "[Student]'s problem-solving assignments are often incomplete and require more effort and detail. [He/She] should start these earlier in the week to allow more time for thoughtful completion.",
+     poor: "[Student]'s problem-solving work lacks the detail and quality needed, and the presentation of solutions needs significant improvement. [He/She] needs to make a stronger effort with these assignments."
+   };
++  const PERFORMANCE_TONE_VARIANTS = {
++    good: [
++      "With this level of achievement, [Student] is ready for deeper challenges and enrichment.",
++      "[Student] is well positioned to extend learning through enrichment and higher-order tasks."
++    ],
++    average: [
++      "With steady routines and consistent review, [he/she] can turn this progress into stronger results.",
++      "Regular practice and early questions will help [him/her] move from steady progress to stronger consistency."
++    ],
++    newstu: [
++      "As a newer student, continued support and routine will help [him/her] build confidence and consistency.",
++      "As [he/she] settles into the program, routines and feedback will help build confidence and momentum."
++    ],
++    poor: [
++      "Targeted practice and clear routines will be important next steps for [Student].",
++      "With structured support and step-by-step practice, [Student] can make meaningful gains."
++    ]
++  };
++  function getPerformanceToneLine(coreLevel, context){
++    if (!coreLevel) return '';
++    let key = '';
++    if (coreLevel.startsWith('good')) key = 'good';
++    else if (coreLevel.startsWith('average')) key = 'average';
++    else if (coreLevel.startsWith('newstu')) key = 'newstu';
++    else if (coreLevel.startsWith('poor')) key = 'poor';
++    if (!key) return '';
++    const variants = PERFORMANCE_TONE_VARIANTS[key];
++    const line = pickVariant(variants, `${context.studentName || ''}|${coreLevel}|tone`);
++    return builderReplacePlaceholders(line, context);
++  }
+   const REPORT_COMMENT_BANK = [
+     {
+       id: 'participation',
+@@ -3339,22 +3503,19 @@
+       option.style.fontWeight = '600';
+     }
+   }
+-  function prefillBuilderFromRow(rowIndex, opts = {}){
+-    const preserveIdentity = !!opts.preserveIdentity;
++  function prefillBuilderFromRow(rowIndex){
+     const row = rows[rowIndex];
+     if (!row) return;
+     builderSelectedRowIndex = rowIndex;
+     if (builderStudentSelect) builderStudentSelect.value = String(rowIndex);
+-    if (!preserveIdentity && builderStudentNameInput){
++    if (builderStudentNameInput){
+       builderStudentNameInput.value = getFirstNameFromRow(row, rowIndex);
+     }
+-    if (!preserveIdentity){
+-      const pronoun = derivePronounFromRow(row);
+-      if (pronoun === 'female' && builderPronounFemaleInput){
+-        builderPronounFemaleInput.checked = true;
+-      }else if (builderPronounMaleInput){
+-        builderPronounMaleInput.checked = true;
+-      }
++    const pronoun = derivePronounFromRow(row);
++    if (pronoun === 'female' && builderPronounFemaleInput){
++      builderPronounFemaleInput.checked = true;
++    }else if (builderPronounMaleInput){
++      builderPronounMaleInput.checked = true;
+     }
+     applyHintValue(builderTrigTest1Input, row, BUILDER_HINTS.trigTest1);
+     applyHintValue(builderTrigTest2Input, row, BUILDER_HINTS.trigTest2);
+@@ -3466,21 +3627,52 @@
+     if (!templateValue) return;
+     builderCorePerformanceSelect.value = templateValue;
+     builderCorePerformanceSelect.dispatchEvent(new Event('change', { bubbles:true }));
++    updatePerformanceSelectStyle();
+     builderGenerateReport();
+     const baseComment = buildGradeBasedComment(row, builderStudentNameInput.value.trim());
+     if (baseComment && builderReportOutput){
+-      builderReportOutput.value = baseComment;
++      builderReportOutput.value = polishGrammar(cleanFluency(baseComment));
++    }
++  }
++  function updatePerformanceSelectStyle(){
++    if (!builderCorePerformanceSelect) return;
++    const value = String(builderCorePerformanceSelect.value || '');
++    builderCorePerformanceSelect.classList.remove('perf-good','perf-average','perf-new','perf-poor');
++    if (value.startsWith('good')){
++      builderCorePerformanceSelect.classList.add('perf-good');
++    }else if (value.startsWith('average')){
++      builderCorePerformanceSelect.classList.add('perf-average');
++    }else if (value.startsWith('newstu')){
++      builderCorePerformanceSelect.classList.add('perf-new');
++    }else if (value.startsWith('poor')){
++      builderCorePerformanceSelect.classList.add('perf-poor');
+     }
+   }
+   function buildBuilderCommentBank(){
+     if (!builderCommentBankEl) return;
+     builderCommentBankEl.innerHTML = '';
+-    REPORT_COMMENT_BANK.forEach(section => {
++    REPORT_COMMENT_BANK.forEach((section, sectionIndex) => {
+       const sectionEl = document.createElement('div');
+       sectionEl.className = 'builder-comment-section';
+-      const title = document.createElement('h5');
++      if (sectionIndex !== 0) sectionEl.classList.add('collapsed');
++      const headerBtn = document.createElement('button');
++      headerBtn.type = 'button';
++      headerBtn.className = 'builder-comment-toggle';
++      headerBtn.setAttribute('aria-expanded', sectionIndex === 0  'true' : 'false');
++      const title = document.createElement('span');
++      title.className = 'builder-comment-title';
+       title.textContent = section.title;
+-      sectionEl.appendChild(title);
++      const chevron = document.createElement('span');
++      chevron.className = 'builder-comment-chevron';
++      chevron.textContent = '▾';
++      headerBtn.appendChild(title);
++      headerBtn.appendChild(chevron);
++      headerBtn.addEventListener('click', () => {
++        sectionEl.classList.toggle('collapsed');
++        const expanded = !sectionEl.classList.contains('collapsed');
++        headerBtn.setAttribute('aria-expanded', expanded  'true' : 'false');
++      });
++      sectionEl.appendChild(headerBtn);
+       
+       // Sort options: positive first (alphabetically), then constructive (alphabetically)
+       const sortedOptions = [...section.options].sort((a, b) => {
+@@ -3604,41 +3796,135 @@
+   ];
+   const ASSIGNMENT_TEMPLATES = {
+     default: {
+-      high: "[Student] excelled on {label} with {score}%, showing strong command; [he/she] kept responses precise.",
+-      solid: "[Student] performed well on {label} at {score}%, with organized work and mostly solid reasoning.",
+-      ok: "[Student] met expectations on {label} with {score}%, though [he/she] should review the trickier steps.",
+-      low: "[Student] struggled on {label} at {score}%, and would benefit from targeted practice on key outcomes.",
+-      veryLow: "[Student] faced difficulty on {label} ({score}%), needing close support and guided review."
++      high: [
++        "[Student] excelled on {label} with {score}%, showing strong command; [he/she] kept responses precise.",
++        "[Student] showed clear mastery on {label}, earning {score}% with confident reasoning.",
++        "On {label}, [Student] posted {score}%, demonstrating strong control and accuracy."
++      ],
++      solid: [
++        "[Student] performed well on {label} at {score}%, with organized work and mostly solid reasoning.",
++        "[Student] earned {score}% on {label}, showing steady understanding and good structure.",
++        "{label} was handled well by [Student], who scored {score}% with mostly accurate steps."
++      ],
++      ok: [
++        "[Student] met expectations on {label} with {score}%, though [he/she] should review the trickier steps.",
++        "{label} landed at {score}% for [Student]; a brief review of key errors will help.",
++        "[Student] reached {score}% on {label} and would benefit from revisiting the more complex items."
++      ],
++      low: [
++        "[Student] struggled on {label} at {score}%, and would benefit from targeted practice on key outcomes.",
++        "{label} was challenging for [Student] ({score}%); more guided practice is recommended.",
++        "[Student] scored {score}% on {label}, indicating gaps that need focused support."
++      ],
++      veryLow: [
++        "[Student] faced difficulty on {label} ({score}%), needing close support and guided review.",
++        "{label} resulted in {score}% for [Student]; intensive review of fundamentals is needed.",
++        "[Student] had significant difficulty on {label} at {score}%, requiring step-by-step reteaching."
++      ]
+     },
+     quiz: {
+-      high: "[Student] was sharp on {label}, scoring {score}% and recalling concepts quickly.",
+-      solid: "[Student] handled {label} at {score}%, showing steady recall and clear setups.",
+-      ok: "[Student] managed {label} with {score}%; a quick refresh on core items will help.",
+-      low: "[Student] found {label} challenging at {score}%; focused review of missed items is needed.",
+-      veryLow: "[Student] struggled on {label} ({score}%), and needs guided practice on fundamentals."
++      high: [
++        "[Student] was sharp on {label}, scoring {score}% and recalling concepts quickly.",
++        "[Student] nailed {label} with {score}%, showing quick recall and accuracy."
++      ],
++      solid: [
++        "[Student] handled {label} at {score}%, showing steady recall and clear setups.",
++        "[Student] posted {score}% on {label}, with mostly correct recall and work."
++      ],
++      ok: [
++        "[Student] managed {label} with {score}%; a quick refresh on core items will help.",
++        "{label} came in at {score}% for [Student]; a short review will solidify recall."
++      ],
++      low: [
++        "[Student] found {label} challenging at {score}%; focused review of missed items is needed.",
++        "{label} was difficult for [Student] ({score}%); targeted practice is needed."
++      ],
++      veryLow: [
++        "[Student] struggled on {label} ({score}%), and needs guided practice on fundamentals.",
++        "{label} resulted in {score}% for [Student]; foundational review is required."
++      ]
+     },
+     test: {
+-      high: "[Student] excelled on {label} with {score}%, maintaining accuracy under time; [he/she] demonstrated mastery.",
+-      solid: "[Student] performed strongly on {label} at {score}%, with clear reasoning across sections.",
+-      ok: "[Student] reached {score}% on {label}; tightening multi-step work will boost results.",
+-      low: "[Student] scored {score}% on {label}; targeted re-practice on weak areas is recommended.",
+-      veryLow: "[Student] had difficulty on {label} ({score}%), and requires close support to rebuild skills."
++      high: [
++        "[Student] excelled on {label} with {score}%, maintaining accuracy under time; [he/she] demonstrated mastery.",
++        "[Student] achieved {score}% on {label}, showing strong mastery and careful reasoning."
++      ],
++      solid: [
++        "[Student] performed strongly on {label} at {score}%, with clear reasoning across sections.",
++        "{label} produced a solid {score}% for [Student], with organized multi-step work."
++      ],
++      ok: [
++        "[Student] reached {score}% on {label}; tightening multi-step work will boost results.",
++        "{label} came in at {score}% for [Student]; more complete reasoning will raise accuracy."
++      ],
++      low: [
++        "[Student] scored {score}% on {label}; targeted re-practice on weak areas is recommended.",
++        "{label} was tough for [Student] ({score}%); focused reteaching is needed."
++      ],
++      veryLow: [
++        "[Student] had difficulty on {label} ({score}%), and requires close support to rebuild skills.",
++        "{label} resulted in {score}% for [Student]; intensive review and practice are needed."
++      ]
+     },
+     project: {
+-      high: "[Student] led {label} with {score}%, showing initiative and depth in the work.",
+-      solid: "[Student] produced solid work on {label} at {score}%, meeting expectations.",
+-      ok: "[Student] completed {label} with {score}%; clearer organization will strengthen results.",
+-      low: "[Student] earned {score}% on {label}; more structure and checkpoints are needed.",
+-      veryLow: "[Student] struggled to complete {label} ({score}%), needing more guidance."
++      high: [
++        "[Student] led {label} with {score}%, showing initiative and depth in the work.",
++        "[Student] excelled on {label} at {score}%, demonstrating strong planning and execution."
++      ],
++      solid: [
++        "[Student] produced solid work on {label} at {score}%, meeting expectations.",
++        "{label} was completed at {score}% by [Student], with clear organization."
++      ],
++      ok: [
++        "[Student] completed {label} with {score}%; clearer organization will strengthen results.",
++        "{label} came in at {score}% for [Student]; improved structure would help."
++      ],
++      low: [
++        "[Student] earned {score}% on {label}; more structure and checkpoints are needed.",
++        "{label} was challenging for [Student] ({score}%); additional guidance is recommended."
++      ],
++      veryLow: [
++        "[Student] struggled to complete {label} ({score}%), needing more guidance.",
++        "{label} resulted in {score}% for [Student]; closer support and scaffolding are needed."
++      ]
+     },
+     homework: {
+-      high: "[Student] completed {label} at {score}%, reflecting consistent practice.",
+-      solid: "[Student] maintained {score}% on {label}, keeping pace with assignments.",
+-      ok: "[Student] logged {score}% on {label}; regular review would strengthen recall.",
+-      low: "[Student] reached {score}% on {label}; nightly practice will help solidify skills.",
+-      veryLow: "[Student] often missed {label} ({score}%), needing routine support to build habits."
++      high: [
++        "[Student] completed {label} at {score}%, reflecting consistent practice.",
++        "[Student] earned {score}% on {label}, showing consistent follow-through."
++      ],
++      solid: [
++        "[Student] maintained {score}% on {label}, keeping pace with assignments.",
++        "{label} was completed at {score}% by [Student], indicating steady practice."
++      ],
++      ok: [
++        "[Student] logged {score}% on {label}; regular review would strengthen recall.",
++        "{label} came in at {score}% for [Student]; more consistent review will help."
++      ],
++      low: [
++        "[Student] reached {score}% on {label}; nightly practice will help solidify skills.",
++        "{label} was low at {score}% for [Student]; daily practice is recommended."
++      ],
++      veryLow: [
++        "[Student] often missed {label} ({score}%), needing routine support to build habits.",
++        "{label} resulted in {score}% for [Student]; structured practice and check-ins are needed."
++      ]
+     }
+   };
++  function hashString(value){
++    let hash = 0;
++    for (let i = 0; i < value.length; i += 1){
++      hash = ((hash << 5) - hash) + value.charCodeAt(i);
++      hash |= 0;
++    }
++    return Math.abs(hash);
++  }
++  function pickVariant(variants, seed){
++    if (!Array.isArray(variants)) return variants || '';
++    if (!variants.length) return '';
++    const idx = hashString(seed || '') % variants.length;
++    return variants[idx];
++  }
+   function detectAssignmentType(label = ''){
+     const t = String(label || '').toLowerCase();
+     if (t.includes('quiz')) return 'quiz';
+@@ -3669,7 +3955,8 @@
+     ];
+     let aboveCount = 0;
+     let belowCount = 0;
+-    selectedAssignments.forEach((col, idx) => {
++    const limitedAssignments = selectedAssignments.slice(0, 2);
++    limitedAssignments.forEach((col, idx) => {
+       const raw = row[col];
+       const meta = deriveMarkMeta(raw, col);
+       if (!meta) return;
+@@ -3678,7 +3965,8 @@
+       const bandKey = (ASSIGNMENT_BANDS.find(b => score >= b.min) || ASSIGNMENT_BANDS[ASSIGNMENT_BANDS.length - 1]).key;
+       const type = detectAssignmentType(col);
+       const tmplMap = ASSIGNMENT_TEMPLATES[type] || ASSIGNMENT_TEMPLATES.default;
+-      const tmpl = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
++      const variants = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
++      const tmpl = pickVariant(variants, `${displayLabel}|${bandKey}|${meta.raw}|${idx}`);
+       let sentence = tmpl.replace('{label}', displayLabel).replace('{score}', meta.raw);
+       sentence = builderReplacePlaceholders(sentence, context);
+       if (overallValue != null){
+@@ -3770,30 +4058,55 @@
+   }
+   function buildCommentSnippetText(selectedComments, context){
+     if (!Array.isArray(selectedComments) || !selectedComments.length) return '';
+-    const prioritized = prioritizePersonalQualities(selectedComments);
+     const replace = (item) => builderReplacePlaceholders(item.text, context);
+     if (commentOrderMode === 'sandwich'){
++      const prioritized = prioritizePersonalQualities(selectedComments);
+       const pqFirst = prioritized.filter(it => it.section === 'personalqualities');
+       const others = prioritized.filter(it => it.section !== 'personalqualities');
+       const ordered = pqFirst.concat(orderCommentsSandwichStyle(others));
+       return ordered.map(replace).join(' ');
+     }
+     if (commentOrderMode === 'bullet'){
+-      const positives = prioritized.filter(it => it.type === 'positive').map(replace).join(' ');
+-      const bulletLines = prioritized
+-        .filter(it => it.type !== 'positive')
+-        .map(it => {
+-          const txt = replace(it);
+-          const nameRegex = new RegExp(`\\b${escapeRegExp(context.studentName)}\\b`, 'gi');
+-          return `• ${txt.replace(nameRegex, context.pronouns.He)}`;
+-        });
+-      const bulletBlock = bulletLines.length  ['Constructive feedback:', ...bulletLines].join('\n') : '';
+-      const parts = [];
+-      if (positives) parts.push(positives);
+-      if (bulletBlock) parts.push(bulletBlock);
+-      return parts.join(parts.length > 1  '\n\n' : '');
+-    }
+-    return prioritized.map(replace).join(' ');
++      const nameRegex = new RegExp(`\b${escapeRegExp(context.studentName)}\b`, 'gi');
++      const positives = selectedComments.filter(it => it.type === 'positive').map(replace);
++      const constructives = selectedComments.filter(it => it.type !== 'positive').map(replace);
++      const bulletify = (items) => items.map((txt) => `- ${txt.replace(nameRegex, context.pronouns.He)}`);
++      const blocks = [];
++      if (positives.length){
++        blocks.push(['Strengths:', ...bulletify(positives)].join('\n'));
++      }
++      if (constructives.length){
++        blocks.push(['Growth focus:', ...bulletify(constructives)].join('\n'));
++      }
++      return blocks.join('\n\n');
++    }
++    return selectedComments.map(replace).join(' ');
++  }
++  function splitIntoSentences(text){
++    if (!text) return [];
++    return String(text).split(/(<=[.!])\s+/).filter(Boolean);
++  }
++  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph }){
++    let baseText = baseComment || '';
++    if (termLabel){
++      baseText = `${termLabel}: ${baseText}`;
++    }
++    let closing = '';
++    let core = baseText;
++    if (baseText){
++      const sentences = splitIntoSentences(baseText);
++      if (sentences.length > 1){
++        closing = sentences.pop();
++        core = sentences.join(' ');
++      }
++    }
++    const blocks = [];
++    if (core) blocks.push(core.trim());
++    if (toneLine) blocks.push(toneLine.trim());
++    if (commentSnippet) blocks.push(commentSnippet.trim());
++    if (assignmentParagraph) blocks.push(assignmentParagraph.trim());
++    if (closing) blocks.push(closing.trim());
++    return blocks.filter(Boolean).join('\n\n');
+   }
+   function cleanFluency(text){
+     if (!text) return '';
+@@ -3814,6 +4127,16 @@
+     }).filter(Boolean);
+     return cleanedLines.join('\n\n').trim();
+   }
++  function polishGrammar(text){
++    if (!text) return '';
++    let t = String(text);
++    t = t.replace(/\s+([,.;:!])/g, '$1');
++    t = t.replace(/[ \t]{2,}/g, ' ');
++    t = t.replace(/ \n/g, '\n');
++    t = t.replace(/\b(a)\s+([aeiou])/gi, (_, a, v) => (a === 'A'  'An ' : 'an ') + v);
++    t = t.replace(/\b(an)\s+([^aeiou\W])/gi, (_, an, c) => (an === 'An'  'A ' : 'a ') + c);
++    return t.trim();
++  }
+   function applyPronounsAfterFirstSentence(text, name, pronouns){
+     if (!text || !name) return text || '';
+     const safeName = escapeRegExp(name.trim());
+@@ -3834,13 +4157,7 @@
+       builderReportOutput.innerHTML = '<em>Provide a student name and select a core performance level.</em>';
+       return;
+     }
+-    // Ensure we have the current student row handy for derived values
+     const studentRow = rows[builderSelectedRowIndex];
+-    const template = REPORT_BUILDER_TEMPLATES[coreLevel];
+-    if (!template){
+-      builderReportOutput.textContent = 'Template not available for this selection.';
+-      return;
+-    }
+     const context = {
+       studentName,
+       pronouns: getBuilderPronouns(),
+@@ -3850,7 +4167,7 @@
+       termLabel: builderTermSelector.value || '',
+       customComment: builderCustomCommentInput.value.trim()
+     };
+-    // Pull final grade automatically from data; fall back to entered value
++
+     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+     const gradeMeta = studentRow && gradeColumn  deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+     const derivedGrade = gradeMeta  gradeMeta.raw : '';
+@@ -3858,49 +4175,75 @@
+     const providedMeta = providedGrade  deriveMarkMeta(providedGrade, gradeColumn) : null;
+     const finalGradeToUse = derivedGrade || (providedMeta  providedMeta.raw : providedGrade);
+     context.termAverage = finalGradeToUse;
+-    // Get selected assignment columns
++
+     const selectedAssignments = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
+       .map(cb => cb.value);
+     const overallMeta = deriveMarkMeta(finalGradeToUse, gradeColumn);
+     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
+-    let partA = template.partA;
+-    let partB = template.partB;
+-    const score1 = ''; // generalized builder: omit test-specific commentary
+-    const score2 = '';
+-    const ccComment = builderGetCCCommentary(builderCCPerformanceSelect.value || '');
+-    partA = partA.replace('[SCORE_COMMENTARY_TEST1]', score1)
+-                 .replace('[SCORE_COMMENTARY_TEST2]', score2)
+-                 .replace('[CC_COMMENTARY]', ccComment);
+-    if (partA.includes('[RETEST_CLAUSE]')){
+-      if (context.retestScore && context.originalScore && template.retestClause){
+-        partA = partA.replace('[RETEST_CLAUSE]', template.retestClause);
+-      }else{
+-        partA = partA.replace('[RETEST_CLAUSE]', template.noRetestClause || '');
+-        partA = partA.replace('[SCORE_COMMENTARY_TEST2]', score2);
+-      }
+-    }
+-    partA = builderReplacePlaceholders(partA, context);
+-    partB = builderReplacePlaceholders(partB, context);
++    const assignmentParagraph = assignmentSentences  `In recent assignments, ${assignmentSentences}` : '';
++
+     const selectedComments = getBuilderSelectedComments();
+     const commentSnippetText = buildCommentSnippetText(selectedComments, context);
+-    const hasBullets = commentOrderMode === 'bullet' && selectedComments.some(it => it.type !== 'positive');
+-    const termPrefix = context.termLabel  `${context.termLabel}\n\n` : '';
+-    let report = termPrefix + partA;
+-    if (commentSnippetText){
+-      const separator = commentSnippetText.includes('\n')  '\n\n' : ' ';
+-      report += separator + commentSnippetText;
+-    }
+-    if (assignmentSentences){
+-      const sep = hasBullets  '\n\n' : ' ';
+-      report += sep + assignmentSentences;
+-    }
+-    report += hasBullets  '\n\n' : ' ';
+-    report += partB;
+-    if (context.customComment) report += ' ' + builderReplacePlaceholders(context.customComment, context);
++    const toneLine = getPerformanceToneLine(coreLevel, context);
++
++    let report = '';
++    const baseComment = studentRow  buildGradeBasedComment(studentRow, context.studentName) : '';
++    if (baseComment){
++      report = buildUnifiedComment({
++        baseComment,
++        termLabel: context.termLabel,
++        toneLine,
++        commentSnippet: commentSnippetText,
++        assignmentParagraph
++      });
++    }else{
++      const template = getReportBuilderTemplate(coreLevel, context);
++      if (!template){
++        builderReportOutput.textContent = 'Template not available for this selection.';
++        return;
++      }
++      let partA = template.partA;
++      let partB = template.partB;
++      const score1 = '';
++      const score2 = '';
++      const ccComment = builderGetCCCommentary(builderCCPerformanceSelect.value || '');
++      partA = partA.replace('[SCORE_COMMENTARY_TEST1]', score1)
++                   .replace('[SCORE_COMMENTARY_TEST2]', score2)
++                   .replace('[CC_COMMENTARY]', ccComment);
++      if (partA.includes('[RETEST_CLAUSE]')){
++        if (context.retestScore && context.originalScore && template.retestClause){
++          partA = partA.replace('[RETEST_CLAUSE]', template.retestClause);
++        }else{
++          partA = partA.replace('[RETEST_CLAUSE]', template.noRetestClause || '');
++          partA = partA.replace('[SCORE_COMMENTARY_TEST2]', score2);
++        }
++      }
++      partA = builderReplacePlaceholders(partA, context);
++      partB = builderReplacePlaceholders(partB, context);
++      const blocks = [];
++      if (context.termLabel){
++        blocks.push(`${context.termLabel}: ${partA}`);
++      }else{
++        blocks.push(partA);
++      }
++      if (toneLine) blocks.push(toneLine);
++      if (commentSnippetText) blocks.push(commentSnippetText);
++      if (assignmentParagraph) blocks.push(assignmentParagraph);
++      if (partB) blocks.push(partB);
++      report = blocks.filter(Boolean).join('
++
++');
++    }
++
++    if (context.customComment){
++      report += ' ' + builderReplacePlaceholders(context.customComment, context);
++    }
++
+     const pronounAdjusted = applyPronounsAfterFirstSentence(report, context.studentName, context.pronouns);
+     const trimmedReport = cleanFluency(pronounAdjusted.trim());
+-    builderReportOutput.value = trimmedReport;
+-    builderReportOutput.dataset.lastSig = computeReportSignature(trimmedReport, {
++    const polishedReport = polishGrammar(trimmedReport);
++    builderReportOutput.value = polishedReport;
++    builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
+       studentName: context.studentName,
+       coreLevel,
+       termLabel: context.termLabel,
+@@ -3974,6 +4317,7 @@
+     if (builderStudentNameInput) builderStudentNameInput.value = entry.studentName || '';
+     if (builderCorePerformanceSelect) builderCorePerformanceSelect.value = entry.coreLevel || '';
+     if (builderTermSelector) builderTermSelector.value = entry.termLabel || '';
++    updatePerformanceSelectStyle();
+     // restore comment selections
+     if (!builderBankRendered && builderCommentBankEl){
+       buildBuilderCommentBank();
