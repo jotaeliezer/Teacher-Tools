@@ -1646,11 +1646,17 @@ function getPerformanceToneLine(coreLevel, context){
     Array.from(filesList.querySelectorAll('.file-item')).forEach(el => {
       el.classList.toggle('active', activeContext && Number(el.dataset.id) === activeContext.id);
     });
+    if (filesDrawerMiniList){
+      Array.from(filesDrawerMiniList.querySelectorAll('.files-mini-item')).forEach(el => {
+        el.classList.toggle('active', activeContext && Number(el.dataset.id) === activeContext.id);
+      });
+    }
     renderWarning(activeContext?.studentNameWarning || '');
   }
   function updateFilesUI(){
-    fileCountEl.textContent = String(fileContexts.length);
+    if (fileCountEl) fileCountEl.textContent = String(fileContexts.length);
     filesList.innerHTML = "";
+    if (filesDrawerMiniList) filesDrawerMiniList.innerHTML = "";
     fileContexts.forEach(ctx => {
       const item = document.createElement('div');
       item.className = 'file-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
@@ -1714,6 +1720,17 @@ function getPerformanceToneLine(coreLevel, context){
       actions.appendChild(removeBtn);
       item.appendChild(actions);
       filesList.appendChild(item);
+
+      if (filesDrawerMiniList){
+        const mini = document.createElement('button');
+        mini.type = 'button';
+        mini.className = 'files-mini-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
+        mini.dataset.id = ctx.id;
+        mini.title = ctx.name;
+        mini.textContent = '📄';
+        mini.addEventListener('click', () => setActiveContext(ctx.id));
+        filesDrawerMiniList.appendChild(mini);
+      }
     });
     highlightActiveFile();
     syncPrintClassSelection();

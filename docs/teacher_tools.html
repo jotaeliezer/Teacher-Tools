@@ -74,6 +74,7 @@
       <button class="btn icon-btn files-drawer-toggle" id="filesDrawerToggle" type="button" aria-expanded="true" aria-controls="filesList" title="Toggle files panel">📂</button>
       <b class="files-drawer-title">FILES</b>
     </div>
+    <div id="filesDrawerMiniList" class="files-drawer-mini"></div>
     <div id="filesList"></div>
     <div id="filesWarning" class="warning-banner" style="margin:0;">
       <span style="font-weight:600;">!</span>
@@ -157,6 +158,25 @@
             <input id="printTitleInput" type="text" placeholder="e.g. Unit 4 Performance Snapshot" style="padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:15px;" />
           </label>
           <div class="muted" style="font-size:12px;">Edits appear in the preview instantly.</div>
+          <div class="print-template-panel" style="font-size:15px;">
+            <h4>Templates</h4>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="attendance" checked />
+              Attendance Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="marking" />
+              Marking Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="drill" />
+              Drill Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="reportCard" />
+              Report Card (per student)
+            </label>
+          </div>
           <div>
             <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Term</label>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -175,25 +195,6 @@
             </div>
           </div>
           <div class="print-helpers">
-            <div class="print-template-panel" style="font-size:15px;">
-              <h4>Templates</h4>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="attendance" checked />
-                Attendance Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="marking" />
-                Marking Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="drill" />
-                Drill Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="reportCard" />
-                Report Card (per student)
-              </label>
-            </div>
             <div class="print-template-panel" style="font-size:15px;">
               <h4>Report Card Student</h4>
               <select id="printReportStudentSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">

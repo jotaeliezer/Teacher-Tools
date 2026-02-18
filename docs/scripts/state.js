@@ -332,6 +332,7 @@ function computePrintColumnWidths(students){
   const zoomOutBtn = document.getElementById('zoomOutBtn');
   const filesDrawer = document.getElementById('filesDrawer');
   const filesDrawerToggle = document.getElementById('filesDrawerToggle');
+  const filesDrawerMiniList = document.getElementById('filesDrawerMiniList');
   const tabDataBtn = document.getElementById('tabDataBtn');
   const tabPrintBtn = document.getElementById('tabPrintBtn');
   const tabCommentsBtn = document.getElementById('tabCommentsBtn');
