@@ -10,7 +10,7 @@
   updateColumnDataFilterButton();
   isTransposed = !!(initialSettings.transposed);
   updateTransposeButton();
-  setFilesDrawerExpanded(initialSettings.filesDrawerExpanded !== false, false);
+  setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
 
   let builderActiveCommentSection = null;
   let builderLookingAheadAutoKey = '';
@@ -3064,12 +3064,36 @@ function getPerformanceToneLine(coreLevel, context){
     closeHeaderModal();
   });
 
+  let headerModalHome = null;
+  let headerModalNext = null;
+  function detachHeaderModal(){
+    if (!modalBackdrop) return;
+    if (modalBackdrop.parentElement !== document.body){
+      headerModalHome = modalBackdrop.parentElement;
+      headerModalNext = modalBackdrop.nextSibling;
+      document.body.appendChild(modalBackdrop);
+    }
+  }
+  function restoreHeaderModal(){
+    if (!modalBackdrop || !headerModalHome) return;
+    if (headerModalNext){
+      headerModalHome.insertBefore(modalBackdrop, headerModalNext);
+    }else{
+      headerModalHome.appendChild(modalBackdrop);
+    }
+    headerModalHome = null;
+    headerModalNext = null;
+  }
   function openHeaderModal(){
     headerCountChip.textContent = `${allColumns.length} headers`;
     refreshHeaderPreview();
+    detachHeaderModal();
     modalBackdrop.style.display = 'flex';
   }
-  function closeHeaderModal(){ modalBackdrop.style.display = 'none'; }
+  function closeHeaderModal(){
+    modalBackdrop.style.display = 'none';
+    restoreHeaderModal();
+  }
 
   function computeHeaderMapping(){
     const rules = {
