@@ -432,12 +432,8 @@
              border-radius:12px; padding:12px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
     #printContainer{ display:none; }
     #printPreviewContent{
-      display:flex;
-      flex-direction:column;
-      align-items:stretch;
-      gap:12px;
-      max-height:70vh;
-      overflow:auto;
+      display:block;
+      min-height:220px;
     }
     .print-preview-page{
       width:13in;
@@ -483,8 +479,11 @@
       padding:10px 12px;
       display:flex;
       flex-direction:column;
+      align-items:flex-start;
       gap:6px;
       background:#fafafa;
+      text-align:left;
+      width:100%;
     }
     .print-template-panel h4,
     .print-class-panel h4{
@@ -502,6 +501,8 @@
       gap:8px;
       font-size:13px;
       text-align:left;
+      width:100%;
+      align-self:stretch;
     }
     .print-class-option small{
       color:#6b7280;
@@ -760,30 +761,62 @@
       border-radius:12px;
       background:#fff;
     }
+    body.print-preview #printPreviewContent{
+      overflow:auto;
+    }
+    body.print-preview #printContainer{
+      margin:0;
+      padding:0;
+      width:100%;
+    }
+    body.print-preview .print-preview-page{
+      margin:0;
+      padding:0.5in 0.25in 0.25in 0.25in;
+      width:100%;
+      min-height:auto;
+      box-sizing:border-box;
+    }
+    body.print-preview .print-preview-table{
+      width:100%;
+      margin:0;
+    }
+    body.print-preview .class-template-page{
+      margin:0;
+      border-radius:0;
+      page-break-after:always;
+      padding:0.5in 0.5in 0.65in 0.5in;
+    }
+    body.print-preview .page-footer{
+      position: static;
+      bottom: auto;
+      left: auto;
+      right: auto;
+      margin-top: 12px;
+    }
     body.printing-preview #appRoot{
       display:none !important;
     }
-    body.printing-preview #printContainer{
+    body:is(.print-preview, .printing-preview) #printContainer{
       display:block;
       margin-top:0;
     }
-    body.printing-preview #printContainer .print-summary{
+    body:is(.print-preview, .printing-preview) #printContainer .print-summary{
       font-size:12px;
       margin-bottom:8px;
       font-weight:600;
     }
-    body.printing-preview #printContainer .print-preview-page{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-page{
       box-shadow:none;
       border:none;
     }
-    body.printing-preview #printContainer .print-preview-table{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table{
       width:100%;
       border-collapse:collapse;
       font-size:11px;
       table-layout:auto;
     }
-    body.printing-preview #printContainer .print-preview-table th,
-    body.printing-preview #printContainer .print-preview-table td{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th,
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table td{
       border:1px solid #ccc;
       padding:6px;
       text-align:left;
@@ -792,16 +825,16 @@
       overflow-wrap:anywhere;
       page-break-inside:avoid;
     }
-    body.printing-preview #printContainer .print-preview-table th{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th{
       position: static;
       top:auto;
     }
-    body.printing-preview #printContainer .print-preview-table th:first-child,
-    body.printing-preview #printContainer .print-preview-table td:first-child{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th:first-child,
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table td:first-child{
       white-space:nowrap;
       width:200px;
     }
-    body.printing-preview #printContainer .print-preview-table th.rotate-header{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.rotate-header{
       width:26px;
       min-width:26px;
       max-width:26px;
@@ -809,7 +842,7 @@
       vertical-align:middle;
       text-align:center;
     }
-    body.printing-preview #printContainer .print-preview-table th.rotate-header .rotate-text{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.rotate-header .rotate-text{
       display:inline-flex;
       align-items:flex-end;
       justify-content:flex-start;
@@ -824,31 +857,31 @@
       hyphens:auto;
       max-height:140px;
     }
-    body.printing-preview #printContainer .print-preview-table th.assignment-spacer{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.assignment-spacer{
       width:26px;
       min-width:26px;
       max-width:26px;
       padding:4px 2px;
       text-align:center;
     }
-    body.printing-preview #printContainer .print-preview-table th.student-name-header{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.student-name-header{
       text-align:left;
       font-weight:600;
       width:200px;
     }
-    body.printing-preview #printContainer .print-preview-table th.assignment-header{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.assignment-header{
       text-align:center;
       font-weight:600;
     }
-    body.printing-preview #printContainer .print-preview-table th.student-name-spacer{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.student-name-spacer{
       width:200px;
     }
-    body.printing-preview #printContainer .print-preview-table td.assignment-cell{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table td.assignment-cell{
       width:26px;
       min-width:26px;
       text-align:center;
     }
-    body.printing-preview #printContainer .print-preview-table th.assignment-spacer{
+    body:is(.print-preview, .printing-preview) #printContainer .print-preview-table th.assignment-spacer{
       width:26px;
       min-width:26px;
     }
@@ -1279,6 +1312,8 @@
     .builder-card select,
     .builder-card textarea{
       width:100%;
+      max-width:100%;
+      box-sizing:border-box;
       padding:6px 8px;
       border:1px solid #d7dae3;
       border-radius:6px;
@@ -1320,6 +1355,14 @@
     .builder-card textarea{
       min-height:80px;
       resize:vertical;
+    }
+    #builderReportOutput{
+      min-height:220px;
+      height:260px;
+      max-height:360px;
+      padding:12px;
+      border-radius:8px;
+      line-height:1.45;
     }
     .print-marking-panel{
       border:1px solid #e6e6e6;

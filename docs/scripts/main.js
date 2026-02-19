@@ -2550,16 +2550,18 @@ function getPerformanceToneLine(coreLevel, context){
     });
   }
   function renderPrintPreview(){
-    if (!printPreviewContent) return;
+    if (!printPreviewContent || !printContainer) return;
     printPreviewContent.innerHTML = "";
+    movePrintContainerToPreview();
+    printContainer.innerHTML = "";
     const contexts = getSelectedPrintContexts();
     if (!contexts.length){
-      printPreviewContent.appendChild(createPrintEmptyState('Select at least one roster to print.'));
+      printContainer.appendChild(createPrintEmptyState('Select at least one roster to print.'));
       return;
     }
     const templates = getSelectedPrintTemplates();
     if (!templates.length){
-      printPreviewContent.appendChild(createPrintEmptyState('Select at least one template.'));
+      printContainer.appendChild(createPrintEmptyState('Select at least one template.'));
       return;
     }
     // Sync student selector with current active context
@@ -2576,7 +2578,19 @@ function getPerformanceToneLine(coreLevel, context){
     if (!stack.children.length){
       stack.appendChild(createPrintEmptyState('No students available to print.'));
     }
-    printPreviewContent.appendChild(stack);
+    printContainer.appendChild(stack);
+  }
+  function movePrintContainerToPreview(){
+    if (!printPreviewContent || !printContainer) return;
+    if (printContainer.parentElement !== printPreviewContent){
+      printPreviewContent.appendChild(printContainer);
+    }
+  }
+  function movePrintContainerToPrintRoot(){
+    if (!printContainer) return;
+    if (printContainer.parentElement !== document.body){
+      document.body.appendChild(printContainer);
+    }
   }
   function syncPrintClassSelection(){
     const validIds = new Set(fileContexts.map(ctx => ctx.id));
@@ -2911,56 +2925,20 @@ function getPerformanceToneLine(coreLevel, context){
     resetPerformanceFilterState();
   };
   
-  async function capturePreviewImage() {
-    try {
-      // 1) Ensure we have the elements we expect
-      const src = document.getElementById('printPreviewContent'); // what you see in the modal
-      const dst = document.getElementById('printContainer');      // what gets printed in print mode
-      if (!src || !dst) {
-        console.warn('PRINT: preview or container missing.');
-        return false; // nothing to print
-      }
-
-      // 2) Clear previous content and clone current preview
-      dst.innerHTML = '';
-      const clone = src.cloneNode(true);
-      // Optional: remove scroll constraints that preview uses
-      clone.style.maxHeight = 'none';
-      clone.style.overflow = 'visible';
-
-      // 3) Insert into print container
-      dst.appendChild(clone);
-
-      // 4) If you later *must* render to an image, uncomment the block below:
-      /*
-      if (window.html2canvas) {
-        const canvas = await html2canvas(src, {backgroundColor: '#ffffff', scale: 2});
-        dst.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.width = '100%';
-        dst.appendChild(img);
-      }
-      */
-
-      return true; // signal success
-    } catch (err) {
-      console.error('PRINT: capturePreviewImage failed', err);
-      return false;
-    }
-  }
-
-
   async function launchPrintDialog(){
-    const ready = await capturePreviewImage();
-    if (!ready) return;
-    closePrintPreviewModal();
+    if (!printContainer) return;
+    renderPrintPreview();
+    movePrintContainerToPrintRoot();
+    document.body.classList.remove('print-preview');
     document.body.classList.add('printing-preview');
     try {
       window.print();
     } finally {
       document.body.classList.remove('printing-preview');
-      if (printContainer) printContainer.innerHTML = "";
+      if (isPrintTabActive()){
+        movePrintContainerToPreview();
+        document.body.classList.add('print-preview');
+      }
     }
   }
 
@@ -3307,6 +3285,12 @@ function getPerformanceToneLine(coreLevel, context){
     Object.entries(buttons).forEach(([key, btn]) => {
       if (btn) btn.classList.toggle('active', key === kind);
     });
+    const printActive = kind === 'print';
+    document.body.classList.toggle('print-preview', printActive);
+    if (!printActive){
+      document.body.classList.remove('printing-preview');
+      movePrintContainerToPrintRoot();
+    }
     if (kind !== 'print'){
       togglePrintCommentsDrawer(false, true);
     }
