@@ -227,9 +227,10 @@ const PRINT_TEMPLATE_DEFS = {
   drill: { id:'drill', label:'Drill Sheet' },
   reportCard: { id:'reportCard', label:'Report Card' }
 };
-const PRINT_EXTRA_BLANK_ROWS = 5;
-let selectedTemplateIds = new Set(['attendance']);
+const PRINT_EXTRA_BLANK_ROWS = 4;
+let selectedTemplateId = 'attendance';
 let selectedClassIds = new Set();
+let printAllClasses = false;
 const textMeasureCanvas = document.createElement('canvas');
 const textMeasureCtx = textMeasureCanvas.getContext('2d');
 function getTemplateFontVariants(){
@@ -398,12 +399,14 @@ function computePrintColumnWidths(students){
   const printPreviewContent = document.getElementById('printPreviewContent');
   const printPreviewCloseBtn = document.getElementById('printPreviewClose');
   const printPreviewCancelBtn = document.getElementById('printPreviewCancel');
+  const printPreviewPrintTopBtn = document.getElementById('printPreviewPrintTop');
   const printPreviewPrintBtn = document.getElementById('printPreviewPrint');
 const printMarkingPanel = document.getElementById('printMarkingPanel');
 const printMarkingColumnsList = document.getElementById('printMarkingColumnsList');
 const printMarkingSelectAllBtn = document.getElementById('printMarkingSelectAll');
 const printMarkingClearBtn = document.getElementById('printMarkingClear');
 const printClassList = document.getElementById('printClassList');
+const printAllClassesToggle = document.getElementById('printAllClassesToggle');
 const printReportStudentSelect = document.getElementById('printReportStudentSelect');
 const printCommentsBtn = document.getElementById('printCommentsBtn');
 const printCommentsDrawer = document.getElementById('printCommentsDrawer');

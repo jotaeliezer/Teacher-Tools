@@ -11,6 +11,9 @@
   isTransposed = !!(initialSettings.transposed);
   updateTransposeButton();
   setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
+  selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
+  printAllClasses = !!initialSettings.printAllClasses;
+  saveSettings({ printTemplateId: selectedTemplateId });
 
   let builderActiveCommentSection = null;
   let builderLookingAheadAutoKey = '';
@@ -224,6 +227,15 @@
   printTemplateInputs.forEach(input => {
     input.addEventListener('change', handleTemplateSelectionChange);
   });
+  if (printAllClassesToggle){
+    printAllClassesToggle.addEventListener('change', () => {
+      printAllClasses = !!printAllClassesToggle.checked;
+      saveSettings({ printAllClasses });
+      selectedClassIds = new Set(getEffectivePrintContextIds());
+      renderPrintPreview();
+      renderPrintMarkingColumnPanel();
+    });
+  }
   if (printMarkingSelectAllBtn){
     printMarkingSelectAllBtn.addEventListener('click', handlePrintMarkingSelectAll);
   }
@@ -237,11 +249,12 @@
       });
     }
   });
-  if (printPreviewPrintBtn){
-    printPreviewPrintBtn.addEventListener('click', () => {
+  [printPreviewPrintTopBtn, printPreviewPrintBtn].forEach(btn => {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
       launchPrintDialog();
     });
-  }
+  });
   if (printCommentsBtn){
     printCommentsBtn.addEventListener('click', () => togglePrintCommentsDrawer(true));
   }
@@ -1609,8 +1622,10 @@ function getPerformanceToneLine(coreLevel, context){
     highlightActiveFile();
     renderWarning(ctx.studentNameWarning || '');
     status('READY');
-    // Align Print View selection with the clicked file so preview reflects the active roster
-    selectedClassIds = new Set([ctx.id]);
+    // Align Print View selection with the clicked file in single-class mode.
+    if (!printAllClasses){
+      selectedClassIds = new Set([ctx.id]);
+    }
     if (isPrintTabActive()){
       renderPrintClassList();
       renderPrintPreview();
@@ -2179,25 +2194,74 @@ function getPerformanceToneLine(coreLevel, context){
     wrap.textContent = message;
     return wrap;
   }
-  function getSelectedPrintTemplates(){
-    if (!selectedTemplateIds.size){
-      // default to attendance if nothing chosen
-      selectedTemplateIds.add('attendance');
-      printTemplateInputs.forEach(input => {
-        if (input.value === 'attendance') input.checked = true;
-      });
+  function createUnifiedPrintFooter(classDisplay, termLabel, teacherName){
+    const footer = document.createElement('div');
+    footer.className = 'print-footer';
+    const left = document.createElement('div');
+    left.className = 'print-footer-left';
+    left.textContent = classDisplay || '[class info]';
+    const center = document.createElement('div');
+    center.className = 'print-footer-center';
+    center.textContent = termLabel || '';
+    const right = document.createElement('div');
+    right.className = 'print-footer-right';
+    right.textContent = teacherName || '[teacher name]';
+    footer.appendChild(left);
+    footer.appendChild(center);
+    footer.appendChild(right);
+    return footer;
+  }
+  function normalizePrintTemplateId(value){
+    return Object.prototype.hasOwnProperty.call(PRINT_TEMPLATE_DEFS, value) ? value : null;
+  }
+  function resolveSavedPrintTemplate(settings){
+    const direct = normalizePrintTemplateId(settings?.printTemplateId);
+    if (direct) return direct;
+    const legacyOrder = ['attendance', 'marking', 'drill', 'reportCard'];
+    const legacyList = Array.isArray(settings?.printTemplateIds) ? settings.printTemplateIds : [];
+    for (const key of legacyOrder){
+      if (legacyList.includes(key) && normalizePrintTemplateId(key)) return key;
     }
-    return Array.from(selectedTemplateIds);
+    return 'attendance';
+  }
+  function setSelectedPrintTemplate(templateId, persist = true){
+    const next = normalizePrintTemplateId(templateId) || 'attendance';
+    selectedTemplateId = next;
+    printTemplateInputs.forEach(input => {
+      input.checked = input.value === next;
+    });
+    if (persist){
+      saveSettings({ printTemplateId: next });
+    }
+  }
+  function getSelectedPrintTemplates(){
+    if (!normalizePrintTemplateId(selectedTemplateId)){
+      setSelectedPrintTemplate('attendance');
+    }else{
+      setSelectedPrintTemplate(selectedTemplateId, false);
+    }
+    return [selectedTemplateId];
+  }
+  function getEffectivePrintContextIds(){
+    if (printAllClasses){
+      return fileContexts.map(ctx => ctx.id);
+    }
+    if (activeContext?.id != null){
+      return [activeContext.id];
+    }
+    if (fileContexts.length){
+      return [fileContexts[0].id];
+    }
+    return [];
   }
   function getSelectedPrintContexts(){
     const valid = new Map(fileContexts.map(ctx => [ctx.id, ctx]));
     const contexts = [];
-    selectedClassIds.forEach(id => {
+    getEffectivePrintContextIds().forEach(id => {
       if (valid.has(id)) contexts.push(valid.get(id));
     });
-    if (!contexts.length && activeContext){
+    if (!contexts.length && activeContext && valid.has(activeContext.id)){
       contexts.push(activeContext);
-      selectedClassIds.add(activeContext.id);
     }
     return contexts;
   }
@@ -2216,8 +2280,8 @@ function getPerformanceToneLine(coreLevel, context){
       node.style.minWidth = `${width}px`;
       node.style.width = `${width}px`;
     };
-    const teacherName = (printMeta.teacher || '').trim() || '__________';
-    const classDisplay = (printMeta.classInfo || '').trim() || getContextDisplayName(ctx);
+    const teacherName = (printMeta.teacher || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim();
     const termLabel = getTermLabel(printMeta.term);
     const templateLabel = PRINT_TEMPLATE_DEFS[templateId]?.label || 'Template';
 
@@ -2347,10 +2411,7 @@ function getPerformanceToneLine(coreLevel, context){
     table.appendChild(tbody);
     page.appendChild(table);
 
-    const footer = document.createElement('div');
-    footer.className = 'page-footer';
-    footer.innerHTML = `<span>Teacher: ${teacherName}</span><span>Class: ${classDisplay}</span><span>${termLabel}</span>`;
-    page.appendChild(footer);
+    page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
     return page;
   }
   function renderReportCards(ctx){
@@ -2370,8 +2431,8 @@ function getPerformanceToneLine(coreLevel, context){
       empty.textContent = 'No mark columns available for this term.';
       return empty;
     }
-    const teacherName = (printMeta.teacher || '').trim() || '__________';
-    const classDisplay = (printMeta.classInfo || '').trim() || getContextDisplayName(ctx);
+    const teacherName = (printMeta.teacher || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim();
     const termLabel = getTermLabel(printMeta.term);
     const title = (printMeta.title || '').trim();
 
@@ -2430,10 +2491,7 @@ function getPerformanceToneLine(coreLevel, context){
       commentBox.textContent = commentsText ? commentsText : 'Comments:';
       page.appendChild(commentBox);
 
-      const footer = document.createElement('div');
-      footer.className = 'report-card-footer';
-      footer.innerHTML = `<span>Date: __________</span><span>Signature: ____________________</span>`;
-      page.appendChild(footer);
+      page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
 
       frag.appendChild(page);
     return frag;
@@ -2551,6 +2609,9 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function renderPrintPreview(){
     if (!printPreviewContent || !printContainer) return;
+    if (isPrintTabActive()){
+      document.body.classList.add('print-preview');
+    }
     printPreviewContent.innerHTML = "";
     movePrintContainerToPreview();
     printContainer.innerHTML = "";
@@ -2582,17 +2643,23 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function movePrintContainerToPreview(){
     if (!printPreviewContent || !printContainer) return;
+    printContainer.style.display = 'block';
     if (printContainer.parentElement !== printPreviewContent){
       printPreviewContent.appendChild(printContainer);
     }
   }
   function movePrintContainerToPrintRoot(){
     if (!printContainer) return;
+    printContainer.style.display = 'none';
     if (printContainer.parentElement !== document.body){
       document.body.appendChild(printContainer);
     }
   }
   function syncPrintClassSelection(){
+    if (printAllClasses){
+      selectedClassIds = new Set(fileContexts.map(ctx => ctx.id));
+      return;
+    }
     const validIds = new Set(fileContexts.map(ctx => ctx.id));
     selectedClassIds = new Set([...selectedClassIds].filter(id => validIds.has(id)));
     if (!selectedClassIds.size){
@@ -2929,11 +2996,13 @@ function getPerformanceToneLine(coreLevel, context){
     if (!printContainer) return;
     renderPrintPreview();
     movePrintContainerToPrintRoot();
+    printContainer.style.display = 'block';
     document.body.classList.remove('print-preview');
     document.body.classList.add('printing-preview');
     try {
       window.print();
     } finally {
+      printContainer.style.display = 'none';
       document.body.classList.remove('printing-preview');
       if (isPrintTabActive()){
         movePrintContainerToPreview();
@@ -3324,9 +3393,10 @@ function getPerformanceToneLine(coreLevel, context){
     printTermInputs.forEach(radio => {
       radio.checked = radio.value === termValue;
     });
-    printTemplateInputs.forEach(input => {
-      input.checked = selectedTemplateIds.has(input.value);
-    });
+    setSelectedPrintTemplate(selectedTemplateId, false);
+    if (printAllClassesToggle){
+      printAllClassesToggle.checked = !!printAllClasses;
+    }
     buildReportStudentOptions(activeContext);
   }
   function handlePrintMetaInputChange(){
@@ -3345,17 +3415,16 @@ function getPerformanceToneLine(coreLevel, context){
     renderPrintPreview();
     renderPrintMarkingColumnPanel();
   }
-  function handleTemplateSelectionChange(){
-    selectedTemplateIds = new Set(
-      printTemplateInputs
-        .filter(input => input.checked)
-        .map(input => input.value)
-    );
+  function handleTemplateSelectionChange(event){
+    const target = event?.target;
+    const next = normalizePrintTemplateId(target?.value) || selectedTemplateId || 'attendance';
+    // Checkbox UI behaves like radio: exactly one template always selected.
+    setSelectedPrintTemplate(next);
     renderPrintPreview();
     renderPrintMarkingColumnPanel();
   }
   function isMarkingTemplateSelected(){
-    return selectedTemplateIds.has('marking');
+    return selectedTemplateId === 'marking';
   }
   function getPrintMarkingSourceColumns(ctx){
     if (!ctx) return [];
