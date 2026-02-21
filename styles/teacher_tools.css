@@ -2220,11 +2220,11 @@ td.readonly{
   inset:0;
   background:rgba(16,18,22,.32);
   backdrop-filter: none;
-  z-index:1999;
+  z-index:2100;
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  pointer-events:none;
+  pointer-events:auto;
 }
 .tour-panel{
   position:absolute;
@@ -2241,7 +2241,7 @@ td.readonly{
   transform:translateY(6px) scale(0.96);
   transition:opacity .2s ease, transform .2s ease;
   margin:18px;
-  z-index:2001;
+  z-index:2101;
   display:none;
 }
 .tour-panel.show{

@@ -282,7 +282,8 @@
       if (dropzone) dropzone.classList.remove('pulse');
       sessionStorage.setItem(WELCOME_KEY, '1');
       if (startTourAfter) {
-        setTimeout(startTour, 400);
+        // Run after welcome overlay fade-out/removal to avoid z-index overlap.
+        setTimeout(startTour, 460);
       }
     };
     tourBtn?.addEventListener('click', () => dismiss(true));

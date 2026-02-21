@@ -166,8 +166,8 @@
       if (left + panelWidth > window.innerWidth) left = window.innerWidth - panelWidth - padding;
       if (left < padding) left = padding;
       if (top < padding) top = rect.bottom + padding;
-      panel.style.top = `${top + window.scrollY}px`;
-      panel.style.left = `${left + window.scrollX}px`;
+      panel.style.top = `${top}px`;
+      panel.style.left = `${left}px`;
       badge.textContent = String(idx + 1);
       titleEl.textContent = step.title;
       descEl.textContent = step.desc;
@@ -240,8 +240,8 @@
       if (left + panelWidth > window.innerWidth) left = window.innerWidth - panelWidth - padding;
       if (left < padding) left = padding;
       if (top < padding) top = rect.bottom + padding;
-      panel.style.top = `${top + window.scrollY}px`;
-      panel.style.left = `${left + window.scrollX}px`;
+      panel.style.top = `${top}px`;
+      panel.style.left = `${left}px`;
 
       const showPanel = () => {
         panel.classList.add('show');
@@ -282,7 +282,8 @@
       if (dropzone) dropzone.classList.remove('pulse');
       sessionStorage.setItem(WELCOME_KEY, '1');
       if (startTourAfter) {
-        setTimeout(startTour, 400);
+        // Run after welcome overlay fade-out/removal to avoid z-index overlap.
+        setTimeout(startTour, 460);
       }
     };
     tourBtn?.addEventListener('click', () => dismiss(true));
