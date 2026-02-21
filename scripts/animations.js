@@ -6,14 +6,39 @@
   function getTourSteps(){
     return [
       {
+        el: document.getElementById('filesDrawer'),
+        title: 'Files panel (left side)',
+        desc: 'This panel holds all loaded class files. Click a file to switch the active class across Data, Print View, and Report Comments.'
+      },
+      {
+        el: document.getElementById('filesDrawerToggle'),
+        title: 'Collapse or expand files panel',
+        desc: 'Use this button to collapse the left panel for more workspace, or expand it to manage files.'
+      },
+      {
         el: dropzone,
         title: 'Upload your data',
-        desc: 'Drop CSV/XLSX files or click to pick. Multiple files appear in the FILES list.'
+        desc: 'Drop CSV/XLSX files or click to pick files quickly.'
       },
       {
         el: document.getElementById('loadDirBtn'),
         title: 'Load a whole folder',
         desc: 'Pick a folder with CSV/XLSX files to load them all at once.'
+      },
+      {
+        el: document.getElementById('zoomOutBtn'),
+        title: 'Zoom controls',
+        desc: 'Use minus/plus to zoom the workspace out or in for comfortable viewing.'
+      },
+      {
+        el: document.getElementById('darkModeBtn'),
+        title: 'Dark mode toggle',
+        desc: 'Switch between light and dark themes at any time.'
+      },
+      {
+        el: document.getElementById('hintsBtn'),
+        title: 'Hints button',
+        desc: 'Open quick hints whenever you want a refresher.'
       },
       {
         el: document.getElementById('tabCommentsBtn'),
@@ -42,18 +67,18 @@
       },
       {
         el: document.getElementById('exportCsvBtn'),
-        title: 'Export what you see',
+        title: 'Export CSV',
         desc: 'Export visible columns/rows to CSV. XLSX is available too.'
       },
       {
         el: document.getElementById('exportXlsxBtn'),
-        title: 'Export to XLSX',
+        title: 'Export XLSX',
         desc: 'Download the visible table as an XLSX workbook.'
       },
       {
         el: document.getElementById('resetBtn'),
-        title: 'Reset filters quickly',
-        desc: 'Clear search, filters, and visibility to start fresh.'
+        title: 'Reset view',
+        desc: 'Clear search, filters, and visibility settings to start fresh.'
       },
       {
         el: document.getElementById('editHeadersBtn'),
