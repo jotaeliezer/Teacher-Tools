@@ -4750,7 +4750,7 @@ function cleanFluency(text){
       return current;
     }
     const entered = window.prompt(
-      'Paste your deployed API URL (example: https://teacher-tools-api.vercel.app).',
+      'Paste your deployed Revise API URL (example: https://teacher-tools-api.vercel.app).',
       builderAiEndpoint || ''
     );
     if (entered == null) return '';
@@ -4769,8 +4769,12 @@ function cleanFluency(text){
     const studentRow = rows[builderSelectedRowIndex] || null;
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     const finalGrade = studentRow && gradeColumn ? formatPercent(studentRow[gradeColumn], gradeColumn) : '';
+    const orderMode = ['sandwich', 'selection', 'bullet'].includes(commentOrderMode) ? commentOrderMode : 'selection';
     return {
       draft: String(draft || '').trim(),
+      reviseMode: 'minimal',
+      orderMode,
+      sentenceFormatHint: orderMode === 'bullet' ? 'bullets' : 'paragraph',
       studentName: builderStudentNameInput?.value.trim() || '',
       pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
       gradeGroup: builderGradeGroupSelect?.value || 'middle',
@@ -4803,22 +4807,21 @@ function cleanFluency(text){
   }
   async function builderGenerateReportWithAI(){
     if (!builderReportOutput) return;
-    builderGenerateReport();
     const draft = String(builderReportOutput.value || '').trim();
     if (!draft){
-      status('Generate a local draft first.');
+      status('Generate a local draft first, then click Revise.');
       return;
     }
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
     const payload = buildBuilderAiPayload(draft);
-    const originalLabel = builderGenerateAiBtn?.textContent || 'Generate with AI';
+    const originalLabel = builderGenerateAiBtn?.textContent || 'Revise';
     try{
       if (builderGenerateAiBtn){
         builderGenerateAiBtn.disabled = true;
-        builderGenerateAiBtn.textContent = 'Generating...';
+        builderGenerateAiBtn.textContent = 'Revising...';
       }
-      status('Generating comment with AI...');
+      status('Revising comment with AI...');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4837,7 +4840,7 @@ function cleanFluency(text){
       }
       const polished = polishGrammar(cleanFluency(aiText));
       builderReportOutput.value = polished;
-      status('AI comment ready.');
+      status('AI revision ready.');
     }catch(err){
       console.error(err);
       status('Could not reach AI API.');
