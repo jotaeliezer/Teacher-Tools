@@ -231,6 +231,7 @@ const PRINT_EXTRA_BLANK_ROWS = 4;
 let selectedTemplateId = 'attendance';
 let selectedClassIds = new Set();
 let printAllClasses = false;
+let builderAiEndpoint = '';
 const textMeasureCanvas = document.createElement('canvas');
 const textMeasureCtx = textMeasureCanvas.getContext('2d');
 function getTemplateFontVariants(){
@@ -386,6 +387,7 @@ function computePrintColumnWidths(students){
   const savedReportsBackdrop = document.getElementById('savedReportsBackdrop');
   const savedReportsPanel = document.getElementById('savedReportsPanel');
   const builderGenerateBtn = document.getElementById('builderGenerateBtn');
+  const builderGenerateAiBtn = document.getElementById('builderGenerateAiBtn');
   const builderCopyBtn = document.getElementById('builderCopyBtn');
   const builderClearBtn = document.getElementById('builderClearBtn');
   const builderReportOutput = document.getElementById('builderReportOutput');

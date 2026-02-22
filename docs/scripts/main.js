@@ -13,6 +13,7 @@
   setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
   selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
   printAllClasses = !!initialSettings.printAllClasses;
+  builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
   saveSettings({ printTemplateId: selectedTemplateId });
 
   let builderActiveCommentSection = null;
@@ -310,6 +311,9 @@
   }
   if (builderGenerateBtn){
     builderGenerateBtn.addEventListener('click', builderGenerateReport);
+  }
+  if (builderGenerateAiBtn){
+    builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
   }
   if (builderCopyBtn){
     builderCopyBtn.addEventListener('click', () => {
@@ -4726,6 +4730,124 @@ function cleanFluency(text){
       return s.replace(re, (_, possessive) => possessive ? pronouns.His : pronouns.He);
     }).join(' ');
   }
+  function getSelectedBuilderAssignments(){
+    return Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
+      .map(cb => cb.value)
+      .filter(Boolean);
+  }
+  function normalizeBuilderAiEndpoint(raw){
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    const noSlash = value.replace(/\/+$/, '');
+    if (/\/api\/generate-comment$/i.test(noSlash)) return noSlash;
+    if (/^https?:\/\//i.test(noSlash)) return `${noSlash}/api/generate-comment`;
+    return '';
+  }
+  function ensureBuilderAiEndpoint(){
+    const current = normalizeBuilderAiEndpoint(builderAiEndpoint);
+    if (current){
+      builderAiEndpoint = current;
+      return current;
+    }
+    const entered = window.prompt(
+      'Paste your deployed API URL (example: https://teacher-tools-api.vercel.app).',
+      builderAiEndpoint || ''
+    );
+    if (entered == null) return '';
+    const normalized = normalizeBuilderAiEndpoint(entered);
+    if (!normalized){
+      status('Invalid API URL. Use a full https:// URL.');
+      return '';
+    }
+    builderAiEndpoint = normalized;
+    saveSettings({ builderAiEndpoint });
+    return normalized;
+  }
+  function buildBuilderAiPayload(draft){
+    const selectedComments = getBuilderSelectedComments();
+    const assignments = getSelectedBuilderAssignments();
+    const studentRow = rows[builderSelectedRowIndex] || null;
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const finalGrade = studentRow && gradeColumn ? formatPercent(studentRow[gradeColumn], gradeColumn) : '';
+    return {
+      draft: String(draft || '').trim(),
+      studentName: builderStudentNameInput?.value.trim() || '',
+      pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
+      gradeGroup: builderGradeGroupSelect?.value || 'middle',
+      performanceLevel: builderCorePerformanceSelect?.value || '',
+      termLabel: builderTermSelector?.value || '',
+      finalGrade,
+      selectedAssignments: assignments,
+      selectedComments: selectedComments.map(item => ({
+        id: item.id,
+        category: item.section,
+        text: item.text,
+        type: item.type
+      })),
+      customComment: builderCustomCommentInput?.value.trim() || ''
+    };
+  }
+  function parseAiCommentResponse(data){
+    if (!data || typeof data !== 'object') return '';
+    const candidates = [
+      data.comment,
+      data.text,
+      data.output,
+      data.result
+    ];
+    for (const item of candidates){
+      const text = String(item || '').trim();
+      if (text) return text;
+    }
+    return '';
+  }
+  async function builderGenerateReportWithAI(){
+    if (!builderReportOutput) return;
+    builderGenerateReport();
+    const draft = String(builderReportOutput.value || '').trim();
+    if (!draft){
+      status('Generate a local draft first.');
+      return;
+    }
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const payload = buildBuilderAiPayload(draft);
+    const originalLabel = builderGenerateAiBtn?.textContent || 'Generate with AI';
+    try{
+      if (builderGenerateAiBtn){
+        builderGenerateAiBtn.disabled = true;
+        builderGenerateAiBtn.textContent = 'Generating...';
+      }
+      status('Generating comment with AI...');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok){
+        const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
+        status(`AI error: ${detail}`);
+        return;
+      }
+      const aiText = parseAiCommentResponse(data);
+      if (!aiText){
+        status('AI returned an empty comment.');
+        return;
+      }
+      const polished = polishGrammar(cleanFluency(aiText));
+      builderReportOutput.value = polished;
+      status('AI comment ready.');
+    }catch(err){
+      console.error(err);
+      status('Could not reach AI API.');
+    }finally{
+      if (builderGenerateAiBtn){
+        builderGenerateAiBtn.disabled = false;
+        builderGenerateAiBtn.textContent = originalLabel;
+      }
+    }
+  }
 
   function builderGenerateReport(){
     if (!builderReportOutput) return;
@@ -4760,8 +4882,7 @@ function cleanFluency(text){
     const finalGradeToUse = derivedGrade || (providedMeta ? providedMeta.raw : providedGrade);
     context.termAverage = (context.gradeGroup === 'elem') ? '' : finalGradeToUse;
 
-    const selectedAssignments = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
-      .map(cb => cb.value);
+    const selectedAssignments = getSelectedBuilderAssignments();
     const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
     const assignmentParagraph = assignmentSentences ? `In recent assignments, ${assignmentSentences}` : '';
