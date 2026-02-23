@@ -1672,6 +1672,11 @@ function getPerformanceToneLine(coreLevel, context){
     }
     renderWarning(activeContext?.studentNameWarning || '');
   }
+  function getFileNameWithoutExtension(name){
+    const raw = String(name || '').trim();
+    if (!raw) return 'file';
+    return raw.replace(/\.[^./\\]+$/, '') || raw;
+  }
   function updateFilesUI(){
     if (fileCountEl) fileCountEl.textContent = String(fileContexts.length);
     filesList.innerHTML = "";
@@ -1746,7 +1751,8 @@ function getPerformanceToneLine(coreLevel, context){
         mini.className = 'files-mini-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
         mini.dataset.id = ctx.id;
         mini.title = ctx.name;
-        mini.textContent = '📄';
+        mini.textContent = getFileNameWithoutExtension(ctx.name);
+        mini.setAttribute('aria-label', `Switch to ${ctx.name}`);
         mini.addEventListener('click', () => setActiveContext(ctx.id));
         filesDrawerMiniList.appendChild(mini);
       }
@@ -4768,7 +4774,8 @@ function cleanFluency(text){
     const assignments = getSelectedBuilderAssignments();
     const studentRow = rows[builderSelectedRowIndex] || null;
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
-    const finalGrade = studentRow && gradeColumn ? formatPercent(studentRow[gradeColumn], gradeColumn) : '';
+    const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
     const orderMode = ['sandwich', 'selection', 'bullet'].includes(commentOrderMode) ? commentOrderMode : 'selection';
     return {
       draft: String(draft || '').trim(),
