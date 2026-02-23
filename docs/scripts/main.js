@@ -4919,6 +4919,22 @@ function cleanFluency(text){
     }
     return '';
   }
+  function getWordCount(text){
+    return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  }
+  function getSentenceCount(text){
+    return String(text || '').trim().split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean).length;
+  }
+  function shouldKeepOriginalDraft(draft, revised, orderMode){
+    const draftText = String(draft || '').trim();
+    const revisedText = String(revised || '').trim();
+    const draftWords = getWordCount(draftText);
+    const revisedWords = getWordCount(revisedText);
+    if (!revisedWords) return true;
+    if (draftWords >= 28 && revisedWords < Math.max(20, Math.floor(draftWords * 0.6))) return true;
+    if (orderMode !== 'bullet' && getSentenceCount(revisedText) < 4) return true;
+    return false;
+  }
   async function builderGenerateReportWithAI(){
     if (!builderReportOutput) return;
     const draft = String(builderLastFullOutput || builderReportOutput.value || '').trim();
@@ -4932,6 +4948,7 @@ function cleanFluency(text){
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
     const payload = buildBuilderAiPayload(draft);
+    const orderMode = payload.orderMode || 'selection';
     const originalLabel = builderGenerateAiBtn?.textContent || 'Revise';
     try{
       if (builderGenerateAiBtn){
@@ -4956,6 +4973,11 @@ function cleanFluency(text){
         return;
       }
       const polished = polishGrammar(cleanFluency(aiText));
+      if (shouldKeepOriginalDraft(draft, polished, orderMode)){
+        setBuilderReportOutputText(draft, 'instant');
+        status('AI revision was too short. Kept generated comment.');
+        return;
+      }
       setBuilderReportOutputText(polished, 'revise');
       status('AI revision ready.');
     }catch(err){
