@@ -22,6 +22,8 @@
   let builderLookingAheadAutoUpdating = false;
   let builderOutputAnimationMode = 'instant';
   let builderOutputAnimationToken = 0;
+  let builderOutputAnimating = false;
+  let builderLastFullOutput = '';
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -4747,6 +4749,7 @@ function cleanFluency(text){
   }
   function clearBuilderOutputAnimation(){
     builderOutputAnimationToken += 1;
+    builderOutputAnimating = false;
   }
   function pulseBuilderOutput(className = 'builder-output-pulse'){
     if (!builderReportOutput) return;
@@ -4772,6 +4775,7 @@ function cleanFluency(text){
   function animateBuilderOutputWords(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
     const token = builderOutputAnimationToken;
     const parts = String(text || '').split(/(\s+)/);
     let i = 0;
@@ -4787,6 +4791,8 @@ function cleanFluency(text){
       }
       if (i < parts.length){
         setTimeout(step, 12);
+      }else{
+        builderOutputAnimating = false;
       }
     };
     step();
@@ -4794,6 +4800,7 @@ function cleanFluency(text){
   function animateBuilderOutputChars(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
     const token = builderOutputAnimationToken;
     const source = String(text || '');
     let i = 0;
@@ -4807,6 +4814,8 @@ function cleanFluency(text){
       i += 4;
       if (i <= source.length){
         setTimeout(step, 7);
+      }else{
+        builderOutputAnimating = false;
       }
     };
     step();
@@ -4815,6 +4824,7 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     const previous = String(builderReportOutput.value || '');
     const next = String(nextText || '');
+    builderLastFullOutput = next;
     if (mode === 'selection'){
       animateBuilderOutputWords(next);
       return;
@@ -4911,10 +4921,13 @@ function cleanFluency(text){
   }
   async function builderGenerateReportWithAI(){
     if (!builderReportOutput) return;
-    const draft = String(builderReportOutput.value || '').trim();
+    const draft = String(builderLastFullOutput || builderReportOutput.value || '').trim();
     if (!draft){
       status('Generate a local draft first, then click Revise.');
       return;
+    }
+    if (builderOutputAnimating){
+      status('Finishing generate animation before revise...');
     }
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
@@ -4963,11 +4976,11 @@ function cleanFluency(text){
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
     if (!studentName){
-      builderReportOutput.innerHTML = '<em>Provide a student name.</em>';
+      setBuilderReportOutputText('Provide a student name.', 'instant');
       return;
     }
     if (!coreLevel && (builderGradeGroupSelect?.value || 'middle') !== 'elem'){
-      builderReportOutput.innerHTML = '<em>Select a core performance level.</em>';
+      setBuilderReportOutputText('Select a core performance level.', 'instant');
       return;
     }
     const studentRow = rows[builderSelectedRowIndex];
@@ -5160,7 +5173,7 @@ function cleanFluency(text){
     });
     // restore text
     if (builderReportOutput){
-      builderReportOutput.value = entry.text || '';
+      setBuilderReportOutputText(entry.text || '', 'instant');
       builderReportOutput.dataset.lastSig = entry.signature || '';
     }
     builderGenerateReport();
