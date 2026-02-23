@@ -1767,6 +1767,31 @@
       line-height:1.5;
       white-space:pre-wrap;
       font-size:14px;
+      transition:transform .16s ease, box-shadow .16s ease, opacity .14s ease;
+      transform-origin:top left;
+    }
+    #builderReportOutput.builder-output-pulse{
+      animation:builderOutputPulse .18s ease;
+    }
+    #builderReportOutput.builder-output-word-pop{
+      animation:builderOutputWordPop .12s ease;
+    }
+    #builderReportOutput.builder-output-fade{
+      animation:builderOutputFade .22s ease;
+    }
+    @keyframes builderOutputPulse{
+      0%{ transform:scale(1); }
+      50%{ transform:scale(1.018); }
+      100%{ transform:scale(1); }
+    }
+    @keyframes builderOutputWordPop{
+      0%{ transform:scale(1); }
+      60%{ transform:scale(1.01); }
+      100%{ transform:scale(1); }
+    }
+    @keyframes builderOutputFade{
+      from{ opacity:.55; transform:translateY(2px); }
+      to{ opacity:1; transform:translateY(0); }
     }
     .builder-output-card{
       display:flex;

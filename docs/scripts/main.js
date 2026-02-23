@@ -20,6 +20,8 @@
   let builderLookingAheadAutoKey = '';
   let builderLookingAheadManualKey = '';
   let builderLookingAheadAutoUpdating = false;
+  let builderOutputAnimationMode = 'instant';
+  let builderOutputAnimationToken = 0;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -310,7 +312,10 @@
     });
   }
   if (builderGenerateBtn){
-    builderGenerateBtn.addEventListener('click', builderGenerateReport);
+    builderGenerateBtn.addEventListener('click', () => {
+      builderOutputAnimationMode = 'generate';
+      builderGenerateReport();
+    });
   }
   if (builderGenerateAiBtn){
     builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
@@ -3739,6 +3744,7 @@ function getPerformanceToneLine(coreLevel, context){
 
       const handleToggle = () => {
         if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
           builderGenerateReport();
         }
       };
@@ -3980,7 +3986,7 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     });
     const baseWithIntro = introLine ? replaceFirstSentence(baseComment, introLine) : baseComment;
     if (baseWithIntro && builderReportOutput){
-      builderReportOutput.value = polishGrammar(cleanFluency(baseWithIntro));
+      setBuilderReportOutputText(polishGrammar(cleanFluency(baseWithIntro)), 'generate');
     }
   }
   function updatePerformanceSelectStyle(){
@@ -4149,7 +4155,10 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
         }
       }
       updateBuilderSelectedTags();
-      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+      if (shouldAutoGenerateBuilderReport()){
+        builderOutputAnimationMode = 'selection';
+        builderGenerateReport();
+      }
     });
   }
 
@@ -4736,6 +4745,94 @@ function cleanFluency(text){
       return s.replace(re, (_, possessive) => possessive ? pronouns.His : pronouns.He);
     }).join(' ');
   }
+  function clearBuilderOutputAnimation(){
+    builderOutputAnimationToken += 1;
+  }
+  function pulseBuilderOutput(className = 'builder-output-pulse'){
+    if (!builderReportOutput) return;
+    builderReportOutput.classList.remove('builder-output-pulse', 'builder-output-word-pop');
+    void builderReportOutput.offsetWidth;
+    builderReportOutput.classList.add(className);
+  }
+  function countChangedSentences(prev, next){
+    const toSentences = (txt) => String(txt || '')
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    const a = toSentences(prev);
+    const b = toSentences(next);
+    const total = Math.max(a.length, b.length);
+    if (!total) return 0;
+    let changed = 0;
+    for (let i = 0; i < total; i += 1){
+      if ((a[i] || '') !== (b[i] || '')) changed += 1;
+    }
+    return changed;
+  }
+  function animateBuilderOutputWords(text){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    const token = builderOutputAnimationToken;
+    const parts = String(text || '').split(/(\s+)/);
+    let i = 0;
+    builderReportOutput.value = '';
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      const end = Math.min(i + 3, parts.length);
+      for (; i < end; i += 1){
+        builderReportOutput.value += parts[i];
+      }
+      if (end % 9 === 0){
+        pulseBuilderOutput('builder-output-word-pop');
+      }
+      if (i < parts.length){
+        setTimeout(step, 12);
+      }
+    };
+    step();
+  }
+  function animateBuilderOutputChars(text){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    const token = builderOutputAnimationToken;
+    const source = String(text || '');
+    let i = 0;
+    builderReportOutput.value = '';
+    builderReportOutput.classList.remove('builder-output-fade');
+    void builderReportOutput.offsetWidth;
+    builderReportOutput.classList.add('builder-output-fade');
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      builderReportOutput.value = source.slice(0, i);
+      i += 4;
+      if (i <= source.length){
+        setTimeout(step, 7);
+      }
+    };
+    step();
+  }
+  function setBuilderReportOutputText(nextText, mode = 'instant'){
+    if (!builderReportOutput) return;
+    const previous = String(builderReportOutput.value || '');
+    const next = String(nextText || '');
+    if (mode === 'selection'){
+      animateBuilderOutputWords(next);
+      return;
+    }
+    if (mode === 'revise'){
+      animateBuilderOutputChars(next);
+      return;
+    }
+    clearBuilderOutputAnimation();
+    builderReportOutput.value = next;
+    if (mode === 'generate'){
+      const changed = countChangedSentences(previous, next);
+      const pulses = Math.min(Math.max(changed, 1), 3);
+      for (let p = 0; p < pulses; p += 1){
+        setTimeout(() => pulseBuilderOutput('builder-output-pulse'), p * 110);
+      }
+    }
+  }
   function getSelectedBuilderAssignments(){
     return Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
       .map(cb => cb.value)
@@ -4846,7 +4943,7 @@ function cleanFluency(text){
         return;
       }
       const polished = polishGrammar(cleanFluency(aiText));
-      builderReportOutput.value = polished;
+      setBuilderReportOutputText(polished, 'revise');
       status('AI revision ready.');
     }catch(err){
       console.error(err);
@@ -4861,6 +4958,8 @@ function cleanFluency(text){
 
   function builderGenerateReport(){
     if (!builderReportOutput) return;
+    const outputMode = builderOutputAnimationMode || 'instant';
+    builderOutputAnimationMode = 'instant';
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
     if (!studentName){
@@ -4922,7 +5021,7 @@ function cleanFluency(text){
     }else{
       const template = getReportBuilderTemplate(coreLevel, context);
       if (!template){
-        builderReportOutput.textContent = 'Template not available for this selection.';
+        setBuilderReportOutputText('Template not available for this selection.', 'instant');
         return;
       }
       let partA = template.partA;
@@ -4965,7 +5064,7 @@ function cleanFluency(text){
     const pronounAdjusted = applyPronounsAfterFirstSentence(report, context.studentName, context.pronouns);
     const trimmedReport = cleanFluency(pronounAdjusted.trim());
     const polishedReport = polishGrammar(trimmedReport);
-    builderReportOutput.value = polishedReport;
+    setBuilderReportOutputText(polishedReport, outputMode);
     builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
       studentName: context.studentName,
       coreLevel,
