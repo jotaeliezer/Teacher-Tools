@@ -4942,53 +4942,10 @@ function cleanFluency(text){
       status('Generate a local draft first, then click Revise.');
       return;
     }
-    if (builderOutputAnimating){
-      status('Finishing generate animation before revise...');
-    }
-    const endpoint = ensureBuilderAiEndpoint();
-    if (!endpoint) return;
-    const payload = buildBuilderAiPayload(draft);
-    const orderMode = payload.orderMode || 'selection';
-    const originalLabel = builderGenerateAiBtn?.textContent || 'Revise';
-    try{
-      if (builderGenerateAiBtn){
-        builderGenerateAiBtn.disabled = true;
-        builderGenerateAiBtn.textContent = 'Revising...';
-      }
-      status('Revising comment with AI...');
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok){
-        const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
-        status(`AI error: ${detail}`);
-        return;
-      }
-      const aiText = parseAiCommentResponse(data);
-      if (!aiText){
-        status('AI returned an empty comment.');
-        return;
-      }
-      const polished = polishGrammar(cleanFluency(aiText));
-      if (shouldKeepOriginalDraft(draft, polished, orderMode)){
-        setBuilderReportOutputText(draft, 'instant');
-        status('AI revision was too short. Kept generated comment.');
-        return;
-      }
-      setBuilderReportOutputText(polished, 'revise');
-      status('AI revision ready.');
-    }catch(err){
-      console.error(err);
-      status('Could not reach AI API.');
-    }finally{
-      if (builderGenerateAiBtn){
-        builderGenerateAiBtn.disabled = false;
-        builderGenerateAiBtn.textContent = originalLabel;
-      }
-    }
+    const suffix = 'IM WORKING';
+    const revised = draft.endsWith(suffix) ? draft : `${draft} ${suffix}`;
+    setBuilderReportOutputText(revised, 'revise');
+    status('Revise test applied.');
   }
 
   function builderGenerateReport(){
