@@ -4815,6 +4815,7 @@ function cleanFluency(text){
       if (i <= source.length){
         setTimeout(step, 7);
       }else{
+        builderReportOutput.value = source;
         builderOutputAnimating = false;
       }
     };
