@@ -390,7 +390,9 @@ function computePrintColumnWidths(students){
   const builderGenerateAiBtn = document.getElementById('builderGenerateAiBtn');
   const builderCopyBtn = document.getElementById('builderCopyBtn');
   const builderClearBtn = document.getElementById('builderClearBtn');
+  const builderOutputWrap = document.getElementById('builderOutputWrap');
   const builderReportOutput = document.getElementById('builderReportOutput');
+  const builderReportOverlay = document.getElementById('builderReportOverlay');
   const savedReportsListEl = document.getElementById('savedReportsList');
   const savedReportsClearBtn = document.getElementById('savedReportsClearBtn');
   const printContainer = document.getElementById('printContainer');

@@ -24,6 +24,7 @@
   let builderOutputAnimationToken = 0;
   let builderOutputAnimating = false;
   let builderLastFullOutput = '';
+  let builderDiffClearTimer = null;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -226,6 +227,12 @@
     if (!input) return;
     input.addEventListener('input', handlePrintMetaInputChange);
   });
+  if (builderReportOutput && builderReportOverlay){
+    builderReportOutput.addEventListener('scroll', () => {
+      builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+      builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    });
+  }
   printTermInputs.forEach(radio => {
     radio.addEventListener('change', handlePrintMetaInputChange);
   });
@@ -4751,6 +4758,95 @@ function cleanFluency(text){
     builderOutputAnimationToken += 1;
     builderOutputAnimating = false;
   }
+  function escapeHtml(text){
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function splitWords(text){
+    const parts = String(text || '').match(/(\s+|[^\s]+)/g) || [];
+    return parts;
+  }
+  function buildWordDiffMap(prevText, nextText){
+    const prevWords = String(prevText || '').trim().split(/\s+/).filter(Boolean).map(w => w.toLowerCase());
+    const nextWords = String(nextText || '').trim().split(/\s+/).filter(Boolean);
+    const marks = new Array(nextWords.length).fill(false);
+    if (!nextWords.length) return marks;
+    if (!prevWords.length){
+      marks.fill(true);
+      return marks;
+    }
+    const m = prevWords.length;
+    const n = nextWords.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i += 1){
+      const a = prevWords[i - 1];
+      for (let j = 1; j <= n; j += 1){
+        const b = String(nextWords[j - 1] || '').toLowerCase();
+        dp[i][j] = a === b ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    let i = m;
+    let j = n;
+    while (i > 0 && j > 0){
+      const a = prevWords[i - 1];
+      const b = String(nextWords[j - 1] || '').toLowerCase();
+      if (a === b){
+        marks[j - 1] = false;
+        i -= 1;
+        j -= 1;
+      }else if (dp[i - 1][j] >= dp[i][j - 1]){
+        i -= 1;
+      }else{
+        marks[j - 1] = true;
+        j -= 1;
+      }
+    }
+    while (j > 0){
+      marks[j - 1] = true;
+      j -= 1;
+    }
+    return marks;
+  }
+  function renderBuilderDiffOverlay(prevText, nextText){
+    if (!builderOutputWrap || !builderReportOverlay || !builderReportOutput) return;
+    if (builderDiffClearTimer){
+      clearTimeout(builderDiffClearTimer);
+      builderDiffClearTimer = null;
+    }
+    const tokens = splitWords(nextText);
+    const marks = buildWordDiffMap(prevText, nextText);
+    let wordIdx = 0;
+    const html = tokens.map(token => {
+      if (/^\s+$/.test(token)){
+        return escapeHtml(token);
+      }
+      const changed = !!marks[wordIdx];
+      wordIdx += 1;
+      const safe = escapeHtml(token);
+      return changed ? `<span class="revise-diff">${safe}</span>` : safe;
+    }).join('');
+    builderReportOverlay.innerHTML = html;
+    builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+    builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    builderOutputWrap.classList.add('overlay-active');
+    builderDiffClearTimer = setTimeout(() => {
+      builderOutputWrap?.classList.remove('overlay-active');
+      if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+      builderDiffClearTimer = null;
+    }, 2000);
+  }
+  function clearBuilderDiffOverlay(){
+    if (builderDiffClearTimer){
+      clearTimeout(builderDiffClearTimer);
+      builderDiffClearTimer = null;
+    }
+    builderOutputWrap?.classList.remove('overlay-active');
+    if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+  }
   function pulseBuilderOutput(className = 'builder-output-pulse'){
     if (!builderReportOutput) return;
     builderReportOutput.classList.remove('builder-output-pulse', 'builder-output-word-pop');
@@ -4797,7 +4893,7 @@ function cleanFluency(text){
     };
     step();
   }
-  function animateBuilderOutputChars(text){
+  function animateBuilderOutputChars(text, onDone = null){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
@@ -4817,6 +4913,7 @@ function cleanFluency(text){
       }else{
         builderReportOutput.value = source;
         builderOutputAnimating = false;
+        if (typeof onDone === 'function') onDone();
       }
     };
     step();
@@ -4827,14 +4924,16 @@ function cleanFluency(text){
     const next = String(nextText || '');
     builderLastFullOutput = next;
     if (mode === 'selection'){
+      clearBuilderDiffOverlay();
       animateBuilderOutputWords(next);
       return;
     }
     if (mode === 'revise'){
-      animateBuilderOutputChars(next);
+      animateBuilderOutputChars(next, () => renderBuilderDiffOverlay(previous, next));
       return;
     }
     clearBuilderOutputAnimation();
+    clearBuilderDiffOverlay();
     builderReportOutput.value = next;
     if (mode === 'generate'){
       const changed = countChangedSentences(previous, next);

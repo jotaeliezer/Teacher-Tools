@@ -567,7 +567,10 @@
                 <button class="btn" type="button" id="builderClearBtn">Clear</button>
                 <button class="btn" type="button" id="savedReportsOpenBtn">Saved Comments</button>
               </div>
-              <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate."></textarea>
+              <div class="builder-output-wrap" id="builderOutputWrap">
+                <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate."></textarea>
+                <div id="builderReportOverlay" class="builder-report-overlay" aria-hidden="true"></div>
+              </div>
             </div>
             <div class="builder-card comment-bank-card">
               <h4>Comment Bank</h4>

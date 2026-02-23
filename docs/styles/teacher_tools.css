@@ -1582,6 +1582,15 @@
       color:#f4f6ff;
       border-color:#2c3240;
     }
+    body.dark-mode .builder-output-wrap.overlay-active #builderReportOutput{
+      caret-color:#f4f6ff;
+    }
+    body.dark-mode .builder-report-overlay{
+      color:#f4f6ff;
+    }
+    body.dark-mode .builder-report-overlay .revise-diff{
+      background:rgba(250, 204, 21, .32);
+    }
     body.dark-mode .builder-comment-section{
       background:#1b1f28;
       border-color:#2a2f3e;
@@ -1758,6 +1767,11 @@
       gap:8px;
       flex-wrap:wrap;
     }
+    .builder-output-wrap{
+      position:relative;
+      flex:1;
+      min-height:320px;
+    }
     #builderReportOutput{
       background:#fff;
       border:1px solid #d7dae3;
@@ -1769,6 +1783,41 @@
       font-size:14px;
       transition:transform .16s ease, box-shadow .16s ease, opacity .14s ease;
       transform-origin:top left;
+      position:relative;
+      z-index:1;
+    }
+    .builder-output-wrap.overlay-active #builderReportOutput{
+      color:transparent;
+      caret-color:#111827;
+    }
+    .builder-report-overlay{
+      position:absolute;
+      inset:0;
+      border-radius:8px;
+      padding:12px;
+      line-height:1.5;
+      font-size:14px;
+      white-space:pre-wrap;
+      word-break:break-word;
+      overflow:hidden;
+      pointer-events:none;
+      z-index:2;
+      display:none;
+      color:#0f172a;
+    }
+    .builder-output-wrap.overlay-active .builder-report-overlay{
+      display:block;
+    }
+    .builder-report-overlay .revise-diff{
+      background:rgba(251, 191, 36, .38);
+      border-radius:3px;
+      padding:0 1px;
+      animation:reviseDiffFade 2s ease forwards;
+    }
+    @keyframes reviseDiffFade{
+      0%{ background:rgba(251, 191, 36, .42); }
+      75%{ background:rgba(251, 191, 36, .16); }
+      100%{ background:transparent; }
     }
     #builderReportOutput.builder-output-pulse{
       animation:builderOutputPulse .18s ease;
@@ -1798,7 +1847,7 @@
       flex-direction:column;
       gap:8px;
     }
-    .builder-output-card #builderReportOutput{
+    .builder-output-card .builder-output-wrap{
       flex:1;
       min-height:320px;
     }
