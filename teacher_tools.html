@@ -16,6 +16,20 @@
   
 </head>
 <body>
+<aside id="filesDrawer" class="files-drawer" aria-expanded="true">
+    <div class="files-drawer-head">
+      <button class="btn icon-btn files-drawer-toggle" id="filesDrawerToggle" type="button" aria-expanded="true" aria-controls="filesList" title="Toggle files panel">📂</button>
+      <b class="files-drawer-title">FILES</b>
+    </div>
+    <div id="filesDrawerMiniList" class="files-drawer-mini"></div>
+    <div id="filesList"></div>
+    <div id="filesWarning" class="warning-banner" style="margin:0;">
+      <span style="font-weight:600;">!</span>
+      <span id="filesWarningText"></span>
+    </div>
+    <div class="muted files-drawer-tip" style="font-size:12px;">Upload multiple CSV/XLSX files and click to switch class.</div>
+  </aside>
+
 <div id="appRoot" class="app-shell">
   <div class="app-header">
     <a class="header-brand header-brand-link" href="home.html" aria-label="Go to TeacherTools home">
@@ -71,19 +85,6 @@
     <div id="status" class="muted"></div>
   </div>
   <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
-  <aside id="filesDrawer" class="files-drawer" aria-expanded="true">
-    <div class="files-drawer-head">
-      <button class="btn icon-btn files-drawer-toggle" id="filesDrawerToggle" type="button" aria-expanded="true" aria-controls="filesList" title="Toggle files panel">📂</button>
-      <b class="files-drawer-title">FILES</b>
-    </div>
-    <div id="filesDrawerMiniList" class="files-drawer-mini"></div>
-    <div id="filesList"></div>
-    <div id="filesWarning" class="warning-banner" style="margin:0;">
-      <span style="font-weight:600;">!</span>
-      <span id="filesWarningText"></span>
-    </div>
-    <div class="muted files-drawer-tip" style="font-size:12px;">Upload multiple CSV/XLSX files and click to switch class.</div>
-  </aside>
   <div class="tab-bar">
     <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
     <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
