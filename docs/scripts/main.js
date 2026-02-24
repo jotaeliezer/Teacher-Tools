@@ -4276,6 +4276,20 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     }
     return variants || '';
   }
+  function pickUniqueVariant(variants, seed, usedSet, scopeKey){
+    const list = Array.isArray(variants) ? variants.filter(Boolean) : [variants].filter(Boolean);
+    if (!list.length) return '';
+    const start = hashString(seed) % list.length;
+    for (let offset = 0; offset < list.length; offset += 1){
+      const idx = (start + offset) % list.length;
+      const id = `${scopeKey}:${idx}`;
+      if (!usedSet || !usedSet.has(id)){
+        usedSet?.add(id);
+        return list[idx];
+      }
+    }
+    return list[start];
+  }
   const ASSIGNMENT_TEMPLATES = {
     default: {
       high: [
@@ -4425,73 +4439,93 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     const m = String(label || '').match(/^L\d+\s*-\s*(.*)$/i);
     return m ? m[1].trim() || String(label || '').trim() : String(label || '');
   }
+  function collectAssignmentFacts(selectedAssignments, row){
+    if (!Array.isArray(selectedAssignments) || !selectedAssignments.length || !row) return [];
+    const facts = [];
+    selectedAssignments.slice(0, 2).forEach((col) => {
+      const meta = deriveMarkMeta(row[col], col);
+      if (!meta) return;
+      facts.push({
+        label: cleanAssignmentLabel(col),
+        score: meta.value,
+        scoreText: meta.raw
+      });
+    });
+    return facts;
+  }
   function buildAssignmentSentences(selectedAssignments, row, context, overallMeta){
     if (!selectedAssignments.length || !row) return '';
-    const connectors = ['', 'Additionally, ', 'Furthermore, ', 'In follow-up work, ', ''];
-    const parts = [];
     const overallValue = overallMeta?.value;
     const overallDisplay = overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '';
-    const highThreshold = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
-    const midThreshold = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
-    const overallBand = (overallValue == null)
-      ? ''
-      : (overallValue >= highThreshold ? 'high' : (overallValue >= midThreshold ? 'mid' : 'low'));
+    const used = new Set();
+    const entries = collectAssignmentFacts(selectedAssignments, row);
+    if (!entries.length) return '';
+    const leadVariants = [
+      "Assignment results this term show a mix of strengths across recent tasks.",
+      "Recent assignment evidence highlights where [Student] is performing strongly and where refinement is needed.",
+      "Across recent assignments, [Student] is showing clear growth with a few targeted focus points."
+    ];
+    const clauseOpenersA = [
+      "On {label}, [Student] scored {score}%",
+      "For {label}, [Student] recorded {score}%",
+      "In {label}, [Student] earned {score}%",
+      "Across {label}, [Student] posted {score}%"
+    ];
+    const clauseOpenersB = [
+      "while on {label}, [he/she] scored {score}%",
+      "whereas in {label}, [he/she] recorded {score}%",
+      "and on {label}, [he/she] earned {score}%",
+      "while in {label}, [he/she] posted {score}%"
+    ];
     const aboveNotes = [
-      ` This stands above the overall ${overallDisplay}, showing a strength to leverage across other tasks.`,
-      ` This outperforms the overall ${overallDisplay}, highlighting a skill area to model elsewhere.`,
-      ` This is stronger than the overall ${overallDisplay} and can anchor confidence in upcoming work.`
+      `which sits above the overall ${overallDisplay} and can be leveraged across other tasks`,
+      `which is stronger than the overall ${overallDisplay} and highlights an area of confidence`,
+      `which outperforms the overall ${overallDisplay} and signals a strength to build from`
     ];
     const belowNotes = [
-      ` This sits below the overall ${overallDisplay}, so tightening practice here will help keep progress aligned.`,
-      ` This is weaker than the overall ${overallDisplay}; focused review will bring it in line with other results.`,
-      ` This trails the overall ${overallDisplay}, suggesting a small gap to target next.`
+      `which is below the overall ${overallDisplay} and identifies a targeted area to reinforce`,
+      `which trails the overall ${overallDisplay} and would benefit from focused review`,
+      `which is weaker than the overall ${overallDisplay} and should be tightened with deliberate practice`
     ];
-    const contrastHighOverallLowAssignment = [
-      ` Despite strong overall results (${overallDisplay}), this result is lower and points to a specific skill gap to reinforce.`,
-      ` Even with a strong overall mark (${overallDisplay}), this lower result highlights an area to revisit.`,
-      ` This is below the overall ${overallDisplay}, so targeted review here will balance otherwise strong performance.`
+    const alignedNotes = [
+      `which aligns closely with the overall ${overallDisplay}`,
+      `which is broadly in line with the overall ${overallDisplay}`,
+      `which reflects a level similar to the overall ${overallDisplay}`
     ];
-    const contrastLowOverallHighAssignment = [
-      ` Even though the overall mark is lower (${overallDisplay}), this stronger result shows a clear strength to build on.`,
-      ` Despite a lower overall mark (${overallDisplay}), this higher score suggests the skill is emerging well.`,
-      ` This outperforms the overall ${overallDisplay}, highlighting a promising area to leverage for growth.`
+    const closeVariants = [
+      "This pattern gives us a clear next step for instruction and practice.",
+      "Together, these results outline both a dependable strength and a concrete growth target.",
+      "This spread of results gives a practical roadmap for next-step support."
     ];
-    let aboveCount = 0;
-    let belowCount = 0;
-    let contrastHighCount = 0;
-    let contrastLowCount = 0;
-    const limitedAssignments = selectedAssignments.slice(0, 2);
-    limitedAssignments.forEach((col, idx) => {
-      const raw = row[col];
-      const meta = deriveMarkMeta(raw, col);
-      if (!meta) return;
-      const score = meta.value;
-      const displayLabel = cleanAssignmentLabel(col);
-      const bandKey = (ASSIGNMENT_BANDS.find(b => score >= b.min) || ASSIGNMENT_BANDS[ASSIGNMENT_BANDS.length - 1]).key;
-      const type = detectAssignmentType(col);
-      const tmplMap = ASSIGNMENT_TEMPLATES[type] || ASSIGNMENT_TEMPLATES.default;
-      const variants = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
-      const tmpl = pickVariant(variants, `${displayLabel}|${bandKey}|${meta.raw}|${idx}`);
-      let sentence = tmpl.replace('{label}', displayLabel).replace('{score}', meta.raw);
-      sentence = builderReplacePlaceholders(sentence, context);
-      if (overallValue != null){
-        const diff = score - overallValue;
-        if (diff <= -8){
-          const note = (overallBand === 'high')
-            ? contrastHighOverallLowAssignment[contrastHighCount++ % contrastHighOverallLowAssignment.length]
-            : belowNotes[belowCount++ % belowNotes.length];
-          sentence += note;
-        }else if (diff >= 8){
-          const note = (overallBand === 'low')
-            ? contrastLowOverallHighAssignment[contrastLowCount++ % contrastLowOverallHighAssignment.length]
-            : aboveNotes[aboveCount++ % aboveNotes.length];
-          sentence += note;
-        }
+    const chooseRelation = (entry, idx) => {
+      if (overallValue == null || !overallDisplay) return '';
+      const diff = entry.score - overallValue;
+      if (diff >= 8){
+        return pickUniqueVariant(aboveNotes, `${entry.label}|above|${idx}`, used, 'rel-above');
       }
-      const connector = connectors[Math.min(idx, connectors.length - 1)];
-      parts.push(connector + sentence);
-    });
-    return parts.join(' ');
+      if (diff <= -8){
+        return pickUniqueVariant(belowNotes, `${entry.label}|below|${idx}`, used, 'rel-below');
+      }
+      return pickUniqueVariant(alignedNotes, `${entry.label}|aligned|${idx}`, used, 'rel-aligned');
+    };
+    const clauseAOpen = pickUniqueVariant(clauseOpenersA, `${entries[0].label}|openA`, used, 'openA');
+    let clauseA = clauseAOpen.replace('{label}', entries[0].label).replace('{score}', entries[0].scoreText);
+    const relationA = chooseRelation(entries[0], 0);
+    clauseA += relationA ? `, ${relationA}.` : '.';
+    clauseA = builderReplacePlaceholders(clauseA, context);
+    if (entries.length === 1){
+      const lead = builderReplacePlaceholders(pickUniqueVariant(leadVariants, `${entries[0].label}|lead`, used, 'lead'), context);
+      const close = builderReplacePlaceholders(pickUniqueVariant(closeVariants, `${entries[0].label}|close`, used, 'close'), context);
+      return `${lead} ${clauseA} ${close}`.trim();
+    }
+    const clauseBOpen = pickUniqueVariant(clauseOpenersB, `${entries[1].label}|openB`, used, 'openB');
+    let clauseB = clauseBOpen.replace('{label}', entries[1].label).replace('{score}', entries[1].scoreText);
+    const relationB = chooseRelation(entries[1], 1);
+    clauseB += relationB ? `, ${relationB}.` : '.';
+    clauseB = builderReplacePlaceholders(clauseB, context);
+    const lead = builderReplacePlaceholders(pickUniqueVariant(leadVariants, `${entries[0].label}|${entries[1].label}|lead`, used, 'lead'), context);
+    const close = builderReplacePlaceholders(pickUniqueVariant(closeVariants, `${entries[0].label}|${entries[1].label}|close`, used, 'close'), context);
+    return `${lead} ${clauseA} ${clauseB} ${close}`.trim();
   }
   function builderGetScoreCommentary(score, testNumber, level){
     if (!score && score !== 0) return '';
@@ -4615,6 +4649,141 @@ function splitIntoSentences(text){
     if (!text) return [];
     return String(text).split(/(?<=[.!?])\s+/).filter(Boolean);
   }
+  function normalizeSentenceForDedupe(sentence, context){
+    let text = String(sentence || '').toLowerCase();
+    const studentName = String(context?.studentName || '').trim();
+    if (studentName){
+      text = text.replace(new RegExp(`\\b${escapeRegExp(studentName)}\\b`, 'gi'), ' student ');
+    }
+    text = text
+      .replace(/\b(he|she|his|her|him|they|their|them)\b/g, ' pronoun ')
+      .replace(/\d+(?:\.\d+)?\s*%/g, ' percent ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\b(the|a|an|and|or|but|to|of|in|on|at|with|for|from|this|that|is|are|was|were|be|been|being)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text;
+  }
+  function sentenceSimilarity(a, b, context){
+    const aa = normalizeSentenceForDedupe(a, context).split(' ').filter(Boolean);
+    const bb = normalizeSentenceForDedupe(b, context).split(' ').filter(Boolean);
+    if (!aa.length || !bb.length) return 0;
+    const setA = new Set(aa);
+    const setB = new Set(bb);
+    let intersect = 0;
+    setA.forEach(token => {
+      if (setB.has(token)) intersect += 1;
+    });
+    const union = new Set([...setA, ...setB]).size || 1;
+    return intersect / union;
+  }
+  function detectSentenceIntentBucket(sentence){
+    const s = String(sentence || '').toLowerCase();
+    if (/(next term|coming term|year ahead|look forward|successful year)/.test(s)) return 'future';
+    if (/(assignment|test|quiz|exam|challenge|review|topic|\d+(?:\.\d+)?\s*%)/.test(s)) return 'assignment';
+    if (/(overall|\babove\b|\bbelow\b|outperform|stronger than|weaker than|align)/.test(s)) return 'comparison';
+    if (/(time management|starting .* early|on time|routine|consistent review)/.test(s)) return 'time-management';
+    if (/(attendance|engaged during class|morale|demeanor|attitude)/.test(s)) return 'classroom';
+    if (/(steady progress|meeting expectations|progressing|growth)/.test(s)) return 'progress';
+    return 'general';
+  }
+  function sentenceInfoScore(sentence, requirements){
+    const text = String(sentence || '');
+    let score = text.length;
+    if (/\d+(?:\.\d+)?\s*%/.test(text)) score += 25;
+    const labels = Array.isArray(requirements?.assignmentLabels) ? requirements.assignmentLabels : [];
+    labels.forEach(label => {
+      if (label && text.toLowerCase().includes(String(label).toLowerCase())) score += 30;
+    });
+    if (requirements?.overallMark && text.includes(requirements.overallMark)) score += 18;
+    if (detectSentenceIntentBucket(text) === 'future') score += 8;
+    return score;
+  }
+  function dedupeGeneratedComment(report, context, requirements = {}){
+    const source = String(report || '').trim();
+    if (!source) return '';
+    if (commentOrderMode === 'bullet') return source;
+    const sentences = splitIntoSentences(source);
+    const kept = [];
+    sentences.forEach(sentence => {
+      const current = sentence.trim();
+      if (!current) return;
+      const bucket = detectSentenceIntentBucket(current);
+      let duplicateIndex = -1;
+      let duplicateStrength = 0;
+      for (let i = 0; i < kept.length; i += 1){
+        const existing = kept[i];
+        const sim = sentenceSimilarity(current, existing.text, context);
+        const sameBucket = bucket !== 'general' && existing.bucket === bucket;
+        const exactKey = normalizeSentenceForDedupe(current, context) === normalizeSentenceForDedupe(existing.text, context);
+        if (exactKey || sim >= 0.78 || (sameBucket && sim >= 0.58)){
+          duplicateIndex = i;
+          duplicateStrength = sim;
+          break;
+        }
+      }
+      if (duplicateIndex === -1){
+        kept.push({ text: current, bucket });
+        return;
+      }
+      const existing = kept[duplicateIndex];
+      const keepCurrent = sentenceInfoScore(current, requirements) > sentenceInfoScore(existing.text, requirements);
+      if (keepCurrent || duplicateStrength >= 0.9){
+        kept[duplicateIndex] = { text: current, bucket };
+      }
+    });
+    return kept.map(item => item.text).join(' ');
+  }
+  function ensureRequiredFactsInReport(report, requirements = {}){
+    const result = String(report || '').trim();
+    if (!result || commentOrderMode === 'bullet') return result;
+    const sourceSentences = splitIntoSentences(requirements.sourceText || '');
+    const outputSentences = splitIntoSentences(result);
+    const hasText = (needle) => String(outputSentences.join(' ')).toLowerCase().includes(String(needle || '').toLowerCase());
+    const appendFromSource = (matchFn) => {
+      const hit = sourceSentences.find(matchFn);
+      if (hit && !hasText(hit)){
+        outputSentences.push(hit.trim());
+      }
+    };
+    const labels = Array.isArray(requirements.assignmentLabels) ? requirements.assignmentLabels : [];
+    labels.forEach(label => {
+      if (!label || hasText(label)) return;
+      appendFromSource(sentence => sentence.toLowerCase().includes(String(label).toLowerCase()));
+    });
+    const scores = Array.isArray(requirements.assignmentScores) ? requirements.assignmentScores : [];
+    scores.forEach(score => {
+      if (!score || hasText(score)) return;
+      appendFromSource(sentence => sentence.includes(score));
+    });
+    if (requirements.overallMark && !hasText(requirements.overallMark)){
+      appendFromSource(sentence => sentence.includes(requirements.overallMark));
+    }
+    if (requirements.requireFutureSentence){
+      const hasFuture = outputSentences.some(s => detectSentenceIntentBucket(s) === 'future');
+      if (!hasFuture && requirements.futureSentence){
+        outputSentences.push(String(requirements.futureSentence).trim());
+      }
+    }
+    return outputSentences.filter(Boolean).join(' ');
+  }
+  function buildGenerationRequirements({
+    sourceText,
+    selectedAssignments,
+    studentRow,
+    overallMeta,
+    lookingAheadText
+  }){
+    const assignmentFacts = collectAssignmentFacts(selectedAssignments, studentRow);
+    return {
+      sourceText: String(sourceText || ''),
+      assignmentLabels: assignmentFacts.map(item => item.label).filter(Boolean),
+      assignmentScores: assignmentFacts.map(item => item.scoreText).filter(Boolean),
+      overallMark: overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '',
+      requireFutureSentence: Boolean(String(lookingAheadText || '').trim()),
+      futureSentence: String(lookingAheadText || '').trim()
+    };
+  }
   function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, lookingAheadText }){
     let baseText = baseComment || '';
     if (termLabel){
@@ -4630,12 +4799,25 @@ function splitIntoSentences(text){
       }
     }
     const blocks = [];
-    if (core) blocks.push(core.trim());
-    if (toneLine) blocks.push(toneLine.trim());
-    if (commentSnippet) blocks.push(commentSnippet.trim());
-    if (assignmentParagraph) blocks.push(assignmentParagraph.trim());
-    if (lookingAheadText) blocks.push(lookingAheadText.trim());
-    if (closing) blocks.push(closing.trim());
+    const appendUniqueBlock = (text) => {
+      const blockText = String(text || '').trim();
+      if (!blockText) return;
+      const existing = splitIntoSentences(blocks.join(' '));
+      const incoming = splitIntoSentences(blockText);
+      const filtered = incoming.filter(sentence => {
+        const bucket = detectSentenceIntentBucket(sentence);
+        if (bucket === 'future' && existing.some(s => detectSentenceIntentBucket(s) === 'future')) return false;
+        return !existing.some(s => sentenceSimilarity(sentence, s, { studentName: '' }) >= 0.74);
+      });
+      if (!filtered.length) return;
+      blocks.push(filtered.join(' '));
+    };
+    appendUniqueBlock(core);
+    appendUniqueBlock(toneLine);
+    appendUniqueBlock(commentSnippet);
+    appendUniqueBlock(assignmentParagraph);
+    appendUniqueBlock(lookingAheadText);
+    appendUniqueBlock(closing);
     return blocks.filter(Boolean).join('\n\n');
   }
 
@@ -5232,7 +5414,7 @@ function cleanFluency(text){
     const selectedAssignments = getSelectedBuilderAssignments();
     const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
-    const assignmentParagraph = assignmentSentences ? `In recent assignments, ${assignmentSentences}` : '';
+    const assignmentParagraph = assignmentSentences || '';
 
     const selectedComments = getBuilderSelectedComments();
     const commentBlocks = buildCommentBlocks(selectedComments, context);
@@ -5301,7 +5483,16 @@ function cleanFluency(text){
 
     const pronounAdjusted = applyPronounsAfterFirstSentence(report, context.studentName, context.pronouns);
     const trimmedReport = cleanFluency(pronounAdjusted.trim());
-    const polishedReport = polishGrammar(trimmedReport);
+    const requirements = buildGenerationRequirements({
+      sourceText: trimmedReport,
+      selectedAssignments,
+      studentRow,
+      overallMeta,
+      lookingAheadText: lookingAheadSelected
+    });
+    const dedupedReport = dedupeGeneratedComment(trimmedReport, context, requirements);
+    const factSafeReport = ensureRequiredFactsInReport(dedupedReport, requirements);
+    const polishedReport = polishGrammar(factSafeReport);
     setBuilderReportOutputText(polishedReport, outputMode);
     builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
       studentName: context.studentName,
