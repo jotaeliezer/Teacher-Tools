@@ -1855,7 +1855,8 @@
     #builderReportOutput.builder-output-word-pop{
       animation:builderOutputWordPop .12s ease;
     }
-    #builderReportOutput.builder-output-fade{
+    #builderReportOutput.builder-output-fade,
+    #builderRevisedOutput.builder-output-fade{
       animation:builderOutputFade .22s ease;
     }
     @keyframes builderOutputPulse{

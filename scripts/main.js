@@ -5061,24 +5061,14 @@ function cleanFluency(text){
     if (!builderRevisedOutput) return;
     const next = String(text || '');
     builderRevisedAnimationToken += 1;
-    const token = builderRevisedAnimationToken;
-    if (mode !== 'revise'){
-      builderRevisedOutput.value = next;
-      return;
+    builderRevisedOutput.value = next;
+    if (mode === 'revise'){
+      builderRevisedOutput.classList.remove('builder-output-fade');
+      void builderRevisedOutput.offsetWidth;
+      builderRevisedOutput.classList.add('builder-output-fade');
+    }else{
+      builderRevisedOutput.classList.remove('builder-output-fade');
     }
-    let i = 0;
-    builderRevisedOutput.value = '';
-    const step = () => {
-      if (!builderRevisedOutput || token !== builderRevisedAnimationToken) return;
-      builderRevisedOutput.value = next.slice(0, i);
-      i += 4;
-      if (i <= next.length){
-        setTimeout(step, 7);
-      }else{
-        builderRevisedOutput.value = next;
-      }
-    };
-    step();
   }
   function getSelectedBuilderAssignments(){
     return Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
