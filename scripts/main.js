@@ -4639,10 +4639,6 @@ function splitIntoSentences(text){
     return blocks.filter(Boolean).join('\n\n');
   }
 
-      function pickRandomItem(items){
-    if (!Array.isArray(items) || !items.length) return null;
-    return items[Math.floor(Math.random() * items.length)];
-  }
   function getBuilderLookingAheadKey(){
     const studentKey = builderSelectedRowIndex != null
       ? `row:${builderSelectedRowIndex}`
@@ -4670,7 +4666,9 @@ function splitIntoSentences(text){
       cb.checked = false;
       cb.dataset.auto = 'false';
     });
-    const pick = lookingCbs[Math.floor(Math.random() * lookingCbs.length)];
+    const positiveLooking = lookingCbs.filter(cb => (cb.dataset.type || '').toLowerCase() === 'positive');
+    const pool = positiveLooking.length ? positiveLooking : lookingCbs;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
     if (pick){
       pick.checked = true;
       pick.dataset.auto = 'true';
@@ -4681,36 +4679,12 @@ function splitIntoSentences(text){
     return pick ? pick.dataset.text || '' : '';
   }
 
-function getBankOptions(){
-    const flat = [];
-    REPORT_COMMENT_BANK.forEach(section => {
-      const sectionId = (section.id || '').toLowerCase();
-      section.options.forEach(opt => {
-        flat.push({
-          ...opt,
-          sectionId
-        });
-      });
-    });
-    return flat;
-  }
-  function getAutoTailSentences(coreLevel, context){
-    const allOptions = getBankOptions();
-    const lookingAhead = allOptions.filter(opt => opt.sectionId === 'future');
-    const isSupport = String(coreLevel || '').startsWith('poor') || String(coreLevel || '').startsWith('newstu');
-    const levelOptions = allOptions.filter(opt => isSupport ? opt.type !== 'positive' : opt.type === 'positive');
-    const levelOpt = pickRandomItem(levelOptions.filter(opt => opt.sectionId !== 'future'));
-    return {
-      levelText: levelOpt ? builderReplacePlaceholders(levelOpt.text, context) : ''
-    };
-  }
-
 function buildCommentBlocks(selectedComments, context){
     if (!Array.isArray(selectedComments) || !selectedComments.length){
-      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: '' };
+      return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: '' };
     }
     if (commentOrderMode === 'bullet'){
-      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
+      return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
     }
     const replace = (item) => builderReplacePlaceholders(item.text, context);
     let ordered = selectedComments;
@@ -4722,14 +4696,20 @@ function buildCommentBlocks(selectedComments, context){
     }
     const pqSentences = [];
     const lookingAheadSentences = [];
+    const lookingAheadPositiveSentences = [];
     const otherSentences = [];
     ordered.forEach(item => {
       const txt = replace(item);
       if (item.section === 'personalqualities') pqSentences.push(txt);
-      else if (item.section === 'future') lookingAheadSentences.push(txt);
+      else if (item.section === 'future'){
+        lookingAheadSentences.push(txt);
+        if ((item.type || '').toLowerCase() === 'positive'){
+          lookingAheadPositiveSentences.push(txt);
+        }
+      }
       else otherSentences.push(txt);
     });
-    return { pqSentences, lookingAheadSentences, otherSentences, otherText: otherSentences.join(' ') };
+    return { pqSentences, lookingAheadSentences, lookingAheadPositiveSentences, otherSentences, otherText: otherSentences.join(' ') };
   }
 
 function cleanFluency(text){
@@ -5256,7 +5236,7 @@ function cleanFluency(text){
 
     const selectedComments = getBuilderSelectedComments();
     const commentBlocks = buildCommentBlocks(selectedComments, context);
-    const autoTail = getAutoTailSentences(coreLevel, context);
+    const lookingAheadSelected = commentBlocks.lookingAheadPositiveSentences?.[0] || '';
     const commentSnippetText = commentBlocks.otherText;
     const toneLine = getPerformanceToneLine(coreLevel, context);
 
@@ -5274,7 +5254,7 @@ function cleanFluency(text){
         toneLine,
         commentSnippet: commentSnippetText,
         assignmentParagraph,
-        lookingAheadText: [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ')
+        lookingAheadText: lookingAheadSelected
       });
     }else{
       const template = getReportBuilderTemplate(coreLevel, context);
@@ -5309,7 +5289,7 @@ function cleanFluency(text){
       if (toneLine) blocks.push(toneLine);
       if (commentSnippetText) blocks.push(commentSnippetText);
       if (assignmentParagraph) blocks.push(assignmentParagraph);
-      const tailText = [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ');
+      const tailText = lookingAheadSelected;
       if (tailText) blocks.push(tailText);
       if (partB) blocks.push(partB);
       report = blocks.filter(Boolean).join('\n\n');

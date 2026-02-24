@@ -12,7 +12,7 @@
     midThreshold: 75,
     satisfactoryThreshold: 70,
     highTemplate: "{name} consistently exceeds expectations and shows strong reasoning. With {mark}, [he/she] explains solutions clearly, checks work carefully, and extends tasks with enrichment. Next term we will push multi-step investigations and advanced challenges.",
-    midTemplate: "{name} is making steady progress and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking units. Next term we will focus on multi-step problems and timed practice to build fluency.",
+    midTemplate: "{name} is making steady progress and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking units.",
     lowTemplate: "{name} is building core skills and currently holds {mark}. With guided practice and clear routines, [he/she] can improve accuracy and confidence. Next term we will target fundamentals and consistent homework habits.",
     extraColumns: []
   };
@@ -24,7 +24,7 @@
     },
     middle: {
       high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently. Next term we will extend to multi-step and enrichment tasks.",
-      mid: "{name} is progressing well and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking work. Next term we will target multi-step accuracy and fluency.",
+      mid: "{name} is progressing well and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking work.",
       low: "{name} is building foundational skills and currently holds {mark}. With structured practice and feedback, [he/she] can improve consistency. Next term we will reinforce core skills."
     },
     high: {
