@@ -206,6 +206,7 @@
       color:#ffc2c2;
     }
     #appRoot{
+      position:relative;
       transform: scale(var(--zoom-factor,1));
       transform-origin: top left;
       width: calc(100% / var(--zoom-factor,1));
@@ -323,11 +324,13 @@
       display:inline;
     }
     .files-drawer{
-      position:fixed;
+      position:absolute;
       top:0;
+      bottom:0;
       left:0;
       width:var(--files-drawer-expanded);
-      height:100vh;
+      height:auto;
+      min-height:100vh;
       z-index:50;
       border:1px solid var(--panel-border);
       border-radius:0 12px 12px 0;
@@ -2461,9 +2464,11 @@ td.readonly{
       }
       .files-drawer{
         top:0;
+        bottom:0;
         left:0;
         width:180px;
-        height:100vh;
+        height:auto;
+        min-height:100vh;
       }
       .files-drawer.collapsed{
         width:44px;
