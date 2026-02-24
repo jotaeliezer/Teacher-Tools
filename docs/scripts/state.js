@@ -23,7 +23,7 @@
       low: "{name} is building core skills. With guided practice and routines, [he/she] can improve accuracy and confidence."
     },
     middle: {
-      high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently. Next term we will extend to multi-step and enrichment tasks.",
+      high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently.",
       mid: "{name} is progressing well and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking work. Next term we will target multi-step accuracy and fluency.",
       low: "{name} is building foundational skills and currently holds {mark}. With structured practice and feedback, [he/she] can improve consistency. Next term we will reinforce core skills."
     },
