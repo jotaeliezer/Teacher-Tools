@@ -4182,9 +4182,27 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     }
     if (builderSelectedCommentsEl) builderSelectedCommentsEl.style.display = 'block';
     selected.forEach(cb => {
-      const tag = document.createElement('span');
+      const tag = document.createElement('button');
+      tag.type = 'button';
       tag.className = 'builder-tag';
-      tag.textContent = cb.dataset.label || 'Selected';
+      tag.setAttribute('aria-label', `Remove ${cb.dataset.label || 'selected comment'}`);
+      const label = document.createElement('span');
+      label.className = 'builder-tag-label';
+      label.textContent = cb.dataset.label || 'Selected';
+      const remove = document.createElement('span');
+      remove.className = 'builder-tag-remove';
+      remove.textContent = 'x';
+      tag.appendChild(label);
+      tag.appendChild(remove);
+      tag.addEventListener('click', () => {
+        cb.checked = false;
+        cb.dataset.auto = 'false';
+        updateBuilderSelectedTags();
+        if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
+          builderGenerateReport();
+        }
+      });
       builderSelectedTagsEl.appendChild(tag);
     });
   }
@@ -5010,7 +5028,7 @@ function cleanFluency(text){
     const orderMode = ['sandwich', 'selection', 'bullet'].includes(commentOrderMode) ? commentOrderMode : 'selection';
     return {
       draft: String(draft || '').trim(),
-      reviseMode: 'minimal',
+      reviseMode: 'rewrite',
       orderMode,
       sentenceFormatHint: orderMode === 'bullet' ? 'bullets' : 'paragraph',
       studentName: builderStudentNameInput?.value.trim() || '',

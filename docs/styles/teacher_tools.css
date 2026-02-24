@@ -1768,6 +1768,25 @@
       padding:4px 10px;
       border-radius:999px;
       font-size:12px;
+      border:1px solid transparent;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      line-height:1;
+    }
+    .builder-tag:hover{
+      filter:brightness(.96);
+    }
+    .builder-tag-remove{
+      width:16px;
+      height:16px;
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      background:rgba(255,255,255,.22);
+      font-weight:700;
+      text-transform:uppercase;
     }
     .builder-output-card .button-group{
       margin-top:0;
