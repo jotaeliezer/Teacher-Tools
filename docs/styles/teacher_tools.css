@@ -324,12 +324,12 @@
       display:inline;
     }
     .files-drawer{
-      position:absolute;
+      position:fixed;
       top:0;
       bottom:0;
       left:0;
       width:var(--files-drawer-expanded);
-      height:auto;
+      height:100vh;
       min-height:100vh;
       z-index:50;
       border:1px solid var(--panel-border);
@@ -2463,11 +2463,12 @@ td.readonly{
         max-width: 100%;
       }
       .files-drawer{
+        position:fixed;
         top:0;
         bottom:0;
         left:0;
         width:180px;
-        height:auto;
+        height:100vh;
         min-height:100vh;
       }
       .files-drawer.collapsed{
