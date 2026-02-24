@@ -5182,7 +5182,6 @@ function cleanFluency(text){
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
     const payload = buildBuilderAiPayload(draft);
-    const orderMode = payload.orderMode || 'selection';
     const originalLabel = builderGenerateAiBtn?.textContent || 'Revise';
     try{
       if (builderGenerateAiBtn){
@@ -5207,13 +5206,12 @@ function cleanFluency(text){
         return;
       }
       const polished = polishGrammar(cleanFluency(aiText));
-      if (shouldKeepOriginalDraft(draft, polished, orderMode)){
-        setBuilderRevisedOutputText(draft, 'instant');
-        status('AI revision was too short. Kept generated comment.');
-        return;
-      }
       setBuilderRevisedOutputText(polished, 'revise');
-      status('AI revision ready.');
+      if (polished.trim() === draft.trim()){
+        status('AI returned the same wording. Try Revise again for a different rewrite.');
+      }else{
+        status('AI revision ready.');
+      }
     }catch(err){
       console.error(err);
       status('Could not reach AI API.');
