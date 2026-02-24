@@ -4887,19 +4887,76 @@ function cleanFluency(text){
     }
     return changed;
   }
-  function animateBuilderOutputWords(text){
+  function getCommonPrefixLength(a, b){
+    const left = String(a || '');
+    const right = String(b || '');
+    const max = Math.min(left.length, right.length);
+    let i = 0;
+    while (i < max && left[i] === right[i]) i += 1;
+    return i;
+  }
+  function getCommonSuffixLength(a, b, prefixLen = 0){
+    const left = String(a || '');
+    const right = String(b || '');
+    const max = Math.min(left.length - prefixLen, right.length - prefixLen);
+    let i = 0;
+    while (i < max && left[left.length - 1 - i] === right[right.length - 1 - i]) i += 1;
+    return i;
+  }
+  function getSelectionChangeMeta(prev, next){
+    const left = String(prev || '');
+    const right = String(next || '');
+    const prefixLen = getCommonPrefixLength(left, right);
+    const suffixLen = getCommonSuffixLength(left, right, prefixLen);
+    const prevMiddle = left.slice(prefixLen, left.length - suffixLen);
+    const nextMiddle = right.slice(prefixLen, right.length - suffixLen);
+    return { prefixLen, suffixLen, prevMiddle, nextMiddle };
+  }
+  function getFirstDiffIndex(a, b){
+    const left = String(a || '');
+    const right = String(b || '');
+    const minLen = Math.min(left.length, right.length);
+    for (let i = 0; i < minLen; i += 1){
+      if (left[i] !== right[i]) return i;
+    }
+    if (left.length !== right.length) return minLen;
+    return -1;
+  }
+  function getSelectionAnimationStart(prev, next){
+    const target = String(next || '');
+    const diff = getFirstDiffIndex(prev, target);
+    if (diff <= 0) return 0;
+    let start = 0;
+    const boundaries = ['\n\n', '. ', '! ', '? ', '\n'];
+    boundaries.forEach(marker => {
+      const idx = target.lastIndexOf(marker, diff - 1);
+      if (idx >= 0){
+        start = Math.max(start, idx + marker.length);
+      }
+    });
+    if (start === 0){
+      const wordIdx = target.lastIndexOf(' ', diff - 1);
+      if (wordIdx >= 0) start = wordIdx + 1;
+    }
+    return Math.min(start, target.length);
+  }
+  function animateBuilderOutputWords(prevText, nextText){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
     const token = builderOutputAnimationToken;
-    const parts = String(text || '').split(/(\s+)/);
+    const next = String(nextText || '');
+    const start = getSelectionAnimationStart(prevText, next);
+    const prefix = next.slice(0, start);
+    const suffix = next.slice(start);
+    const parts = suffix.split(/(\s+)/);
     let i = 0;
-    builderReportOutput.value = '';
+    builderReportOutput.value = prefix;
     const step = () => {
       if (token !== builderOutputAnimationToken || !builderReportOutput) return;
       const end = Math.min(i + 3, parts.length);
       for (; i < end; i += 1){
-        builderReportOutput.value += parts[i];
+        builderReportOutput.value = prefix + parts.slice(0, i + 1).join('');
       }
       if (end % 9 === 0){
         pulseBuilderOutput('builder-output-word-pop');
@@ -4907,6 +4964,38 @@ function cleanFluency(text){
       if (i < parts.length){
         setTimeout(step, 12);
       }else{
+        builderReportOutput.value = next;
+        builderOutputAnimating = false;
+      }
+    };
+    step();
+  }
+  function animateBuilderOutputRemoval(prevText, nextText){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
+    const token = builderOutputAnimationToken;
+    const prev = String(prevText || '');
+    const next = String(nextText || '');
+    const change = getSelectionChangeMeta(prev, next);
+    const prefix = prev.slice(0, change.prefixLen);
+    const suffix = prev.slice(prev.length - change.suffixLen);
+    const removed = change.prevMiddle;
+    if (!removed){
+      builderReportOutput.value = next;
+      builderOutputAnimating = false;
+      return;
+    }
+    let keepLen = removed.length;
+    builderReportOutput.value = prev;
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      builderReportOutput.value = prefix + removed.slice(0, Math.max(keepLen, 0)) + suffix;
+      keepLen -= 3;
+      if (keepLen >= 0){
+        setTimeout(step, 10);
+      }else{
+        builderReportOutput.value = next;
         builderOutputAnimating = false;
       }
     };
@@ -4944,7 +5033,13 @@ function cleanFluency(text){
     builderLastFullOutput = next;
     if (mode === 'selection'){
       clearBuilderDiffOverlay();
-      animateBuilderOutputWords(next);
+      const change = getSelectionChangeMeta(previous, next);
+      const isPureRemoval = !!change.prevMiddle && !change.nextMiddle;
+      if (isPureRemoval){
+        animateBuilderOutputRemoval(previous, next);
+      }else{
+        animateBuilderOutputWords(previous, next);
+      }
       return;
     }
     if (mode === 'revise'){
