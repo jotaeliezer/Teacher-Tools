@@ -25,6 +25,7 @@
   let builderOutputAnimating = false;
   let builderLastFullOutput = '';
   let builderDiffClearTimer = null;
+  let builderRevisedAnimationToken = 0;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -4943,6 +4944,29 @@ function cleanFluency(text){
       }
     }
   }
+  function setBuilderRevisedOutputText(text, mode = 'instant'){
+    if (!builderRevisedOutput) return;
+    const next = String(text || '');
+    builderRevisedAnimationToken += 1;
+    const token = builderRevisedAnimationToken;
+    if (mode !== 'revise'){
+      builderRevisedOutput.value = next;
+      return;
+    }
+    let i = 0;
+    builderRevisedOutput.value = '';
+    const step = () => {
+      if (!builderRevisedOutput || token !== builderRevisedAnimationToken) return;
+      builderRevisedOutput.value = next.slice(0, i);
+      i += 4;
+      if (i <= next.length){
+        setTimeout(step, 7);
+      }else{
+        builderRevisedOutput.value = next;
+      }
+    };
+    step();
+  }
   function getSelectedBuilderAssignments(){
     return Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
       .map(cb => cb.value)
@@ -5071,11 +5095,11 @@ function cleanFluency(text){
       }
       const polished = polishGrammar(cleanFluency(aiText));
       if (shouldKeepOriginalDraft(draft, polished, orderMode)){
-        setBuilderReportOutputText(draft, 'instant');
+        setBuilderRevisedOutputText(draft, 'instant');
         status('AI revision was too short. Kept generated comment.');
         return;
       }
-      setBuilderReportOutputText(polished, 'revise');
+      setBuilderRevisedOutputText(polished, 'revise');
       status('AI revision ready.');
     }catch(err){
       console.error(err);
@@ -5092,6 +5116,7 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     const outputMode = builderOutputAnimationMode || 'instant';
     builderOutputAnimationMode = 'instant';
+    setBuilderRevisedOutputText('', 'instant');
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
     if (!studentName){

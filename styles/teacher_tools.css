@@ -1591,6 +1591,14 @@
     body.dark-mode .builder-report-overlay .revise-diff{
       background:rgba(250, 204, 21, .32);
     }
+    body.dark-mode .builder-revised-label{
+      color:#d5def6;
+    }
+    body.dark-mode #builderRevisedOutput{
+      background:#0f1522;
+      color:#f4f6ff;
+      border-color:#2c3240;
+    }
     body.dark-mode .builder-comment-section{
       background:#1b1f28;
       border-color:#2a2f3e;
@@ -1850,6 +1858,23 @@
     .builder-output-card .builder-output-wrap{
       flex:1;
       min-height:320px;
+    }
+    .builder-revised-label{
+      font-size:12px;
+      font-weight:700;
+      color:#374151;
+      margin-top:2px;
+    }
+    #builderRevisedOutput{
+      background:#f8fafc;
+      border:1px solid #d7dae3;
+      border-radius:8px;
+      padding:12px;
+      min-height:170px;
+      line-height:1.5;
+      white-space:pre-wrap;
+      font-size:14px;
+      color:#111827;
     }
     .comment-bank-card .builder-comment-bank{
       flex:1;
