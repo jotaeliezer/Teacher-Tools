@@ -4185,6 +4185,12 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       const tag = document.createElement('button');
       tag.type = 'button';
       tag.className = 'builder-tag';
+      const type = (cb.dataset.type || '').toLowerCase();
+      if (type === 'positive'){
+        tag.classList.add('builder-tag-positive');
+      }else if (type){
+        tag.classList.add('builder-tag-constructive');
+      }
       tag.setAttribute('aria-label', `Remove ${cb.dataset.label || 'selected comment'}`);
       const label = document.createElement('span');
       label.className = 'builder-tag-label';
@@ -4938,6 +4944,7 @@ function cleanFluency(text){
   function clearBuilderOutputAnimation(){
     builderOutputAnimationToken += 1;
     builderOutputAnimating = false;
+    builderReportOutput?.classList.remove('builder-output-animating');
   }
   function escapeHtml(text){
     return String(text || '')
@@ -5030,7 +5037,7 @@ function cleanFluency(text){
   }
   function pulseBuilderOutput(className = 'builder-output-pulse'){
     if (!builderReportOutput) return;
-    builderReportOutput.classList.remove('builder-output-pulse', 'builder-output-word-pop');
+    builderReportOutput.classList.remove('builder-output-pulse');
     void builderReportOutput.offsetWidth;
     builderReportOutput.classList.add(className);
   }
@@ -5106,6 +5113,7 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
+    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const next = String(nextText || '');
     const start = getSelectionAnimationStart(prevText, next);
@@ -5116,18 +5124,16 @@ function cleanFluency(text){
     builderReportOutput.value = prefix;
     const step = () => {
       if (token !== builderOutputAnimationToken || !builderReportOutput) return;
-      const end = Math.min(i + 3, parts.length);
+      const end = Math.min(i + 2, parts.length);
       for (; i < end; i += 1){
         builderReportOutput.value = prefix + parts.slice(0, i + 1).join('');
       }
-      if (end % 9 === 0){
-        pulseBuilderOutput('builder-output-word-pop');
-      }
       if (i < parts.length){
-        setTimeout(step, 12);
+        setTimeout(step, 16);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
+        builderReportOutput.classList.remove('builder-output-animating');
       }
     };
     step();
@@ -5136,6 +5142,7 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
+    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const prev = String(prevText || '');
     const next = String(nextText || '');
@@ -5146,6 +5153,7 @@ function cleanFluency(text){
     if (!removed){
       builderReportOutput.value = next;
       builderOutputAnimating = false;
+      builderReportOutput.classList.remove('builder-output-animating');
       return;
     }
     let keepLen = removed.length;
@@ -5153,12 +5161,13 @@ function cleanFluency(text){
     const step = () => {
       if (token !== builderOutputAnimationToken || !builderReportOutput) return;
       builderReportOutput.value = prefix + removed.slice(0, Math.max(keepLen, 0)) + suffix;
-      keepLen -= 3;
+      keepLen -= 2;
       if (keepLen >= 0){
-        setTimeout(step, 10);
+        setTimeout(step, 14);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
+        builderReportOutput.classList.remove('builder-output-animating');
       }
     };
     step();
@@ -5167,6 +5176,7 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
+    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const source = String(text || '');
     let i = 0;
@@ -5183,6 +5193,7 @@ function cleanFluency(text){
       }else{
         builderReportOutput.value = source;
         builderOutputAnimating = false;
+        builderReportOutput.classList.remove('builder-output-animating');
         if (typeof onDone === 'function') onDone();
       }
     };
@@ -5357,12 +5368,13 @@ function cleanFluency(text){
         status('AI returned an empty comment.');
         return;
       }
+      const modelUsed = String(data?.modelUsed || '').trim();
       const polished = polishGrammar(cleanFluency(aiText));
       setBuilderRevisedOutputText(polished, 'revise');
       if (polished.trim() === draft.trim()){
         status('AI returned the same wording. Try Revise again for a different rewrite.');
       }else{
-        status('AI revision ready.');
+        status(modelUsed ? `AI revision ready (${modelUsed}).` : 'AI revision ready.');
       }
     }catch(err){
       console.error(err);

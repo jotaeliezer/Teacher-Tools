@@ -1431,9 +1431,9 @@
       resize:vertical;
     }
     #builderReportOutput{
-      min-height:220px;
-      height:260px;
-      max-height:360px;
+      min-height:280px;
+      height:420px;
+      max-height:620px;
       padding:12px;
       border-radius:8px;
       line-height:1.45;
@@ -1596,6 +1596,21 @@
     }
     body.dark-mode .builder-revised-label{
       color:#d5def6;
+    }
+    body.dark-mode .builder-tag{
+      background:#2a3144;
+      border-color:#39435c;
+      color:#e6eaf5;
+    }
+    body.dark-mode .builder-tag.builder-tag-positive{
+      background:#33471d;
+      border-color:#6fa331;
+      color:#e6f7be;
+    }
+    body.dark-mode .builder-tag.builder-tag-constructive{
+      background:#7e1458;
+      border-color:#b24e8e;
+      color:#ffe6f6;
     }
     body.dark-mode #builderRevisedOutput{
       background:#0f1522;
@@ -1766,17 +1781,27 @@
       gap:6px;
     }
     .builder-tag{
-      background:#667eea;
-      color:#fff;
+      background:#e6e9f2;
+      color:#1f2937;
       padding:4px 10px;
       border-radius:999px;
       font-size:12px;
-      border:1px solid transparent;
+      border:1px solid #cfd5e3;
       display:inline-flex;
       align-items:center;
       gap:8px;
       cursor:pointer;
       line-height:1;
+    }
+    .builder-tag.builder-tag-positive{
+      background:#e9f6b8;
+      border-color:#b7d647;
+      color:#2b3a06;
+    }
+    .builder-tag.builder-tag-constructive{
+      background:#af006f;
+      border-color:#8f035d;
+      color:#fff;
     }
     .builder-tag:hover{
       filter:brightness(.96);
@@ -1800,18 +1825,18 @@
     .builder-output-wrap{
       position:relative;
       flex:1;
-      min-height:320px;
+      min-height:430px;
     }
     #builderReportOutput{
       background:#fff;
       border:1px solid #d7dae3;
       border-radius:8px;
       padding:12px;
-      min-height:140px;
+      min-height:280px;
       line-height:1.5;
       white-space:pre-wrap;
       font-size:14px;
-      transition:transform .16s ease, box-shadow .16s ease, opacity .14s ease;
+      transition:box-shadow .16s ease, opacity .16s ease;
       transform-origin:top left;
       position:relative;
       z-index:1;
@@ -1852,26 +1877,25 @@
     #builderReportOutput.builder-output-pulse{
       animation:builderOutputPulse .18s ease;
     }
-    #builderReportOutput.builder-output-word-pop{
-      animation:builderOutputWordPop .12s ease;
-    }
     #builderReportOutput.builder-output-fade,
     #builderRevisedOutput.builder-output-fade{
       animation:builderOutputFade .22s ease;
     }
-    @keyframes builderOutputPulse{
-      0%{ transform:scale(1); }
-      50%{ transform:scale(1.018); }
-      100%{ transform:scale(1); }
+    #builderReportOutput.builder-output-animating{
+      animation:builderOutputFlow .24s ease-in-out infinite alternate;
     }
-    @keyframes builderOutputWordPop{
-      0%{ transform:scale(1); }
-      60%{ transform:scale(1.01); }
-      100%{ transform:scale(1); }
+    @keyframes builderOutputPulse{
+      0%{ box-shadow:0 0 0 rgba(175,0,111,0); }
+      50%{ box-shadow:0 0 0 2px rgba(175,0,111,.16); }
+      100%{ box-shadow:0 0 0 rgba(175,0,111,0); }
     }
     @keyframes builderOutputFade{
-      from{ opacity:.55; transform:translateY(2px); }
-      to{ opacity:1; transform:translateY(0); }
+      from{ opacity:.45; }
+      to{ opacity:1; }
+    }
+    @keyframes builderOutputFlow{
+      from{ opacity:.62; }
+      to{ opacity:1; }
     }
     .builder-output-card{
       display:flex;
@@ -1880,7 +1904,7 @@
     }
     .builder-output-card .builder-output-wrap{
       flex:1;
-      min-height:320px;
+      min-height:430px;
     }
     .builder-revised-label{
       font-size:12px;
