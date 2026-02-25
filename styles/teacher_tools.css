@@ -930,7 +930,9 @@
       right: auto;
       margin-top: 12px;
     }
-    body.printing-preview #appRoot{
+    body.printing-preview #appRoot,
+    body.printing-preview #filesDrawer,
+    body.printing-preview .site-footer{
       display:none !important;
     }
     body:is(.print-preview, .printing-preview) #printContainer{
@@ -1030,6 +1032,11 @@
       body{
         margin: 0;
         padding: 0;
+      }
+      #filesDrawer,
+      #appRoot,
+      .site-footer{
+        display: none !important;
       }
       #printContainer{
         margin: 0;
