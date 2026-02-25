@@ -3880,7 +3880,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function formatMarkForComment(meta, rawValue, numericValue){
     if (meta){
-      return meta.hasPercent ? `${meta.raw} %` : meta.raw;
+      return meta.hasPercent ? formatPercentValue(meta.raw) : meta.raw;
     }
     if (rawValue != null && String(rawValue).trim()){
       return String(rawValue).trim();
@@ -4462,7 +4462,6 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
   function buildAssignmentSentences(selectedAssignments, row, context, overallMeta){
     if (!selectedAssignments.length || !row) return '';
     const overallValue = overallMeta?.value;
-    const overallDisplay = overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '';
     const used = new Set();
     const entries = collectAssignmentFacts(selectedAssignments, row);
     if (!entries.length) return '';
@@ -4478,25 +4477,25 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       "Across {label}, [Student] posted {score}%"
     ];
     const clauseOpenersB = [
-      "while on {label}, [he/she] scored {score}%",
-      "whereas in {label}, [he/she] recorded {score}%",
-      "and on {label}, [he/she] earned {score}%",
-      "while in {label}, [he/she] posted {score}%"
+      "On {label}, [he/she] scored {score}%",
+      "For {label}, [he/she] recorded {score}%",
+      "In {label}, [he/she] earned {score}%",
+      "On {label}, [he/she] posted {score}%"
     ];
     const aboveNotes = [
-      `which sits above the overall ${overallDisplay} and can be leveraged across other tasks`,
-      `which is stronger than the overall ${overallDisplay} and highlights an area of confidence`,
-      `which outperforms the overall ${overallDisplay} and signals a strength to build from`
+      `which is above [his/her] overall result and can be leveraged across other tasks`,
+      `which is stronger than [his/her] overall result and highlights an area of confidence`,
+      `which outperforms [his/her] overall result and signals a strength to build from`
     ];
     const belowNotes = [
-      `which is below the overall ${overallDisplay} and identifies a targeted area to reinforce`,
-      `which trails the overall ${overallDisplay} and would benefit from focused review`,
-      `which is weaker than the overall ${overallDisplay} and should be tightened with deliberate practice`
+      `which is below [his/her] overall result and identifies a targeted area to reinforce`,
+      `which trails [his/her] overall result and would benefit from focused review`,
+      `which is weaker than [his/her] overall result and should be tightened with deliberate practice`
     ];
     const alignedNotes = [
-      `which aligns closely with the overall ${overallDisplay}`,
-      `which is broadly in line with the overall ${overallDisplay}`,
-      `which reflects a level similar to the overall ${overallDisplay}`
+      `which is in line with [his/her] overall result`,
+      `which aligns closely with [his/her] overall result`,
+      `which reflects a level similar to [his/her] overall result`
     ];
     const closeVariants = [
       "This pattern gives us a clear next step for instruction and practice.",
@@ -4504,7 +4503,7 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       "This spread of results gives a practical roadmap for next-step support."
     ];
     const chooseRelation = (entry, idx) => {
-      if (overallValue == null || !overallDisplay) return '';
+      if (overallValue == null) return '';
       const diff = entry.score - overallValue;
       if (diff >= 8){
         return pickUniqueVariant(aboveNotes, `${entry.label}|above|${idx}`, used, 'rel-above');
@@ -4790,6 +4789,79 @@ function splitIntoSentences(text){
       futureSentence: String(lookingAheadText || '').trim()
     };
   }
+  function createOverallMentionRules(context){
+    const groupKey = normalizeGradeGroup(context?.gradeGroup);
+    return {
+      maxMentions: 1,
+      mentionCount: 0,
+      placeAtEnd: true,
+      includeExplicitOverall: (groupKey !== 'elem') || !!context?.includeFinalGrade
+    };
+  }
+  function sentenceEndsWithPunctuation(text){
+    return /[.!?]["')\]]?\s*$/.test(String(text || '').trim());
+  }
+  function ensureSentencePunctuation(text){
+    const sentence = String(text || '').trim();
+    if (!sentence) return '';
+    return sentenceEndsWithPunctuation(sentence) ? sentence : `${sentence}.`;
+  }
+  function buildOverallMarkPattern(overallMark){
+    const markText = String(overallMark || '').trim();
+    if (!markText) return null;
+    const numeric = markText.replace(/[^0-9.]/g, '').trim();
+    if (!numeric) return null;
+    return new RegExp(`${escapeRegExp(numeric)}\\s*%?`, 'i');
+  }
+  function isOverallMarkSentence(sentence, overallMarkPattern, assignmentLabels = []){
+    const text = String(sentence || '').trim();
+    if (!text || !overallMarkPattern) return false;
+    if (!overallMarkPattern.test(text)) return false;
+    const lowered = text.toLowerCase();
+    if (assignmentLabels.some(label => label && lowered.includes(String(label).toLowerCase()))){
+      return false;
+    }
+    if (/(assignment|test|quiz|exam|challenge|review|topic|retest)/i.test(text)){
+      return false;
+    }
+    return true;
+  }
+  function enforceOverallMarkMentionPolicy(report, requirements = {}, mentionRules = {}){
+    const source = String(report || '').trim();
+    if (!source) return '';
+    const includeOverall = !!mentionRules.includeExplicitOverall;
+    const overallMark = String(requirements?.overallMark || '').trim();
+    if (!overallMark) return source;
+    const markPattern = buildOverallMarkPattern(overallMark);
+    if (!markPattern) return source;
+    const assignmentLabels = Array.isArray(requirements.assignmentLabels) ? requirements.assignmentLabels : [];
+    const sentences = splitIntoSentences(source);
+    const kept = [];
+    const overallCandidates = [];
+    sentences.forEach(sentence => {
+      if (isOverallMarkSentence(sentence, markPattern, assignmentLabels)){
+        overallCandidates.push(sentence.trim());
+      }else{
+        kept.push(sentence.trim());
+      }
+    });
+    if (!includeOverall){
+      mentionRules.mentionCount = 0;
+      return kept.filter(Boolean).join(' ');
+    }
+    const canonicalMark = formatPercentValue(overallMark.replace(/\s*%/g, ''));
+    let finalOverallSentence = overallCandidates.length
+      ? overallCandidates[overallCandidates.length - 1]
+      : `Current overall mark is ${canonicalMark}`;
+    finalOverallSentence = ensureSentencePunctuation(finalOverallSentence).replace(/\s+%/g, '%');
+    mentionRules.mentionCount = Math.min(mentionRules.maxMentions || 1, 1);
+    if (mentionRules.placeAtEnd){
+      kept.push(finalOverallSentence);
+    }else{
+      kept.unshift(finalOverallSentence);
+    }
+    return kept.filter(Boolean).join(' ');
+  }
   function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, lookingAheadText }){
     let baseText = baseComment || '';
     if (termLabel){
@@ -4944,7 +5016,7 @@ function cleanFluency(text){
   function clearBuilderOutputAnimation(){
     builderOutputAnimationToken += 1;
     builderOutputAnimating = false;
-    builderReportOutput?.classList.remove('builder-output-animating');
+    clearBuilderSelectionOverlay();
   }
   function escapeHtml(text){
     return String(text || '')
@@ -5035,6 +5107,24 @@ function cleanFluency(text){
     builderOutputWrap?.classList.remove('overlay-active');
     if (builderReportOverlay) builderReportOverlay.innerHTML = '';
   }
+  function renderBuilderSelectionOverlay(stableText, animatedText = '', trailingText = '', direction = 'in'){
+    if (!builderOutputWrap || !builderReportOverlay || !builderReportOutput) return;
+    const stable = escapeHtml(stableText || '');
+    const animated = escapeHtml(animatedText || '');
+    const trailing = escapeHtml(trailingText || '');
+    const klass = direction === 'out' ? 'selection-fade-out' : 'selection-fade-in';
+    builderReportOverlay.innerHTML = animated
+      ? `${stable}<span class="${klass}">${animated}</span>${trailing}`
+      : `${stable}${trailing}`;
+    builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+    builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    builderOutputWrap.classList.add('overlay-active');
+  }
+  function clearBuilderSelectionOverlay(){
+    if (builderDiffClearTimer) return;
+    builderOutputWrap?.classList.remove('overlay-active');
+    if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+  }
   function pulseBuilderOutput(className = 'builder-output-pulse'){
     if (!builderReportOutput) return;
     builderReportOutput.classList.remove('builder-output-pulse');
@@ -5113,7 +5203,6 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
-    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const next = String(nextText || '');
     const start = getSelectionAnimationStart(prevText, next);
@@ -5124,16 +5213,20 @@ function cleanFluency(text){
     builderReportOutput.value = prefix;
     const step = () => {
       if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      const previousEnd = i;
       const end = Math.min(i + 2, parts.length);
       for (; i < end; i += 1){
         builderReportOutput.value = prefix + parts.slice(0, i + 1).join('');
       }
+      const stable = prefix + parts.slice(0, previousEnd).join('');
+      const animated = parts.slice(previousEnd, end).join('');
+      renderBuilderSelectionOverlay(stable, animated, '', 'in');
       if (i < parts.length){
         setTimeout(step, 16);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
-        builderReportOutput.classList.remove('builder-output-animating');
+        clearBuilderSelectionOverlay();
       }
     };
     step();
@@ -5142,7 +5235,6 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
-    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const prev = String(prevText || '');
     const next = String(nextText || '');
@@ -5153,21 +5245,25 @@ function cleanFluency(text){
     if (!removed){
       builderReportOutput.value = next;
       builderOutputAnimating = false;
-      builderReportOutput.classList.remove('builder-output-animating');
+      clearBuilderSelectionOverlay();
       return;
     }
     let keepLen = removed.length;
     builderReportOutput.value = prev;
     const step = () => {
       if (token !== builderOutputAnimationToken || !builderReportOutput) return;
-      builderReportOutput.value = prefix + removed.slice(0, Math.max(keepLen, 0)) + suffix;
-      keepLen -= 2;
+      const nextKeep = keepLen - 2;
+      const keptPart = removed.slice(0, Math.max(nextKeep, 0));
+      const fadingPart = removed.slice(Math.max(nextKeep, 0), Math.max(keepLen, 0));
+      builderReportOutput.value = prefix + keptPart + suffix;
+      renderBuilderSelectionOverlay(prefix + keptPart, fadingPart, suffix, 'out');
+      keepLen = nextKeep;
       if (keepLen >= 0){
         setTimeout(step, 14);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
-        builderReportOutput.classList.remove('builder-output-animating');
+        clearBuilderSelectionOverlay();
       }
     };
     step();
@@ -5176,7 +5272,6 @@ function cleanFluency(text){
     if (!builderReportOutput) return;
     clearBuilderOutputAnimation();
     builderOutputAnimating = true;
-    builderReportOutput.classList.add('builder-output-animating');
     const token = builderOutputAnimationToken;
     const source = String(text || '');
     let i = 0;
@@ -5193,7 +5288,6 @@ function cleanFluency(text){
       }else{
         builderReportOutput.value = source;
         builderOutputAnimating = false;
-        builderReportOutput.classList.remove('builder-output-animating');
         if (typeof onDone === 'function') onDone();
       }
     };
@@ -5502,9 +5596,11 @@ function cleanFluency(text){
       overallMeta,
       lookingAheadText: lookingAheadSelected
     });
+    const mentionRules = createOverallMentionRules(context);
     const dedupedReport = dedupeGeneratedComment(trimmedReport, context, requirements);
     const factSafeReport = ensureRequiredFactsInReport(dedupedReport, requirements);
-    const polishedReport = polishGrammar(factSafeReport);
+    const overallBalancedReport = enforceOverallMarkMentionPolicy(factSafeReport, requirements, mentionRules);
+    const polishedReport = polishGrammar(overallBalancedReport);
     setBuilderReportOutputText(polishedReport, outputMode);
     builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
       studentName: context.studentName,

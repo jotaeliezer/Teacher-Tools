@@ -1881,8 +1881,11 @@
     #builderRevisedOutput.builder-output-fade{
       animation:builderOutputFade .22s ease;
     }
-    #builderReportOutput.builder-output-animating{
-      animation:builderOutputFlow .24s ease-in-out infinite alternate;
+    .builder-report-overlay .selection-fade-in{
+      animation:selectionTokenIn .2s ease;
+    }
+    .builder-report-overlay .selection-fade-out{
+      animation:selectionTokenOut .16s ease;
     }
     @keyframes builderOutputPulse{
       0%{ box-shadow:0 0 0 rgba(175,0,111,0); }
@@ -1893,9 +1896,13 @@
       from{ opacity:.45; }
       to{ opacity:1; }
     }
-    @keyframes builderOutputFlow{
-      from{ opacity:.62; }
+    @keyframes selectionTokenIn{
+      from{ opacity:0; }
       to{ opacity:1; }
+    }
+    @keyframes selectionTokenOut{
+      from{ opacity:1; }
+      to{ opacity:.08; }
     }
     .builder-output-card{
       display:flex;
