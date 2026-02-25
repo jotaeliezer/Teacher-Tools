@@ -202,6 +202,11 @@
               </label>
             </div>
           </div>
+          <div>
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Drill columns</label>
+            <input id="printDrillCount" type="number" min="1" max="30" value="12" style="width:80px; padding:6px 10px; border-radius:8px; border:1px solid #d7d7d7; font-size:14px;" />
+            <span class="muted" style="font-size:11px;">Number of drill columns to print.</span>
+          </div>
           <label class="template-option print-bulk-toggle" style="margin:0;">
             <input type="checkbox" id="printAllClassesToggle" />
             Print all loaded classes
@@ -212,6 +217,10 @@
               <select id="printReportStudentSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">
               </select>
               <div class="muted" style="font-size:11px;">Choose which student to render on report cards.</div>
+              <label class="template-option" style="margin-top:6px;">
+                <input type="checkbox" id="printReportAllStudents" />
+                Print all students (one per page)
+              </label>
             </div>
             <div id="printMarkingPanel" class="print-marking-panel" style="display:none; font-size:15px;">
               <h4>Marking Columns</h4>

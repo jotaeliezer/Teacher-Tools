@@ -240,6 +240,11 @@
   printTemplateInputs.forEach(input => {
     input.addEventListener('change', handleTemplateSelectionChange);
   });
+  if (printDrillCountInput){
+    printDrillCountInput.addEventListener('input', () => {
+      renderPrintPreview();
+    });
+  }
   if (printAllClassesToggle){
     printAllClassesToggle.addEventListener('change', () => {
       printAllClasses = !!printAllClassesToggle.checked;
@@ -247,6 +252,15 @@
       selectedClassIds = new Set(getEffectivePrintContextIds());
       renderPrintPreview();
       renderPrintMarkingColumnPanel();
+    });
+  }
+  if (printReportAllStudentsToggle){
+    printReportAllStudentsToggle.addEventListener('change', () => {
+      printReportAllStudents = !!printReportAllStudentsToggle.checked;
+      if (printReportStudentSelect){
+        printReportStudentSelect.disabled = printReportAllStudents;
+      }
+      renderPrintPreview();
     });
   }
   if (printMarkingSelectAllBtn){
@@ -2116,11 +2130,20 @@ function getPerformanceToneLine(coreLevel, context){
     ];
     if (templateId === 'attendance'){
       const range = getTermWeekRange(printMeta.term || 'T1');
-      for (let week = range.start; week <= range.end; week++){
+      let maxWeek = range.end;
+      if (ctx && Array.isArray(ctx.columnOrder)){
+        const weekCols = ctx.columnOrder.filter(c => /week\s*\d+/i.test(c));
+        if (weekCols.length){
+          const nums = weekCols.map(c => parseInt((c.match(/\d+/) || ['0'])[0], 10)).filter(n => n >= range.start && n <= range.end);
+          if (nums.length) maxWeek = Math.max(...nums);
+        }
+      }
+      for (let week = range.start; week <= maxWeek; week++){
         base.push({ id:`w${week}`, label:`Week ${week}` });
       }
     }else if (templateId === 'drill'){
-      for (let i = 1; i <= 23; i += 2){
+      const drillCount = Math.max(1, Math.min(30, parseInt(printDrillCountInput?.value, 10) || 12));
+      for (let i = 1; i <= drillCount; i++){
         base.push({ id:`drill${i}`, label:`Drill ${i}` });
       }
     }else if (templateId === 'marking'){
@@ -2218,6 +2241,20 @@ function getPerformanceToneLine(coreLevel, context){
     wrap.className = 'print-preview-empty';
     wrap.textContent = message;
     return wrap;
+  }
+  function createReportCardFooter(classDisplay, termLabel, teacherName){
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rc-footer-wrapper';
+    const sigBlock = document.createElement('div');
+    sigBlock.className = 'rc-signature-block';
+    sigBlock.innerHTML = `
+      <div class="rc-sig-field"><span class="rc-sig-label">Teacher Signature:</span><span class="rc-sig-line"></span></div>
+      <div class="rc-sig-field"><span class="rc-sig-label">Date:</span><span class="rc-sig-line"></span></div>
+      <div class="rc-sig-field"><span class="rc-sig-label">Parent / Guardian:</span><span class="rc-sig-line"></span></div>
+    `;
+    wrapper.appendChild(sigBlock);
+    wrapper.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
+    return wrapper;
   }
   function createUnifiedPrintFooter(classDisplay, termLabel, teacherName){
     const footer = document.createElement('div');
@@ -2342,6 +2379,9 @@ function getPerformanceToneLine(coreLevel, context){
     if (templateId === 'marking'){
       table.classList.add('template-table-marking');
       table.style.tableLayout = 'fixed';
+      const dataCols = columns.filter(c => c.id !== 'index' && c.id !== 'name').length;
+      const density = dataCols > 40 ? 'xl' : dataCols > 30 ? 'lg' : dataCols > 20 ? 'md' : 'sm';
+      table.dataset.colDensity = density;
     }
     const colgroup = document.createElement('colgroup');
     columns.forEach(col => {
@@ -2439,6 +2479,73 @@ function getPerformanceToneLine(coreLevel, context){
     page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
     return page;
   }
+  function buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title){
+    const studentName = deriveContextStudentName(ctx, row, displayIdx);
+
+    const page = document.createElement('div');
+    page.className = 'report-card-page';
+
+    const header = document.createElement('div');
+    header.className = 'report-card-header';
+    header.innerHTML = `
+      <div class="report-card-meta">
+        ${title ? `<div class="rc-title">${escapeHtml(title)}</div>` : ''}
+        <div class="rc-name">${escapeHtml(studentName || `Student ${displayIdx + 1}`)}</div>
+        <div class="rc-line">${escapeHtml(classDisplay)} · ${escapeHtml(termLabel)}</div>
+        <div class="rc-line">Teacher: ${escapeHtml(teacherName)}</div>
+      </div>
+    `;
+    page.appendChild(header);
+
+    const marksHeading = document.createElement('h4');
+    marksHeading.className = 'rc-section-heading';
+    marksHeading.textContent = 'Marks Summary';
+    page.appendChild(marksHeading);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'report-card-table-wrap';
+    const table = document.createElement('table');
+    table.className = 'report-card-table report-card-table-transposed';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Field', 'Value'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    markColumns.forEach(col => {
+      const tr = document.createElement('tr');
+      const labelTd = document.createElement('td');
+      labelTd.textContent = cleanAssignmentLabel(col);
+      const markTd = document.createElement('td');
+      const meta = deriveMarkMeta(row[col], col);
+      markTd.textContent = meta ? formatMarkText(meta, meta.raw) : (row[col] || '').toString();
+      tr.appendChild(labelTd);
+      tr.appendChild(markTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    page.appendChild(tableWrap);
+
+    const commentHeading = document.createElement('h4');
+    commentHeading.className = 'rc-section-heading';
+    commentHeading.textContent = 'Teacher Comments';
+    page.appendChild(commentHeading);
+
+    const commentBox = document.createElement('div');
+    commentBox.className = 'report-card-comment';
+    const commentsText = getReportCardCommentsText(ctx, studentName);
+    commentBox.textContent = commentsText ? commentsText : '';
+    page.appendChild(commentBox);
+
+    page.appendChild(createReportCardFooter(classDisplay, termLabel, teacherName));
+
+    return page;
+  }
   function renderReportCards(ctx){
     if (!ctx || !Array.isArray(ctx.rows)) return null;
     const frag = document.createDocumentFragment();
@@ -2461,64 +2568,17 @@ function getPerformanceToneLine(coreLevel, context){
     const termLabel = getTermLabel(printMeta.term);
     const title = (printMeta.title || '').trim();
 
-    const targetIdx = (reportStudentIndex != null && indices.includes(reportStudentIndex)) ? reportStudentIndex : indices[0];
-    const row = ctx.rows[targetIdx] || {};
-    const displayIdx = indices.indexOf(targetIdx);
-    const studentName = deriveContextStudentName(ctx, row, displayIdx);
-
-      const page = document.createElement('div');
-      page.className = 'report-card-page';
-
-      const header = document.createElement('div');
-      header.className = 'report-card-header';
-      header.innerHTML = `
-        <div class="report-card-meta">
-          <div class="rc-name">${escapeHtml(studentName || `Student ${displayIdx + 1}`)}</div>
-          <div class="rc-line">${escapeHtml(classDisplay)} · ${escapeHtml(termLabel)}</div>
-          ${title ? `<div class="rc-line">${escapeHtml(title)}</div>` : ''}
-          <div class="rc-line">Teacher: ${escapeHtml(teacherName)}</div>
-        </div>
-      `;
-      page.appendChild(header);
-
-    const tableWrap = document.createElement('div');
-    tableWrap.className = 'report-card-table-wrap';
-      const table = document.createElement('table');
-      table.className = 'report-card-table report-card-table-transposed';
-      const thead = document.createElement('thead');
-      const headRow = document.createElement('tr');
-      ['Field', 'Value'].forEach(label => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        headRow.appendChild(th);
+    if (printReportAllStudents){
+      indices.forEach((rowIdx, displayIdx) => {
+        const row = ctx.rows[rowIdx] || {};
+        frag.appendChild(buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title));
       });
-      thead.appendChild(headRow);
-      table.appendChild(thead);
-      const tbody = document.createElement('tbody');
-      markColumns.forEach(col => {
-        const tr = document.createElement('tr');
-        const labelTd = document.createElement('td');
-        labelTd.textContent = cleanAssignmentLabel(col);
-        const markTd = document.createElement('td');
-        const meta = deriveMarkMeta(row[col], col);
-        markTd.textContent = meta ? formatMarkText(meta, meta.raw) : (row[col] || '').toString();
-        tr.appendChild(labelTd);
-        tr.appendChild(markTd);
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      tableWrap.appendChild(table);
-      page.appendChild(tableWrap);
-
-      const commentBox = document.createElement('div');
-      commentBox.className = 'report-card-comment';
-      const commentsText = getReportCardCommentsText(ctx, studentName);
-      commentBox.textContent = commentsText ? commentsText : 'Comments:';
-      page.appendChild(commentBox);
-
-      page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
-
-      frag.appendChild(page);
+    } else {
+      const targetIdx = (reportStudentIndex != null && indices.includes(reportStudentIndex)) ? reportStudentIndex : indices[0];
+      const row = ctx.rows[targetIdx] || {};
+      const displayIdx = indices.indexOf(targetIdx);
+      frag.appendChild(buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title));
+    }
     return frag;
   }
   function getReportCardColumns(ctx){
@@ -2569,8 +2629,17 @@ function getPerformanceToneLine(coreLevel, context){
         .replace(/\[him\/her\]/gi, (m) => m === m.toUpperCase() ? pronouns.Him : pronouns.him)
         .replace(/\[his\/her\]/gi, (m) => m === m.toUpperCase() ? pronouns.His : pronouns.his);
     };
-    const lines = Array.from(reportCardCommentsMap.values()).map(base => replaceText(base));
-    return lines.filter(Boolean).join('\n');
+    const manualLines = Array.from(reportCardCommentsMap.values()).map(base => replaceText(base)).filter(Boolean);
+    if (manualLines.length) return manualLines.join('\n');
+    if (Array.isArray(savedReports) && savedReports.length && name){
+      const normName = name.trim().toLowerCase();
+      const match = savedReports.find(r => {
+        const rName = (r.studentName || '').trim().toLowerCase();
+        return rName && rName === normName;
+      });
+      if (match && match.text) return match.text;
+    }
+    return '';
   }
   function getReportStudentName(ctx){
     const indices = getPrintableRowIndices(ctx);
