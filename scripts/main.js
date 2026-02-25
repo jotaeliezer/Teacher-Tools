@@ -5513,7 +5513,7 @@ function varySentenceOpenings(text, studentName){
       const animated = parts.slice(previousEnd, end).join('');
       renderBuilderSelectionOverlay(stable, animated, '', 'in');
       if (i < parts.length){
-        setTimeout(step, 16);
+        setTimeout(step, 36);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
@@ -5550,7 +5550,7 @@ function varySentenceOpenings(text, studentName){
       renderBuilderSelectionOverlay(prefix + keptPart, fadingPart, suffix, 'out');
       keepLen = nextKeep;
       if (keepLen >= 0){
-        setTimeout(step, 14);
+        setTimeout(step, 28);
       }else{
         builderReportOutput.value = next;
         builderOutputAnimating = false;
@@ -5575,7 +5575,7 @@ function varySentenceOpenings(text, studentName){
       builderReportOutput.value = source.slice(0, i);
       i += 4;
       if (i <= source.length){
-        setTimeout(step, 7);
+        setTimeout(step, 14);
       }else{
         builderReportOutput.value = source;
         builderOutputAnimating = false;

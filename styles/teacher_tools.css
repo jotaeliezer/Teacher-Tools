@@ -1526,6 +1526,7 @@
       padding:12px;
       border-radius:8px;
       line-height:1.45;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
     }
     .print-marking-panel{
       border:1px solid #e6e6e6;
@@ -1925,6 +1926,7 @@
       line-height:1.5;
       white-space:pre-wrap;
       font-size:14px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       transition:box-shadow .16s ease, opacity .16s ease;
       transform-origin:top left;
       position:relative;
@@ -1941,6 +1943,7 @@
       padding:12px;
       line-height:1.5;
       font-size:14px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       white-space:pre-wrap;
       word-break:break-word;
       overflow:hidden;
