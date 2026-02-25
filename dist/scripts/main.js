@@ -10,6 +10,12 @@
   updateColumnDataFilterButton();
   isTransposed = !!(initialSettings.transposed);
   updateTransposeButton();
+  setFilesDrawerExpanded(initialSettings.filesDrawerExpanded !== false, false);
+
+  let builderActiveCommentSection = null;
+  let builderLookingAheadAutoKey = '';
+  let builderLookingAheadManualKey = '';
+  let builderLookingAheadAutoUpdating = false;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -281,14 +287,11 @@
       if (!Number.isNaN(idx)) prefillBuilderFromRow(idx);
     });
   }
-  if (builderPrefillBtn){
-    builderPrefillBtn.addEventListener('click', () => {
-      const idx = Number(builderStudentSelect?.value);
-      if (!Number.isNaN(idx)) prefillBuilderFromRow(idx, { preserveIdentity: true });
-    });
-  }
+  // "Use Data Values" button removed; keep display name/pronouns always synced to selection.
   if (builderCorePerformanceSelect){
     builderCorePerformanceSelect.addEventListener('change', () => {
+      updatePerformanceSelectStyle();
+      applyRandomLookingAheadSelection();
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
     });
   }
@@ -359,6 +362,29 @@
       }
     });
   }
+  function updateGradeGroupControls(){
+    if (!builderIncludeFinalGradeInput) return;
+    const group = builderGradeGroupSelect?.value || 'middle';
+    const isElem = group === 'elem';
+    const wrapper = builderIncludeFinalGradeInput.closest('.builder-inline-toggle');
+    if (wrapper){
+      wrapper.style.display = isElem ? '' : 'none';
+    }
+    builderIncludeFinalGradeInput.disabled = !isElem;
+  }
+
+function setupSelectAnimations(){
+    const selects = [builderStudentSelect, builderGradeGroupSelect, builderCorePerformanceSelect, builderTermSelector].filter(Boolean);
+    selects.forEach(sel => {
+      sel.addEventListener('focus', () => sel.classList.add('is-open'));
+      sel.addEventListener('blur', () => sel.classList.remove('is-open'));
+      sel.addEventListener('change', () => sel.classList.remove('is-open'));
+      sel.addEventListener('mousedown', () => sel.classList.add('is-open'));
+    });
+  }
+
+  setupSelectAnimations();
+  updateGradeGroupControls();
   if (builderCommentOrderToggle){
     builderCommentOrderToggle.addEventListener('click', toggleCommentOrderMode);
   }
@@ -367,7 +393,18 @@
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
     });
   }
-  [builderPronounMaleInput, builderPronounFemaleInput].forEach(el => {
+      if (builderIncludeFinalGradeInput){
+    builderIncludeFinalGradeInput.addEventListener('change', () => {
+      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+    });
+  }
+if (builderGradeGroupSelect){
+    builderGradeGroupSelect.addEventListener('change', () => {
+      updateGradeGroupControls();
+      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+    });
+  }
+[builderPronounMaleInput, builderPronounFemaleInput].forEach(el => {
     if (!el) return;
     el.addEventListener('change', () => {
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
@@ -376,6 +413,12 @@
   if (darkModeBtn){
     darkModeBtn.addEventListener('click', () => {
       setDarkMode(!darkModeEnabled);
+    });
+  }
+  if (filesDrawerToggle){
+    filesDrawerToggle.addEventListener('click', () => {
+      const expanded = !(filesDrawer?.classList.contains('collapsed'));
+      setFilesDrawerExpanded(!expanded, true);
     });
   }
   if (zoomInBtn){
@@ -1024,6 +1067,144 @@
       partB: "By adopting stronger habits and reaching out early with questions, [Student] can make meaningful progress next term. I’ll continue to guide and support [him/her] through these adjustments."
     }
   };
+  const REPORT_BUILDER_TEMPLATE_VARIANTS = {
+    good1: {
+      partA: [
+        "[Student] has had an excellent first term, demonstrating a strong grasp of the course concepts. [Student]'s overall standing is [AVG%], reflecting solid mastery across units. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] is having a very strong term, showing confident understanding across units. [Student] currently holds [AVG%], which reflects reliable mastery and careful work. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "[Student]'s strong work ethic and positive attitude have been evident throughout the term. I am confident [he/she] will continue to excel as we move forward into Term 2.",
+        "[Student] combines effort with precision, and I expect continued success as we move into the next term."
+      ]
+    },
+    good2: {
+      partA: [
+        "[Student] has demonstrated exceptional understanding of the material this term, holding an overall mark of [AVG%]. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [His/Her] problem-solving assignments showcase careful thinking and clear presentation. [CC_COMMENTARY]",
+        "[Student] has consistently shown high-level understanding this term, with an overall [AVG%]. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [His/Her] work is organized and thorough. [CC_COMMENTARY]"
+      ],
+      partB: [
+        "I am pleased with [Student]'s progress and look forward to seeing [him/her] build on this strong foundation in the coming term.",
+        "[Student] has built a strong foundation and is well positioned for continued success."
+      ]
+    },
+    good3: {
+      partA: [
+        "[Student] has exceeded expectations this term with outstanding performance across all areas. With an overall [AVG%], [he/she] is performing at a high level across the course. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] has been performing at an exceptional level this term. The overall [AVG%] highlights strong mastery across the curriculum. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "I hope to see [Student] continue to be a leader in the classroom as we move forward. [He/She] is on track for an exceptional year ahead.",
+        "[Student] is poised to continue leading by example with consistent effort and high achievement."
+      ]
+    },
+    average1: {
+      partA: [
+        "[Student] has built a solid [AVG%] foundation this term, meeting many core expectations while still growing in a few areas. [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] holds [AVG%] this term and is meeting many expectations, with a few areas that still need reinforcement. [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "With steady routines and the same positive attitude, I'm confident [he/she] will keep climbing next term.",
+        "With consistent routines and continued effort, [he/she] should see steady gains next term."
+      ]
+    },
+    average2: {
+      partA: [
+        "[Student] has made steady gains this term, though results vary across tasks. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] With regular review of past work, [he/she] can turn this into consistent success. [CC_COMMENTARY]",
+        "[Student] has shown steady progress, even if outcomes fluctuate across tasks. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Consistent review will help turn this into reliable results. [CC_COMMENTARY]"
+      ],
+      partB: [
+        "[He/She] has shown [he/she] can succeed; next term is about applying those habits every week.",
+        "[He/She] has the ability to succeed; next term is about applying those habits consistently."
+      ]
+    },
+    average3: {
+      partA: [
+        "[Student] has a reasonable start around [AVG%], showing understanding of many concepts and working to connect the tougher ones. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] is working at around [AVG%], showing solid understanding on many outcomes while still building confidence in the more complex ones. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "With a bit more practice and questions early, I expect [he/she] to feel more confident and keep improving.",
+        "With more steady practice and early questions, [he/she] should continue to gain confidence."
+      ]
+    },
+    newstu1: {
+      partA: [
+        "[Student] is new to the program and has performed well while adapting to the pace and expectations. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] is adjusting to the program and has performed well while learning the routines and expectations. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "[Student] shows curiosity and willingness to try new routines; with continued practice and support, [he/she] will keep growing in confidence each week.",
+        "With continued practice and support, [Student] will keep building confidence and independence."
+      ]
+    },
+    newstu2: {
+      partA: [
+        "[Student] has recently joined, is learning our structures, and has performed fairly while applying concepts more consistently. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] is settling into the program and is beginning to apply concepts more consistently. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "As [he/she] builds regular study habits and asks questions early, we'll see steady growth -- especially impressive on top of adjusting as a new student.",
+        "As routines become more familiar, I expect steady growth from [Student] each term."
+      ]
+    },
+    newstu3: {
+      partA: [
+        "[Student] is in the early stages of the program and, while still finding routines for the pace, has shown fair performance given the transition. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] is still adjusting to the pace and routines, but has shown fair performance during the transition. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "There is clear opportunity to adapt habits and gain confidence -- commendable effort so far as a new student. I will continue to guide [him/her] so these changes feel manageable and supportive.",
+        "As routines settle, [Student] should gain confidence; I will continue to guide [him/her] through these changes."
+      ]
+    },
+    poor1: {
+      partA: [
+        "[Student] has faced challenges this term and is still building routines that support learning. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] has encountered difficulty this term and is still developing consistent routines. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "There's good opportunity to adjust habits and see progress next term, and I'll support [him/her] in making those changes.",
+        "With structured support and practice, [Student] can make progress next term."
+      ]
+    },
+    poor2: {
+      partA: [
+        "[Student] has worked hard even as results haven't matched effort yet. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Building steady routines will help turn that effort into improvement. [CC_COMMENTARY]",
+        "[Student] has put in effort, though results have been uneven. [SCORE_COMMENTARY_TEST1][RETEST_CLAUSE] Consistent routines will help translate effort into progress. [CC_COMMENTARY]"
+      ],
+      partB: [
+        "Next term is a chance to apply these routines and see growth; with consistent effort and timely support, I believe [he/she] will move forward confidently.",
+        "With steady routines and timely support, [Student] can build confidence and make progress next term."
+      ]
+    },
+    poor3: {
+      partA: [
+        "[Student] has had a challenging term, but consistent routines and feedback can open a clear path for growth. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]",
+        "[Student] has faced a difficult term, but steady routines and feedback will support growth over time. [SCORE_COMMENTARY_TEST1] [SCORE_COMMENTARY_TEST2] [CC_COMMENTARY]"
+      ],
+      partB: [
+        "By adopting stronger habits and reaching out early with questions, [Student] can make meaningful progress next term. I'll continue to guide and support [him/her] through these adjustments.",
+        "With stronger habits and early questions, [Student] can make meaningful progress; I'll continue to support [him/her]."
+      ]
+    }
+  };
+  function getReportBuilderTemplate(coreLevel, context){
+    const base = REPORT_BUILDER_TEMPLATES[coreLevel];
+    const variants = REPORT_BUILDER_TEMPLATE_VARIANTS[coreLevel];
+    if (!base && !variants) return null;
+    const seedBase = `${context.studentName || ''}|${coreLevel}|${context.termLabel || ''}`;
+    const partA = pickVariant((variants && variants.partA) || (base && base.partA), `${seedBase}|A`);
+    const partB = pickVariant((variants && variants.partB) || (base && base.partB), `${seedBase}|B`);
+    const retestClause = pickVariant((variants && variants.retestClause) || (base && base.retestClause) || '', `${seedBase}|RC`);
+    const noRetestClause = pickVariant((variants && variants.noRetestClause) || (base && base.noRetestClause) || '', `${seedBase}|NRC`);
+    return {
+      partA,
+      partB,
+      retestClause,
+      noRetestClause
+    };
+  }
   const REPORT_BUILDER_CC = {
     excellent: "[Student]'s problem-solving tasks are consistently high-quality, showing both mathematical rigor and creative thinking. [He/She] has many strong scores on these tasks, showcasing resilience and insight.",
     good: "[Student]'s problem-solving assignments are well-presented with organized solutions showing good effort and attention to detail.",
@@ -1031,6 +1212,150 @@
     below: "[Student]'s problem-solving assignments are often incomplete and require more effort and detail. [He/She] should start these earlier in the week to allow more time for thoughtful completion.",
     poor: "[Student]'s problem-solving work lacks the detail and quality needed, and the presentation of solutions needs significant improvement. [He/She] needs to make a stronger effort with these assignments."
   };
+  const PERFORMANCE_TONE_VARIANTS = {
+    good: [
+      "With this level of achievement, [Student] is ready for deeper challenges and enrichment.",
+      "[Student] is well positioned to extend learning through enrichment and higher-order tasks."
+    ],
+    average: [
+      "With steady routines and consistent review, [he/she] can turn this progress into stronger results.",
+      "Regular practice and early questions will help [him/her] move from steady progress to stronger consistency."
+    ],
+    satisfactory: [
+      "With targeted review and steady routines, [Student] can build stronger consistency.",
+      "With guided practice and regular check-ins, [Student] can turn partial mastery into steady results."
+    ],
+    newstu: [
+      "As a newer student, continued support and routine will help [him/her] build confidence and consistency.",
+      "As [he/she] settles into the program, routines and feedback will help build confidence and momentum."
+    ],
+    poor: [
+      "Targeted practice and clear routines will be important next steps for [Student].",
+      "With structured support and step-by-step practice, [Student] can make meaningful gains."
+    ]
+  };
+    const PERFORMANCE_INTRO_BY_GRADE_GROUP = {
+    elem: {
+      good: [
+        "[Student] is doing very well and shows growing confidence.",
+        "[Student] is thriving and takes pride in learning.",
+        "[Student] shows strong effort and a positive attitude."
+      ],
+      average: [
+        "[Student] is making steady progress and is building confidence.",
+        "[Student] is progressing well with growing independence.",
+        "[Student] is on track and benefits from steady routines."
+      ],
+      satisfactory: [
+        "[Student] is showing progress but needs steady guidance to build confidence.",
+        "[Student] is developing core skills and benefits from regular practice and support.",
+        "[Student] is learning steadily, though accuracy and independence are still growing."
+      ],
+      poor: [
+        "[Student] is building core skills and needs steady support.",
+        "[Student] is developing foundational skills and needs guidance.",
+        "[Student] is gaining confidence with structured support."
+      ],
+      newstu: [
+        "[Student] is adjusting to the program and is building early routines.",
+        "[Student] is settling into expectations and learning new routines.",
+        "[Student] is new to the program and is beginning to build confidence."
+      ]
+    },
+    middle: {
+      good: [
+        "[Student] is performing strongly and shows solid reasoning skills.",
+        "[Student] is achieving strong results with careful reasoning.",
+        "[Student] demonstrates strong understanding and consistent effort."
+      ],
+      average: [
+        "[Student] is meeting expectations and showing steady progress.",
+        "[Student] is progressing well and meeting most outcomes.",
+        "[Student] is developing steady results with growing confidence."
+      ],
+      satisfactory: [
+        "[Student] is making moderate progress and needs more consistency.",
+        "[Student] is meeting some expectations but benefits from guided review.",
+        "[Student] is showing partial mastery and needs stronger routines."
+      ],
+      poor: [
+        "[Student] is working to strengthen foundational understanding.",
+        "[Student] is building core skills and needs more consistency.",
+        "[Student] is improving but still needs guided practice."
+      ],
+      newstu: [
+        "[Student] is adjusting well and beginning to apply concepts.",
+        "[Student] is settling in and learning expectations.",
+        "[Student] is new to the program and is beginning to build routines."
+      ]
+    },
+    high: {
+      good: [
+        "[Student] is performing at a high level with consistent reasoning and precision.",
+        "[Student] is excelling and demonstrates strong analytical reasoning.",
+        "[Student] is achieving top results with disciplined study habits."
+      ],
+      average: [
+        "[Student] is meeting expectations and showing steady growth in reasoning.",
+        "[Student] is progressing well and building accuracy in reasoning.",
+        "[Student] is on track with steady improvement in performance."
+      ],
+      satisfactory: [
+        "[Student] is achieving at a satisfactory level and needs more consistent accuracy.",
+        "[Student] is meeting basic expectations but should refine reasoning and precision.",
+        "[Student] is showing developing understanding and would benefit from regular review."
+      ],
+      poor: [
+        "[Student] is developing essential skills and needs more consistent accuracy.",
+        "[Student] is rebuilding core skills and needs stronger consistency.",
+        "[Student] is working to improve accuracy and reasoning."
+      ],
+      newstu: [
+        "[Student] is adjusting to expectations and building foundational habits.",
+        "[Student] is settling into the course and learning expectations.",
+        "[Student] is new to the program and is developing steady routines."
+      ]
+    }
+  };
+  function getPerformanceIntroLine(coreLevel, context){
+    if (!coreLevel) return '';
+    let key = '';
+    if (coreLevel.startsWith('good')) key = 'good';
+    else if (coreLevel.startsWith('average')) key = 'average';
+    else if (coreLevel.startsWith('satisfactory')) key = 'satisfactory';
+    else if (coreLevel.startsWith('satisfactory')) key = 'satisfactory';
+    else if (coreLevel.startsWith('newstu')) key = 'newstu';
+    else if (coreLevel.startsWith('poor')) key = 'poor';
+    if (!key) return '';
+    const groupKey = normalizeGradeGroup(context.gradeGroup) || 'middle';
+    const group = PERFORMANCE_INTRO_BY_GRADE_GROUP[groupKey] || PERFORMANCE_INTRO_BY_GRADE_GROUP.middle;
+    const variants = group[key] || [];
+    const versionIdx = Math.max(0, (parseInt(String(coreLevel).replace(/\D/g, ''), 10) || 1) - 1);
+    const line = variants.length ? variants[versionIdx % variants.length] : '';
+    return builderReplacePlaceholders(line, context);
+  }
+  function replaceFirstSentence(text, replacement){
+    if (!text || !replacement) return text || '';
+    const sentences = splitIntoSentences(text);
+    if (!sentences.length) return text;
+    sentences[0] = replacement;
+    return sentences.join(' ');
+  }
+  
+
+function getPerformanceToneLine(coreLevel, context){
+    if (!coreLevel) return '';
+    let key = '';
+    if (coreLevel.startsWith('good')) key = 'good';
+    else if (coreLevel.startsWith('average')) key = 'average';
+    else if (coreLevel.startsWith('satisfactory')) key = 'satisfactory';
+    else if (coreLevel.startsWith('newstu')) key = 'newstu';
+    else if (coreLevel.startsWith('poor')) key = 'poor';
+    if (!key) return '';
+    const variants = PERFORMANCE_TONE_VARIANTS[key];
+    const line = pickVariant(variants, `${context.studentName || ''}|${coreLevel}|tone`);
+    return builderReplacePlaceholders(line, context);
+  }
   const REPORT_COMMENT_BANK = [
     {
       id: 'participation',
@@ -2308,11 +2633,30 @@
     if (wrapHeadersToggle) wrapHeadersToggle.checked = wrapHeadersEnabled;
     if (persist) saveSettings({ wrapHeaders: wrapHeadersEnabled });
   }
+  function setFilesDrawerExpanded(expanded, persist = true){
+    const isExpanded = !!expanded;
+    if (filesDrawer){
+      filesDrawer.classList.toggle('collapsed', !isExpanded);
+      filesDrawer.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+    if (filesDrawerToggle){
+      filesDrawerToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+      filesDrawerToggle.textContent = isExpanded ? '📂' : '📁';
+      filesDrawerToggle.title = isExpanded ? 'Collapse files panel' : 'Expand files panel';
+    }
+    if (appRoot){
+      appRoot.classList.toggle('files-drawer-collapsed', !isExpanded);
+      appRoot.classList.toggle('files-drawer-expanded', isExpanded);
+    }
+    if (persist) saveSettings({ filesDrawerExpanded: isExpanded });
+  }
   function setDarkMode(enabled, persist = true){
     darkModeEnabled = !!enabled;
     document.body.classList.toggle('dark-mode', darkModeEnabled);
     if (darkModeBtn){
-      darkModeBtn.textContent = `Dark: ${darkModeEnabled ? 'ON' : 'OFF'}`;
+      darkModeBtn.textContent = darkModeEnabled ? '☀' : '◐';
+      darkModeBtn.title = darkModeEnabled ? 'Switch to light mode' : 'Switch to dark mode';
+      darkModeBtn.setAttribute('aria-label', darkModeEnabled ? 'Switch to light mode' : 'Switch to dark mode');
       darkModeBtn.classList.toggle('active', darkModeEnabled);
     }
     if (persist) saveSettings({ darkMode: darkModeEnabled });
@@ -3112,10 +3456,13 @@
       return;
     }
     printReportStudentSelect.disabled = false;
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     indices.forEach((rowIdx, displayIndex) => {
       const opt = document.createElement('option');
       opt.value = String(rowIdx);
       opt.textContent = deriveContextStudentName(ctx, ctx.rows[rowIdx], displayIndex);
+      const meta = gradeColumn ? deriveMarkMeta(ctx.rows[rowIdx]?.[gradeColumn], gradeColumn) : null;
+      applyOptionMarkStyle(opt, meta);
       printReportStudentSelect.appendChild(opt);
     });
     const fallback = indices.includes(reportStudentIndex) ? reportStudentIndex : indices[0];
@@ -3186,6 +3533,10 @@
     buildBuilderAssignmentsList();
   }
   function shouldAutoGenerateBuilderReport(){
+    const gradeGroup = builderGradeGroupSelect?.value || 'middle';
+    if (gradeGroup === 'elem'){
+      return Boolean(builderStudentNameInput?.value.trim());
+    }
     return Boolean(builderStudentNameInput?.value.trim() && builderCorePerformanceSelect?.value);
   }
   function toggleCommentOrderMode(){
@@ -3339,22 +3690,19 @@
       option.style.fontWeight = '600';
     }
   }
-  function prefillBuilderFromRow(rowIndex, opts = {}){
-    const preserveIdentity = !!opts.preserveIdentity;
+  function prefillBuilderFromRow(rowIndex){
     const row = rows[rowIndex];
     if (!row) return;
     builderSelectedRowIndex = rowIndex;
     if (builderStudentSelect) builderStudentSelect.value = String(rowIndex);
-    if (!preserveIdentity && builderStudentNameInput){
+    if (builderStudentNameInput){
       builderStudentNameInput.value = getFirstNameFromRow(row, rowIndex);
     }
-    if (!preserveIdentity){
-      const pronoun = derivePronounFromRow(row);
-      if (pronoun === 'female' && builderPronounFemaleInput){
-        builderPronounFemaleInput.checked = true;
-      }else if (builderPronounMaleInput){
-        builderPronounMaleInput.checked = true;
-      }
+    const pronoun = derivePronounFromRow(row);
+    if (pronoun === 'female' && builderPronounFemaleInput){
+      builderPronounFemaleInput.checked = true;
+    }else if (builderPronounMaleInput){
+      builderPronounMaleInput.checked = true;
     }
     applyHintValue(builderTrigTest1Input, row, BUILDER_HINTS.trigTest1);
     applyHintValue(builderTrigTest2Input, row, BUILDER_HINTS.trigTest2);
@@ -3370,6 +3718,7 @@
     // Refresh assignment list to show new student's marks
     buildBuilderAssignmentsList();
     autoSelectBuilderTemplate(row);
+    applyRandomLookingAheadSelection();
   }
   function derivePronounFromRow(row){
     if (!row) return 'male';
@@ -3421,7 +3770,27 @@
     }
     return '';
   }
-  function buildGradeBasedComment(row, studentName){
+  function applyPronounPlaceholders(text, pronouns){
+    if (!text) return '';
+    if (!pronouns) return text;
+    return text
+      .replace(/\[he\/she\]/g, pronouns.he)
+      .replace(/\[He\/She\]/g, pronouns.He)
+      .replace(/\[his\/her\]/g, pronouns.his)
+      .replace(/\[His\/Her\]/g, pronouns.His)
+      .replace(/\[him\/her\]/g, pronouns.him)
+      .replace(/\[Him\/Her\]/g, pronouns.Him)
+      .replace(/\[himself\/herself\]/g, pronouns.him + 'self')
+      .replace(/\[Himself\/Herself\]/g, pronouns.Him + 'self');
+  }
+  function normalizeGradeGroup(value){
+    const v = String(value || '').toLowerCase();
+    if (v.startsWith('elem')) return 'elem';
+    if (v.startsWith('middle')) return 'middle';
+    if (v.startsWith('high')) return 'high';
+    return '';
+  }
+function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeFinalGrade){
     if (!row) return '';
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     if (!gradeColumn) return '';
@@ -3433,7 +3802,17 @@
     const high = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
     const mid = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
     let template = '';
-    if (numeric >= high){
+    const groupKey = normalizeGradeGroup(gradeGroup);
+    const groupTemplates = (typeof GRADE_GROUP_TEMPLATES !== 'undefined' && groupKey) ? GRADE_GROUP_TEMPLATES[groupKey] : null;
+    if (groupTemplates){
+      if (numeric >= high){
+        template = groupTemplates.high;
+      }else if (numeric >= mid){
+        template = groupTemplates.mid;
+      }else{
+        template = groupTemplates.low;
+      }
+    }else if (numeric >= high){
       template = commentConfig.highTemplate || COMMENT_DEFAULTS.highTemplate;
     }else if (numeric >= mid){
       template = commentConfig.midTemplate || COMMENT_DEFAULTS.midTemplate;
@@ -3441,11 +3820,28 @@
       template = commentConfig.lowTemplate || COMMENT_DEFAULTS.lowTemplate;
     }
     if (!template) return '';
+    if (template.includes('approaches every lesson with curiosity')){
+      template = COMMENT_DEFAULTS.highTemplate;
+    }else if (template.includes('demonstrates steady progress and thoughtful engagement')){
+      template = COMMENT_DEFAULTS.midTemplate;
+    }else if (template.includes('developing foundational skills and currently holds')){
+      template = COMMENT_DEFAULTS.lowTemplate;
+    }
     const markText = formatMarkForComment(meta, raw, numeric);
     const nameText = studentName || buildStudentName(row) || 'This student';
-    return template
-      .replace(/\{name\}/gi, nameText)
-      .replace(/\{mark\}/gi, markText);
+    let result = applyPronounPlaceholders(
+      template
+        .replace(/\{name\}/gi, nameText)
+        .replace(/\{mark\}/gi, markText),
+      pronouns
+    );
+    if ((normalizeGradeGroup(gradeGroup) === 'elem') && includeFinalGrade && markText){
+      result += ` Current overall mark is ${markText}.`;
+    }
+        if ((normalizeGradeGroup(gradeGroup) !== 'elem') && markText && !result.includes(markText)){
+      result += ` Calculated final grade is ${markText}.`;
+    }
+    return result;
   }
   function autoSelectBuilderTemplate(row){
     if (!builderCorePerformanceSelect || !row) return;
@@ -3455,43 +3851,134 @@
     if (numeric == null) return;
     const high = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
     const mid = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
+    const satisfactory = Number(commentConfig.satisfactoryThreshold ?? COMMENT_DEFAULTS.satisfactoryThreshold ?? (mid - 5));
     let templateValue = '';
     if (numeric >= high){
       templateValue = 'good1';
     }else if (numeric >= mid){
       templateValue = 'average1';
+    }else if (numeric >= satisfactory){
+      templateValue = 'satisfactory1';
     }else{
       templateValue = 'poor1';
     }
     if (!templateValue) return;
     builderCorePerformanceSelect.value = templateValue;
     builderCorePerformanceSelect.dispatchEvent(new Event('change', { bubbles:true }));
+    updatePerformanceSelectStyle();
     builderGenerateReport();
-    const baseComment = buildGradeBasedComment(row, builderStudentNameInput?.value.trim());
-    if (baseComment && builderReportOutput){
-      builderReportOutput.value = baseComment;
+    const baseComment = buildGradeBasedComment(row, builderStudentNameInput?.value.trim(), getBuilderPronouns(), builderGradeGroupSelect?.value, builderIncludeFinalGradeInput?.checked);
+    const introLine = getPerformanceIntroLine(builderCorePerformanceSelect?.value || '', {
+      studentName: builderStudentNameInput?.value.trim() || '',
+      pronouns: getBuilderPronouns(),
+      termAverage: builderTermAverageInput?.value.trim() || '',
+      gradeGroup: builderGradeGroupSelect?.value || 'middle'
+    });
+    const baseWithIntro = introLine ? replaceFirstSentence(baseComment, introLine) : baseComment;
+    if (baseWithIntro && builderReportOutput){
+      builderReportOutput.value = polishGrammar(cleanFluency(baseWithIntro));
+    }
+  }
+  function updatePerformanceSelectStyle(){
+    if (!builderCorePerformanceSelect) return;
+    const value = String(builderCorePerformanceSelect.value || '');
+    builderCorePerformanceSelect.classList.remove('perf-good','perf-average','perf-satisfactory','perf-new','perf-poor');
+    if (value.startsWith('good')){
+      builderCorePerformanceSelect.classList.add('perf-good');
+    }else if (value.startsWith('average')){
+      builderCorePerformanceSelect.classList.add('perf-average');
+    }else if (value.startsWith('satisfactory')){
+      builderCorePerformanceSelect.classList.add('perf-satisfactory');
+    }else if (value.startsWith('newstu')){
+      builderCorePerformanceSelect.classList.add('perf-new');
+    }else if (value.startsWith('poor')){
+      builderCorePerformanceSelect.classList.add('perf-poor');
     }
   }
   function buildBuilderCommentBank(){
     if (!builderCommentBankEl) return;
     builderCommentBankEl.innerHTML = '';
-    REPORT_COMMENT_BANK.forEach(section => {
+    builderActiveCommentSection = null;
+    const columnCount = 3;
+    const columns = [];
+    for (let i = 0; i < columnCount; i++){
+      const col = document.createElement('div');
+      col.className = 'builder-comment-column';
+      builderCommentBankEl.appendChild(col);
+      columns.push(col);
+    }
+    const collapseSection = (sectionEl) => {
+      if (!sectionEl) return;
+      const content = sectionEl.querySelector('.builder-comment-columns');
+      sectionEl.classList.remove('expanded');
+      sectionEl.classList.add('collapsed');
+      if (content){
+        content.style.maxHeight = '0px';
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-4px)';
+      }
+      const headerBtn = sectionEl.querySelector('.builder-comment-toggle');
+      if (headerBtn) headerBtn.setAttribute('aria-expanded', 'false');
+    };
+    const expandSection = (sectionEl) => {
+      if (!sectionEl) return;
+      const content = sectionEl.querySelector('.builder-comment-columns');
+      sectionEl.classList.add('expanded');
+      sectionEl.classList.remove('collapsed');
+      const headerBtn = sectionEl.querySelector('.builder-comment-toggle');
+      if (headerBtn) headerBtn.setAttribute('aria-expanded', 'true');
+      if (content){
+        content.style.maxHeight = '0px';
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(-4px)';
+        requestAnimationFrame(() => {
+          content.style.maxHeight = content.scrollHeight + 'px';
+          content.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+        });
+      }
+    };
+
+    REPORT_COMMENT_BANK.forEach((section, sectionIndex) => {
       const sectionEl = document.createElement('div');
-      sectionEl.className = 'builder-comment-section';
-      const title = document.createElement('h5');
+      sectionEl.className = 'builder-comment-section collapsed';
+      const headerBtn = document.createElement('button');
+      headerBtn.type = 'button';
+      headerBtn.className = 'builder-comment-toggle';
+      headerBtn.setAttribute('aria-expanded', 'false');
+      const title = document.createElement('span');
+      title.className = 'builder-comment-title';
       title.textContent = section.title;
-      sectionEl.appendChild(title);
-      
-      // Sort options: positive first (alphabetically), then constructive (alphabetically)
+      const chevron = document.createElement('span');
+      chevron.className = 'builder-comment-chevron';
+      chevron.textContent = 'v';
+      headerBtn.appendChild(title);
+      headerBtn.appendChild(chevron);
+      headerBtn.addEventListener('click', () => {
+        if (builderActiveCommentSection && builderActiveCommentSection !== sectionEl){
+          collapseSection(builderActiveCommentSection);
+        }
+        const isExpanded = sectionEl.classList.contains('expanded');
+        if (isExpanded){
+          collapseSection(sectionEl);
+          builderActiveCommentSection = null;
+          return;
+        }
+        const columnEl = sectionEl.parentElement;
+        if (columnEl){
+          columnEl.insertBefore(sectionEl, columnEl.firstChild);
+        }
+        expandSection(sectionEl);
+        builderActiveCommentSection = sectionEl;
+      });
+      sectionEl.appendChild(headerBtn);
+
       const sortedOptions = [...section.options].sort((a, b) => {
-        // First sort by type (positive before constructive)
         if (a.type === 'positive' && b.type !== 'positive') return -1;
         if (a.type !== 'positive' && b.type === 'positive') return 1;
-        
-        // Then sort alphabetically by label within each type
         return a.label.localeCompare(b.label);
       });
-      
+
       const columnsWrap = document.createElement('div');
       columnsWrap.className = 'builder-comment-columns';
       for (let i = 0; i < sortedOptions.length; i += 5){
@@ -3500,14 +3987,11 @@
         sortedOptions.slice(i, i + 5).forEach(opt => {
           const wrapper = document.createElement('label');
           wrapper.className = 'builder-comment-item';
-          
-          // Add color class based on type
           if (opt.type === 'positive') {
             wrapper.classList.add('positive');
           } else if (opt.type === 'constructive') {
             wrapper.classList.add('constructive');
           }
-          
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
           checkbox.dataset.text = opt.text;
@@ -3525,14 +4009,46 @@
         columnsWrap.appendChild(col);
       }
       sectionEl.appendChild(columnsWrap);
-      builderCommentBankEl.appendChild(sectionEl);
+      // place section into 3-column layout
+      const targetCol = columns[sectionIndex % columnCount];
+      if (targetCol){
+        targetCol.appendChild(sectionEl);
+      }else{
+        builderCommentBankEl.appendChild(sectionEl);
+      }
+      // ensure collapsed styles
+      columnsWrap.style.maxHeight = '0px';
+      columnsWrap.style.opacity = '0';
+      columnsWrap.style.transform = 'translateY(-4px)';
     });
+
     builderCommentCheckboxes = Array.from(builderCommentBankEl.querySelectorAll('input[type="checkbox"]'));
-    builderCommentBankEl.addEventListener('change', () => {
+    builderCommentBankEl.addEventListener('change', (e) => {
+      const target = e.target;
+      if (target && target.matches('input[type="checkbox"]')){
+        const section = (target.dataset.section || '').toLowerCase();
+        if (section === 'future' && !builderLookingAheadAutoUpdating){
+          const key = getBuilderLookingAheadKey();
+          if (key) {
+            builderLookingAheadManualKey = key;
+            builderLookingAheadAutoKey = key;
+          }
+          if (target.checked){
+            builderCommentCheckboxes
+              .filter(cb => cb !== target && (cb.dataset.section || '').toLowerCase() === 'future')
+              .forEach(cb => {
+                cb.checked = false;
+                cb.dataset.auto = 'false';
+              });
+          }
+          target.dataset.auto = 'false';
+        }
+      }
       updateBuilderSelectedTags();
-      builderGenerateReport();
+      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
     });
   }
+
   function updateBuilderSelectedTags(){
     if (!builderSelectedTagsEl || !builderCommentCheckboxes.length) return;
     const selected = builderCommentCheckboxes.filter(cb => cb.checked);
@@ -3602,41 +4118,158 @@
     { min: 60, key: 'low' },
     { min: -Infinity, key: 'veryLow' }
   ];
+  function hashString(input){
+    let hash = 0;
+    const str = String(input || '');
+    for (let i = 0; i < str.length; i++){
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+  function pickVariant(variants, seed){
+    if (Array.isArray(variants)){
+      if (!variants.length) return '';
+      const idx = hashString(seed) % variants.length;
+      return variants[idx];
+    }
+    return variants || '';
+  }
   const ASSIGNMENT_TEMPLATES = {
     default: {
-      high: "[Student] excelled on {label} with {score}%, showing strong command; [he/she] kept responses precise.",
-      solid: "[Student] performed well on {label} at {score}%, with organized work and mostly solid reasoning.",
-      ok: "[Student] met expectations on {label} with {score}%, though [he/she] should review the trickier steps.",
-      low: "[Student] struggled on {label} at {score}%, and would benefit from targeted practice on key outcomes.",
-      veryLow: "[Student] faced difficulty on {label} ({score}%), needing close support and guided review."
+      high: [
+        "[Student] excelled on {label} with {score}%, showing strong command; [he/she] kept responses precise.",
+        "[Student] showed clear mastery on {label}, earning {score}% with confident reasoning.",
+        "On {label}, [Student] scored {score}%, demonstrating strong control and accuracy."
+      ],
+      solid: [
+        "[Student] performed well on {label} at {score}%, with organized work and mostly solid reasoning.",
+        "[Student] earned {score}% on {label}, showing steady understanding and good structure.",
+        "{label} was handled well by [Student], who scored {score}% with mostly accurate steps."
+      ],
+      ok: [
+        "[Student] met expectations on {label} with {score}%, though [he/she] should review the trickier steps.",
+        "{label} landed at {score}% for [Student]; a brief review of key errors will help.",
+        "[Student] reached {score}% on {label} and would benefit from revisiting the more complex items."
+      ],
+      low: [
+        "[Student] struggled on {label} at {score}%, and would benefit from targeted practice on key outcomes.",
+        "{label} was challenging for [Student] ({score}%); more guided practice is recommended.",
+        "[Student] scored {score}% on {label}, indicating gaps that need focused support."
+      ],
+      veryLow: [
+        "[Student] faced difficulty on {label} ({score}%), needing close support and guided review.",
+        "{label} resulted in {score}% for [Student]; intensive review of fundamentals is needed.",
+        "[Student] scored {score}% on {label}, and will benefit from step-by-step practice."
+      ]
     },
     quiz: {
-      high: "[Student] was sharp on {label}, scoring {score}% and recalling concepts quickly.",
-      solid: "[Student] handled {label} at {score}%, showing steady recall and clear setups.",
-      ok: "[Student] managed {label} with {score}%; a quick refresh on core items will help.",
-      low: "[Student] found {label} challenging at {score}%; focused review of missed items is needed.",
-      veryLow: "[Student] struggled on {label} ({score}%), and needs guided practice on fundamentals."
+      high: [
+        "[Student] was sharp on {label}, scoring {score}% and recalling concepts quickly.",
+        "[Student] scored {score}% on {label}, showing quick recall and tidy work.",
+        "{label} went very well for [Student], who scored {score}% with confident recall."
+      ],
+      solid: [
+        "[Student] handled {label} at {score}%, showing steady recall and clear setups.",
+        "{label} came in at {score}% for [Student]; recall was steady and work was organized.",
+        "[Student] scored {score}% on {label}, showing dependable recall and structure."
+      ],
+      ok: [
+        "[Student] managed {label} with {score}%; a quick refresh on core items will help.",
+        "{label} landed at {score}% for [Student]; a brief review will help tighten recall.",
+        "[Student] reached {score}% on {label}; reviewing key items will improve accuracy."
+      ],
+      low: [
+        "[Student] found {label} challenging at {score}%; focused review of missed items is needed.",
+        "{label} was difficult for [Student] ({score}%); targeted review will help.",
+        "[Student] scored {score}% on {label}, indicating gaps in core recall."
+      ],
+      veryLow: [
+        "[Student] struggled on {label} ({score}%), and needs guided practice on fundamentals.",
+        "{label} resulted in {score}% for [Student]; foundational review is required.",
+        "[Student] scored {score}% on {label}; close guidance on fundamentals is needed."
+      ]
     },
     test: {
-      high: "[Student] excelled on {label} with {score}%, maintaining accuracy under time; [he/she] demonstrated mastery.",
-      solid: "[Student] performed strongly on {label} at {score}%, with clear reasoning across sections.",
-      ok: "[Student] reached {score}% on {label}; tightening multi-step work will boost results.",
-      low: "[Student] scored {score}% on {label}; targeted re-practice on weak areas is recommended.",
-      veryLow: "[Student] had difficulty on {label} ({score}%), and requires close support to rebuild skills."
+      high: [
+        "[Student] excelled on {label} with {score}%, maintaining accuracy under time; [he/she] demonstrated mastery.",
+        "[Student] earned {score}% on {label}, showing strong accuracy under time pressure.",
+        "{label} was a strong performance at {score}%, highlighting solid mastery."
+      ],
+      solid: [
+        "[Student] performed strongly on {label} at {score}%, with clear reasoning across sections.",
+        "[Student] scored {score}% on {label}, showing clear steps and mostly accurate reasoning.",
+        "{label} came in at {score}% with solid reasoning and organized work from [Student]."
+      ],
+      ok: [
+        "[Student] reached {score}% on {label}; tightening multi-step work will boost results.",
+        "{label} landed at {score}% for [Student]; refining multi-step work will help.",
+        "[Student] scored {score}% on {label} and should focus on multi-step accuracy."
+      ],
+      low: [
+        "[Student] scored {score}% on {label}; targeted re-practice on weak areas is recommended.",
+        "{label} came in at {score}%; focused re-practice is recommended.",
+        "[Student] reached {score}% on {label}, indicating specific gaps to target."
+      ],
+      veryLow: [
+        "[Student] had difficulty on {label} ({score}%), and requires close support to rebuild skills.",
+        "{label} resulted in {score}% for [Student]; close support is needed to rebuild skills.",
+        "[Student] scored {score}% on {label} and will benefit from guided re-teaching."
+      ]
     },
     project: {
-      high: "[Student] led {label} with {score}%, showing initiative and depth in the work.",
-      solid: "[Student] produced solid work on {label} at {score}%, meeting expectations.",
-      ok: "[Student] completed {label} with {score}%; clearer organization will strengthen results.",
-      low: "[Student] earned {score}% on {label}; more structure and checkpoints are needed.",
-      veryLow: "[Student] struggled to complete {label} ({score}%), needing more guidance."
+      high: [
+        "[Student] led {label} with {score}%, showing initiative and depth in the work.",
+        "[Student] excelled on {label}, earning {score}% with thoughtful depth.",
+        "{label} was a standout at {score}%, showing initiative and depth from [Student]."
+      ],
+      solid: [
+        "[Student] produced solid work on {label} at {score}%, meeting expectations.",
+        "{label} was completed well at {score}%, meeting expectations with clear effort.",
+        "[Student] earned {score}% on {label}, showing solid execution."
+      ],
+      ok: [
+        "[Student] completed {label} with {score}%; clearer organization will strengthen results.",
+        "{label} came in at {score}% for [Student]; clearer organization will help.",
+        "[Student] scored {score}% on {label} and would benefit from clearer structure."
+      ],
+      low: [
+        "[Student] earned {score}% on {label}; more structure and checkpoints are needed.",
+        "{label} landed at {score}% for [Student]; more structure is needed.",
+        "[Student] reached {score}% on {label}, suggesting a need for clearer checkpoints."
+      ],
+      veryLow: [
+        "[Student] struggled to complete {label} ({score}%), needing more guidance.",
+        "{label} resulted in {score}% for [Student]; more guidance is needed.",
+        "[Student] scored {score}% on {label} and needs more structured guidance."
+      ]
     },
     homework: {
-      high: "[Student] completed {label} at {score}%, reflecting consistent practice.",
-      solid: "[Student] maintained {score}% on {label}, keeping pace with assignments.",
-      ok: "[Student] logged {score}% on {label}; regular review would strengthen recall.",
-      low: "[Student] reached {score}% on {label}; nightly practice will help solidify skills.",
-      veryLow: "[Student] often missed {label} ({score}%), needing routine support to build habits."
+      high: [
+        "[Student] completed {label} at {score}%, reflecting consistent practice.",
+        "[Student] scored {score}% on {label}, reflecting consistent practice.",
+        "{label} was strong at {score}%, showing steady practice."
+      ],
+      solid: [
+        "[Student] maintained {score}% on {label}, keeping pace with assignments.",
+        "[Student] held {score}% on {label}, keeping steady pace with practice.",
+        "{label} came in at {score}%, showing consistent practice habits."
+      ],
+      ok: [
+        "[Student] logged {score}% on {label}; regular review would strengthen recall.",
+        "{label} came in at {score}% for [Student]; more consistent review will help.",
+        "[Student] earned {score}% on {label}; regular review will help."
+      ],
+      low: [
+        "[Student] reached {score}% on {label}; nightly practice will help solidify skills.",
+        "{label} landed at {score}% for [Student]; more regular practice will help.",
+        "[Student] scored {score}% on {label}, suggesting practice gaps."
+      ],
+      veryLow: [
+        "[Student] often missed {label} ({score}%), needing routine support to build habits.",
+        "{label} resulted in {score}% for [Student]; consistent routines are needed.",
+        "[Student] scored {score}% on {label}, and needs structured practice habits."
+      ]
     }
   };
   function detectAssignmentType(label = ''){
@@ -3657,6 +4290,11 @@
     const parts = [];
     const overallValue = overallMeta?.value;
     const overallDisplay = overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '';
+    const highThreshold = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
+    const midThreshold = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
+    const overallBand = (overallValue == null)
+      ? ''
+      : (overallValue >= highThreshold ? 'high' : (overallValue >= midThreshold ? 'mid' : 'low'));
     const aboveNotes = [
       ` This stands above the overall ${overallDisplay}, showing a strength to leverage across other tasks.`,
       ` This outperforms the overall ${overallDisplay}, highlighting a skill area to model elsewhere.`,
@@ -3667,9 +4305,22 @@
       ` This is weaker than the overall ${overallDisplay}; focused review will bring it in line with other results.`,
       ` This trails the overall ${overallDisplay}, suggesting a small gap to target next.`
     ];
+    const contrastHighOverallLowAssignment = [
+      ` Despite strong overall results (${overallDisplay}), this result is lower and points to a specific skill gap to reinforce.`,
+      ` Even with a strong overall mark (${overallDisplay}), this lower result highlights an area to revisit.`,
+      ` This is below the overall ${overallDisplay}, so targeted review here will balance otherwise strong performance.`
+    ];
+    const contrastLowOverallHighAssignment = [
+      ` Even though the overall mark is lower (${overallDisplay}), this stronger result shows a clear strength to build on.`,
+      ` Despite a lower overall mark (${overallDisplay}), this higher score suggests the skill is emerging well.`,
+      ` This outperforms the overall ${overallDisplay}, highlighting a promising area to leverage for growth.`
+    ];
     let aboveCount = 0;
     let belowCount = 0;
-    selectedAssignments.forEach((col, idx) => {
+    let contrastHighCount = 0;
+    let contrastLowCount = 0;
+    const limitedAssignments = selectedAssignments.slice(0, 2);
+    limitedAssignments.forEach((col, idx) => {
       const raw = row[col];
       const meta = deriveMarkMeta(raw, col);
       if (!meta) return;
@@ -3678,18 +4329,21 @@
       const bandKey = (ASSIGNMENT_BANDS.find(b => score >= b.min) || ASSIGNMENT_BANDS[ASSIGNMENT_BANDS.length - 1]).key;
       const type = detectAssignmentType(col);
       const tmplMap = ASSIGNMENT_TEMPLATES[type] || ASSIGNMENT_TEMPLATES.default;
-      const tmpl = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
+      const variants = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
+      const tmpl = pickVariant(variants, `${displayLabel}|${bandKey}|${meta.raw}|${idx}`);
       let sentence = tmpl.replace('{label}', displayLabel).replace('{score}', meta.raw);
       sentence = builderReplacePlaceholders(sentence, context);
       if (overallValue != null){
         const diff = score - overallValue;
         if (diff <= -8){
-          const note = belowNotes[belowCount % belowNotes.length];
-          belowCount++;
+          const note = (overallBand === 'high')
+            ? contrastHighOverallLowAssignment[contrastHighCount++ % contrastHighOverallLowAssignment.length]
+            : belowNotes[belowCount++ % belowNotes.length];
           sentence += note;
         }else if (diff >= 8){
-          const note = aboveNotes[aboveCount % aboveNotes.length];
-          aboveCount++;
+          const note = (overallBand === 'low')
+            ? contrastLowOverallHighAssignment[contrastLowCount++ % contrastLowOverallHighAssignment.length]
+            : aboveNotes[aboveCount++ % aboveNotes.length];
           sentence += note;
         }
       }
@@ -3770,32 +4424,174 @@
   }
   function buildCommentSnippetText(selectedComments, context){
     if (!Array.isArray(selectedComments) || !selectedComments.length) return '';
-    const prioritized = prioritizePersonalQualities(selectedComments);
     const replace = (item) => builderReplacePlaceholders(item.text, context);
     if (commentOrderMode === 'sandwich'){
+      const prioritized = prioritizePersonalQualities(selectedComments);
       const pqFirst = prioritized.filter(it => it.section === 'personalqualities');
       const others = prioritized.filter(it => it.section !== 'personalqualities');
       const ordered = pqFirst.concat(orderCommentsSandwichStyle(others));
       return ordered.map(replace).join(' ');
     }
     if (commentOrderMode === 'bullet'){
-      const positives = prioritized.filter(it => it.type === 'positive').map(replace).join(' ');
-      const bulletLines = prioritized
-        .filter(it => it.type !== 'positive')
-        .map(it => {
-          const txt = replace(it);
-          const nameRegex = new RegExp(`\\b${escapeRegExp(context.studentName)}\\b`, 'gi');
-          return `• ${txt.replace(nameRegex, context.pronouns.He)}`;
-        });
-      const bulletBlock = bulletLines.length ? ['Constructive feedback:', ...bulletLines].join('\n') : '';
-      const parts = [];
-      if (positives) parts.push(positives);
-      if (bulletBlock) parts.push(bulletBlock);
-      return parts.join(parts.length > 1 ? '\n\n' : '');
+      const nameRegex = new RegExp(`\\b${escapeRegExp(context.studentName)}\\b`, 'gi');
+      const positives = selectedComments.filter(it => it.type === 'positive').map(replace);
+      const constructives = selectedComments.filter(it => it.type !== 'positive').map(replace);
+      const bulletify = (items) => items.map((txt) => `- ${txt.replace(nameRegex, context.pronouns.He)}`);
+      const blocks = [];
+      if (positives.length){
+        blocks.push(['Strengths:', ...bulletify(positives)].join('\n'));
+      }
+      if (constructives.length){
+        blocks.push(['Growth focus:', ...bulletify(constructives)].join('\n'));
+      }
+      return blocks.join('\n\n');
     }
-    return prioritized.map(replace).join(' ');
+    return selectedComments.map(replace).join(' ');
   }
-  function cleanFluency(text){
+
+
+  function insertSentencesAfterFirst(text, sentencesToInsert, maxCount){
+    if (!text) return text || '';
+    const sentences = splitIntoSentences(text);
+    if (!sentences.length) return text;
+    const insert = Array.isArray(sentencesToInsert) ? sentencesToInsert.filter(Boolean) : [];
+    if (!insert.length) return text;
+    const count = Math.max(1, Math.min(maxCount || insert.length, insert.length));
+    sentences.splice(1, 0, ...insert.slice(0, count));
+    return sentences.join(' ');
+  }
+  function ensureGradeSentenceNearTop(text, markText, gradeSentence){
+    if (!text || !markText || !gradeSentence) return text || '';
+    const sentences = splitIntoSentences(text);
+    if (!sentences.length) return text;
+    const topTwo = sentences.slice(0, 2).join(' ');
+    if (topTwo.includes(markText) || topTwo.includes(gradeSentence)) return text;
+    sentences.splice(1, 0, gradeSentence);
+    return sentences.join(' ');
+  }
+
+function splitIntoSentences(text){
+    if (!text) return [];
+    return String(text).split(/(?<=[.!?])\s+/).filter(Boolean);
+  }
+  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, lookingAheadText }){
+    let baseText = baseComment || '';
+    if (termLabel){
+      baseText = `${termLabel}: ${baseText}`;
+    }
+    let closing = '';
+    let core = baseText;
+    if (baseText){
+      const sentences = splitIntoSentences(baseText);
+      if (sentences.length > 1){
+        closing = sentences.pop();
+        core = sentences.join(' ');
+      }
+    }
+    const blocks = [];
+    if (core) blocks.push(core.trim());
+    if (toneLine) blocks.push(toneLine.trim());
+    if (commentSnippet) blocks.push(commentSnippet.trim());
+    if (assignmentParagraph) blocks.push(assignmentParagraph.trim());
+    if (lookingAheadText) blocks.push(lookingAheadText.trim());
+    if (closing) blocks.push(closing.trim());
+    return blocks.filter(Boolean).join('\n\n');
+  }
+
+      function pickRandomItem(items){
+    if (!Array.isArray(items) || !items.length) return null;
+    return items[Math.floor(Math.random() * items.length)];
+  }
+  function getBuilderLookingAheadKey(){
+    const studentKey = builderSelectedRowIndex != null
+      ? `row:${builderSelectedRowIndex}`
+      : `name:${builderStudentNameInput?.value.trim() || ''}`;
+    const perfKey = builderCorePerformanceSelect?.value || '';
+    return `${studentKey}::${perfKey}`;
+  }
+  function applyRandomLookingAheadSelection(force = false){
+    if (!builderCommentBankEl) return null;
+    if (!builderCommentCheckboxes.length){
+      builderCommentCheckboxes = Array.from(builderCommentBankEl.querySelectorAll('input[type="checkbox"]'));
+    }
+    const lookingCbs = builderCommentCheckboxes.filter(cb => (cb.dataset.section || '').toLowerCase() === 'future');
+    if (!lookingCbs.length) return null;
+    const key = getBuilderLookingAheadKey();
+    if (!force){
+      if (key && key === builderLookingAheadAutoKey) return null;
+      if (key && key === builderLookingAheadManualKey) return null;
+    }else if (key && builderLookingAheadManualKey === key){
+      builderLookingAheadManualKey = '';
+    }
+    builderLookingAheadAutoUpdating = true;
+    // clear all looking ahead selections, then pick one
+    lookingCbs.forEach(cb => {
+      cb.checked = false;
+      cb.dataset.auto = 'false';
+    });
+    const pick = lookingCbs[Math.floor(Math.random() * lookingCbs.length)];
+    if (pick){
+      pick.checked = true;
+      pick.dataset.auto = 'true';
+    }
+    builderLookingAheadAutoUpdating = false;
+    builderLookingAheadAutoKey = key;
+    updateBuilderSelectedTags();
+    return pick ? pick.dataset.text || '' : '';
+  }
+
+function getBankOptions(){
+    const flat = [];
+    REPORT_COMMENT_BANK.forEach(section => {
+      const sectionId = (section.id || '').toLowerCase();
+      section.options.forEach(opt => {
+        flat.push({
+          ...opt,
+          sectionId
+        });
+      });
+    });
+    return flat;
+  }
+  function getAutoTailSentences(coreLevel, context){
+    const allOptions = getBankOptions();
+    const lookingAhead = allOptions.filter(opt => opt.sectionId === 'future');
+    const isSupport = String(coreLevel || '').startsWith('poor') || String(coreLevel || '').startsWith('newstu');
+    const levelOptions = allOptions.filter(opt => isSupport ? opt.type !== 'positive' : opt.type === 'positive');
+    const levelOpt = pickRandomItem(levelOptions.filter(opt => opt.sectionId !== 'future'));
+    return {
+      levelText: levelOpt ? builderReplacePlaceholders(levelOpt.text, context) : ''
+    };
+  }
+
+function buildCommentBlocks(selectedComments, context){
+    if (!Array.isArray(selectedComments) || !selectedComments.length){
+      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: '' };
+    }
+    if (commentOrderMode === 'bullet'){
+      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
+    }
+    const replace = (item) => builderReplacePlaceholders(item.text, context);
+    let ordered = selectedComments;
+    if (commentOrderMode === 'sandwich'){
+      const prioritized = prioritizePersonalQualities(selectedComments);
+      const pqFirst = prioritized.filter(it => it.section === 'personalqualities');
+      const others = prioritized.filter(it => it.section !== 'personalqualities');
+      ordered = pqFirst.concat(orderCommentsSandwichStyle(others));
+    }
+    const pqSentences = [];
+    const lookingAheadSentences = [];
+    const otherSentences = [];
+    ordered.forEach(item => {
+      const txt = replace(item);
+      if (item.section === 'personalqualities') pqSentences.push(txt);
+      else if (item.section === 'future') lookingAheadSentences.push(txt);
+      else otherSentences.push(txt);
+    });
+    return { pqSentences, lookingAheadSentences, otherSentences, otherText: otherSentences.join(' ') };
+  }
+
+function cleanFluency(text){
     if (!text) return '';
     const lines = String(text).split(/\n+/);
     const cleanedLines = lines.map(line => {
@@ -3814,6 +4610,16 @@
     }).filter(Boolean);
     return cleanedLines.join('\n\n').trim();
   }
+  function polishGrammar(text){
+    if (!text) return '';
+    let t = String(text);
+    t = t.replace(/\s+([,.;:!])/g, '$1');
+    t = t.replace(/[ \t]{2,}/g, ' ');
+    t = t.replace(/ \n/g, '\n');
+    t = t.replace(/\b(a)\s+([aeiou])/gi, (_, a, v) => (a === 'A' ? 'An ' : 'an ') + v);
+    t = t.replace(/\b(an)\s+([^aeiou\W])/gi, (_, an, c) => (an === 'An' ? 'A ' : 'a ') + c);
+    return t.trim();
+  }
   function applyPronounsAfterFirstSentence(text, name, pronouns){
     if (!text || !name) return text || '';
     const safeName = escapeRegExp(name.trim());
@@ -3821,26 +4627,25 @@
     const sentences = String(text).split(/(?<=[.!?])\s+/);
     return sentences.map((s, idx) => {
       if (idx === 0) return s;
-      const re = new RegExp(`^\\s*${safeName}(\\b|'s\\b|’s\\b)?`, 'i');
+      const re = new RegExp(`^\\s*${safeName}(\\b|'s\\b)`, 'i');
       if (!re.test(s)) return s;
       return s.replace(re, (_, possessive) => possessive ? pronouns.His : pronouns.He);
     }).join(' ');
   }
+
   function builderGenerateReport(){
     if (!builderReportOutput) return;
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
-    if (!studentName || !coreLevel){
-      builderReportOutput.innerHTML = '<em>Provide a student name and select a core performance level.</em>';
+    if (!studentName){
+      builderReportOutput.innerHTML = '<em>Provide a student name.</em>';
       return;
     }
-    // Ensure we have the current student row handy for derived values
+    if (!coreLevel && (builderGradeGroupSelect?.value || 'middle') !== 'elem'){
+      builderReportOutput.innerHTML = '<em>Select a core performance level.</em>';
+      return;
+    }
     const studentRow = rows[builderSelectedRowIndex];
-    const template = REPORT_BUILDER_TEMPLATES[coreLevel];
-    if (!template){
-      builderReportOutput.textContent = 'Template not available for this selection.';
-      return;
-    }
     const context = {
       studentName,
       pronouns: getBuilderPronouns(),
@@ -3848,59 +4653,95 @@
       originalScore: builderOriginalInput?.value.trim(),
       termAverage: builderTermAverageInput?.value.trim(),
       termLabel: builderTermSelector?.value || '',
-      customComment: builderCustomCommentInput?.value.trim()
+      customComment: builderCustomCommentInput?.value.trim(),
+      gradeGroup: builderGradeGroupSelect?.value || "middle",
+      includeFinalGrade: !!builderIncludeFinalGradeInput?.checked
     };
-    // Pull final grade automatically from data; fall back to entered value
+
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
-    const gradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const gradeMeta = (context.gradeGroup === 'elem') ? null : (studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null);
     const derivedGrade = gradeMeta ? gradeMeta.raw : '';
     const providedGrade = (context.termAverage || '').trim();
-    const providedMeta = providedGrade ? deriveMarkMeta(providedGrade, gradeColumn) : null;
+    const providedMeta = (context.gradeGroup === 'elem' || !providedGrade) ? null : deriveMarkMeta(providedGrade, gradeColumn);
     const finalGradeToUse = derivedGrade || (providedMeta ? providedMeta.raw : providedGrade);
-    context.termAverage = finalGradeToUse;
-    // Get selected assignment columns
+    context.termAverage = (context.gradeGroup === 'elem') ? '' : finalGradeToUse;
+
     const selectedAssignments = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
       .map(cb => cb.value);
-    const overallMeta = deriveMarkMeta(finalGradeToUse, gradeColumn);
+    const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
-    let partA = template.partA;
-    let partB = template.partB;
-    const score1 = ''; // generalized builder: omit test-specific commentary
-    const score2 = '';
-    const ccComment = builderGetCCCommentary(builderCCPerformanceSelect?.value || '');
-    partA = partA.replace('[SCORE_COMMENTARY_TEST1]', score1)
-                 .replace('[SCORE_COMMENTARY_TEST2]', score2)
-                 .replace('[CC_COMMENTARY]', ccComment);
-    if (partA.includes('[RETEST_CLAUSE]')){
-      if (context.retestScore && context.originalScore && template.retestClause){
-        partA = partA.replace('[RETEST_CLAUSE]', template.retestClause);
-      }else{
-        partA = partA.replace('[RETEST_CLAUSE]', template.noRetestClause || '');
-        partA = partA.replace('[SCORE_COMMENTARY_TEST2]', score2);
-      }
-    }
-    partA = builderReplacePlaceholders(partA, context);
-    partB = builderReplacePlaceholders(partB, context);
+    const assignmentParagraph = assignmentSentences ? `In recent assignments, ${assignmentSentences}` : '';
+
     const selectedComments = getBuilderSelectedComments();
-    const commentSnippetText = buildCommentSnippetText(selectedComments, context);
-    const hasBullets = commentOrderMode === 'bullet' && selectedComments.some(it => it.type !== 'positive');
-    const termPrefix = context.termLabel ? `${context.termLabel}\n\n` : '';
-    let report = termPrefix + partA;
-    if (commentSnippetText){
-      const separator = commentSnippetText.includes('\n') ? '\n\n' : ' ';
-      report += separator + commentSnippetText;
+    const commentBlocks = buildCommentBlocks(selectedComments, context);
+    const autoTail = getAutoTailSentences(coreLevel, context);
+    const commentSnippetText = commentBlocks.otherText;
+    const toneLine = getPerformanceToneLine(coreLevel, context);
+
+    let report = '';
+    const baseComment = studentRow ? buildGradeBasedComment(studentRow, context.studentName, context.pronouns, context.gradeGroup, context.includeFinalGrade) : '';
+    if (baseComment){
+      const introLine = getPerformanceIntroLine(coreLevel, context);
+      let baseWithIntro = introLine ? replaceFirstSentence(baseComment, introLine) : baseComment;
+      if (commentBlocks.pqSentences.length){
+        baseWithIntro = insertSentencesAfterFirst(baseWithIntro, commentBlocks.pqSentences, 3);
+      }
+      report = buildUnifiedComment({
+        baseComment: baseWithIntro,
+        termLabel: context.termLabel,
+        toneLine,
+        commentSnippet: commentSnippetText,
+        assignmentParagraph,
+        lookingAheadText: [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ')
+      });
+    }else{
+      const template = getReportBuilderTemplate(coreLevel, context);
+      if (!template){
+        builderReportOutput.textContent = 'Template not available for this selection.';
+        return;
+      }
+      let partA = template.partA;
+      let partB = template.partB;
+      const score1 = '';
+      const score2 = '';
+      const ccComment = builderGetCCCommentary(builderCCPerformanceSelect?.value || '');
+      partA = partA.replace('[SCORE_COMMENTARY_TEST1]', score1)
+                   .replace('[SCORE_COMMENTARY_TEST2]', score2)
+                   .replace('[CC_COMMENTARY]', ccComment);
+      if (partA.includes('[RETEST_CLAUSE]')){
+        if (context.retestScore && context.originalScore && template.retestClause){
+          partA = partA.replace('[RETEST_CLAUSE]', template.retestClause);
+        }else{
+          partA = partA.replace('[RETEST_CLAUSE]', template.noRetestClause || '');
+          partA = partA.replace('[SCORE_COMMENTARY_TEST2]', score2);
+        }
+      }
+      partA = builderReplacePlaceholders(partA, context);
+      partB = builderReplacePlaceholders(partB, context);
+      const blocks = [];
+      if (context.termLabel){
+        blocks.push(`${context.termLabel}: ${partA}`);
+      }else{
+        blocks.push(partA);
+      }
+      if (toneLine) blocks.push(toneLine);
+      if (commentSnippetText) blocks.push(commentSnippetText);
+      if (assignmentParagraph) blocks.push(assignmentParagraph);
+      const tailText = [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ');
+      if (tailText) blocks.push(tailText);
+      if (partB) blocks.push(partB);
+      report = blocks.filter(Boolean).join('\n\n');
     }
-    if (assignmentSentences){
-      const sep = hasBullets ? '\n\n' : ' ';
-      report += sep + assignmentSentences;
+
+    if (context.customComment){
+      report += ' ' + builderReplacePlaceholders(context.customComment, context);
     }
-    report += hasBullets ? '\n\n' : ' ';
-    report += partB;
-    if (context.customComment) report += ' ' + builderReplacePlaceholders(context.customComment, context);
+
     const pronounAdjusted = applyPronounsAfterFirstSentence(report, context.studentName, context.pronouns);
     const trimmedReport = cleanFluency(pronounAdjusted.trim());
-    builderReportOutput.value = trimmedReport;
-    builderReportOutput.dataset.lastSig = computeReportSignature(trimmedReport, {
+    const polishedReport = polishGrammar(trimmedReport);
+    builderReportOutput.value = polishedReport;
+    builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
       studentName: context.studentName,
       coreLevel,
       termLabel: context.termLabel,
@@ -3908,6 +4749,7 @@
       assignments: selectedAssignments
     });
   }
+
   function builderCopyReport(){
     if (!builderReportOutput || !String(builderReportOutput.value || '').trim()) return;
     copyTextToClipboard(String(builderReportOutput.value || '').trim());

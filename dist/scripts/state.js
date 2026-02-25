@@ -10,10 +10,28 @@
     gradeColumn: "",
     highThreshold: 90,
     midThreshold: 75,
-    highTemplate: "{name} approaches every lesson with curiosity and initiative, frequently extending ideas beyond the core expectation. Their current mark of {mark} showcases precise reasoning, fluent computation, and articulate communication. {name} routinely finishes core tasks early and then designs extension questions to deepen understanding. During collaborative tasks they summarize peer strategies, highlight mathematical connections, and keep teams focused. Feedback is implemented immediately; {name} keeps a reflection log to track goals and next steps. Next term will emphasize multi-step investigations and contest-style problems, and {name} is ready to mentor classmates through those challenges. Keep nurturing this blend of creativity and disciplined practice.",
-    midTemplate: "{name} demonstrates steady progress and thoughtful engagement with new material. With a current mark of {mark} they meet expectations on most outcomes and are beginning to take more academic risks. {name} listens attentively, asks clarifying questions, and revisits notes to strengthen recall. When feedback is provided they revise solutions, highlight learning points, and try similar problems independently. Continued focus on showing complete reasoning and checking units will unlock even higher accuracy. Next term we will target multi-step problems and timed practice to build automaticity. I appreciate the consistent effort and positive attitude {name} brings to every session.",
-    lowTemplate: "{name} is developing foundational skills and currently holds {mark}. They contribute ideas willingly yet benefit from additional guided practice to solidify routines. {name} responds well to checklists that break complex tasks into smaller checkpoints. During conferences we co-create goals, model sample solutions, and celebrate each successful attempt. Home review of vocabulary and worked examples will help transfer strategies across contexts. We will continue providing targeted small-group lessons, manipulatives, and sentence frames for explanations. With this supportive plan {name} will keep growing in confidence and accuracy.",
+    satisfactoryThreshold: 70,
+    highTemplate: "{name} consistently exceeds expectations and shows strong reasoning. With {mark}, [he/she] explains solutions clearly, checks work carefully, and extends tasks with enrichment. Next term we will push multi-step investigations and advanced challenges.",
+    midTemplate: "{name} is making steady progress and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking units.",
+    lowTemplate: "{name} is building core skills and currently holds {mark}. With guided practice and clear routines, [he/she] can improve accuracy and confidence. Next term we will target fundamentals and consistent homework habits.",
     extraColumns: []
+  };
+  const GRADE_GROUP_TEMPLATES = {
+    elem: {
+      high: "{name} is doing very well and shows growing confidence. [He/She] explains thinking clearly and works carefully. Next term we will keep building problem-solving skills.",
+      mid: "{name} is making steady progress. [He/She] benefits from clear steps, checklists, and regular practice. Next term we will build fluency and confidence.",
+      low: "{name} is building core skills. With guided practice and routines, [he/she] can improve accuracy and confidence."
+    },
+    middle: {
+      high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently. Next term we will extend to multi-step and enrichment tasks.",
+      mid: "{name} is progressing well and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking work.",
+      low: "{name} is building foundational skills and currently holds {mark}. With structured practice and feedback, [he/she] can improve consistency. Next term we will reinforce core skills."
+    },
+    high: {
+      high: "{name} is performing at a high level and communicates solutions clearly. With {mark}, [he/she] demonstrates strong mastery and disciplined study habits. Next term we will push higher-order applications and exam readiness.",
+      mid: "{name} is meeting expectations and shows steady growth. With {mark}, [he/she] benefits from concise reasoning and careful checking. Next term we will emphasize multi-step reasoning and assessment readiness.",
+      low: "{name} is developing essential skills and currently holds {mark}. With targeted practice and support, [he/she] can improve accuracy and confidence. Next term we will focus on core concepts and consistency."
+    }
   };
   const TEMPLATE_VARIANTS = {
     high: [
@@ -263,6 +281,7 @@ function computePrintColumnWidths(students){
 
   // ==== Elements ====
   const dropzone = document.getElementById('dropzone');
+  const appRoot = document.getElementById('appRoot');
   const fileInput = document.getElementById('file');
   const loadDirBtn = document.getElementById('loadDirBtn');
   const lastFolderLabel = document.getElementById('lastFolderLabel');
@@ -311,6 +330,8 @@ function computePrintColumnWidths(students){
   const darkModeBtn = document.getElementById('darkModeBtn');
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const filesDrawer = document.getElementById('filesDrawer');
+  const filesDrawerToggle = document.getElementById('filesDrawerToggle');
   const tabDataBtn = document.getElementById('tabDataBtn');
   const tabPrintBtn = document.getElementById('tabPrintBtn');
   const tabCommentsBtn = document.getElementById('tabCommentsBtn');
@@ -339,6 +360,8 @@ function computePrintColumnWidths(students){
   const commentTermT3Btn = document.getElementById('commentTermT3Btn');
   const builderStudentSelect = document.getElementById('builderStudentSelect');
   const builderStudentNameInput = document.getElementById('builderStudentName');
+  const builderGradeGroupSelect = document.getElementById('builderGradeGroup');
+  const builderIncludeFinalGradeInput = document.getElementById('builderIncludeFinalGrade');
   const builderPronounMaleInput = document.getElementById('builderPronounMale');
   const builderPronounFemaleInput = document.getElementById('builderPronounFemale');
   const builderPrefillBtn = document.getElementById('builderPrefillBtn');
