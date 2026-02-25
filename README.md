@@ -21,6 +21,8 @@ npm run build
 npm run sync:docs
 ```
 
+This copies `teacher_tools.html`, `styles/`, `scripts/`, and `icon/` from the project root into `docs/`. It also syncs root → `public/` first (if present), so `public/` stays in sync.
+
 4. Commit and push (`dist/` is local build output, `docs/` is what Pages serves).
 
 ## GitHub Pages (`/docs`)
