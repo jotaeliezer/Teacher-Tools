@@ -2474,7 +2474,11 @@ function getPerformanceToneLine(coreLevel, context){
       });
     }
     table.appendChild(tbody);
-    page.appendChild(table);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'template-table-scroll-wrap';
+    tableWrap.appendChild(table);
+    page.appendChild(tableWrap);
 
     page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
     return page;
@@ -5178,10 +5182,12 @@ function varySentenceOpenings(text, studentName){
     const lines = String(text).split(/\n+/);
     const ADVERB_FRONTS = [
       'Additionally, ',
-      'Furthermore, ',
-      'In addition, ',
       'Notably, ',
+      'Furthermore, ',
       'In particular, ',
+      'At the same time, ',
+      'Throughout the term, ',
+      'Across class activities, ',
       'On this note, '
     ];
     const ENCOURAGED_FRONTS = [
@@ -5197,6 +5203,7 @@ function varySentenceOpenings(text, studentName){
       return false;
     };
     let adverbIdx = 0;
+    let adverbCooldown = 0;
     const varied = lines.map(line => {
       const trimmed = line.trim();
       if (!trimmed) return '';
@@ -5207,19 +5214,21 @@ function varySentenceOpenings(text, studentName){
         if (!startsWithSubject(s)){ streak = 0; return s; }
         streak++;
         if (streak < 2) return s;
+        const firstChar = s.charAt(0).toLowerCase();
+        const lowered = firstChar + s.slice(1);
         if (/^(he|she|they|\w+)\s+is encouraged\b/i.test(s) || /^(he|she|they|\w+)\s+should\b/i.test(s)){
           const front = ENCOURAGED_FRONTS[adverbIdx % ENCOURAGED_FRONTS.length];
           adverbIdx++;
-          const firstChar = s.charAt(0).toLowerCase();
-          return front + firstChar + s.slice(1);
+          return front + lowered;
         }
-        if (streak >= 2){
-          const front = ADVERB_FRONTS[adverbIdx % ADVERB_FRONTS.length];
-          adverbIdx++;
-          const firstChar = s.charAt(0).toLowerCase();
-          return front + firstChar + s.slice(1);
+        if (adverbCooldown > 0){
+          adverbCooldown--;
+          return lowered;
         }
-        return s;
+        const front = ADVERB_FRONTS[adverbIdx % ADVERB_FRONTS.length];
+        adverbIdx++;
+        adverbCooldown = 2;
+        return front + lowered;
       });
       return result.join(' ');
     }).filter(Boolean);

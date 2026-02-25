@@ -908,6 +908,19 @@
       padding:0.45in 0.4in 0.5in 0.4in;
       box-sizing:border-box;
       overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    body.print-preview .class-template-page > .page-header{
+      flex-shrink:0;
+    }
+    body.print-preview .class-template-page > .drill-note{
+      flex-shrink:0;
+    }
+    body.print-preview .template-table-scroll-wrap{
+      flex:1;
+      min-height:0;
+      overflow:hidden;
     }
     body.print-preview .class-template-page .template-table{
       font-size:11px;
@@ -924,11 +937,12 @@
       position:static;
     }
     body.print-preview .print-footer{
+      flex-shrink:0;
       position: static;
       bottom: auto;
       left: auto;
       right: auto;
-      margin-top: 12px;
+      margin-top: 8px;
     }
     body.printing-preview #appRoot{
       display:none !important;
@@ -1080,6 +1094,19 @@
         padding: 0.45in 0.4in 0.5in 0.4in;
         box-sizing:border-box;
         overflow:hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .class-template-page > .page-header{
+        flex-shrink: 0;
+      }
+      .class-template-page > .drill-note{
+        flex-shrink: 0;
+      }
+      .template-table-scroll-wrap{
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
       .class-template-page .template-table{
         font-size:11px;
@@ -1094,11 +1121,24 @@
         position: static;
       }
       .print-footer{
+        flex-shrink: 0;
         position: static;
         bottom: auto;
         left: auto;
         right: auto;
-        margin-top: 12px;
+        margin-top: 8px;
+      }
+      /* Marking sheet: ensure table fills page width and rows are compact */
+      .class-template-page .template-table-marking{
+        width: 100%;
+      }
+      .class-template-page .template-table-marking td,
+      .class-template-page .template-table-marking th.assignment-spacer{
+        padding: 2px 3px;
+        line-height: 1.1;
+      }
+      .class-template-page .template-table-marking th.rotate-header .rotate-text{
+        max-height: 90px;
       }
     }
     #cols{
