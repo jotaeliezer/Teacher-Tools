@@ -930,9 +930,7 @@
       right: auto;
       margin-top: 12px;
     }
-    body.printing-preview #appRoot,
-    body.printing-preview #filesDrawer,
-    body.printing-preview .site-footer{
+    body.printing-preview #appRoot{
       display:none !important;
     }
     body:is(.print-preview, .printing-preview) #printContainer{
@@ -1033,12 +1031,17 @@
         margin: 0;
         padding: 0;
       }
-      #filesDrawer,
-      #appRoot,
-      .site-footer{
-        display: none !important;
+      body *{
+        visibility: hidden;
+      }
+      #printContainer,
+      #printContainer *{
+        visibility: visible;
       }
       #printContainer{
+        position: absolute;
+        left: 0;
+        top: 0;
         margin: 0;
         padding: 0;
         width: 100%;
