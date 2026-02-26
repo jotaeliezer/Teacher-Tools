@@ -1260,8 +1260,8 @@ if (builderGradeGroupSelect){
   };
   const PERFORMANCE_TONE_VARIANTS = {
     good: [
-      "With this level of achievement, [Student] is ready for deeper challenges and enrichment.",
-      "[Student] is well positioned to extend learning through enrichment and higher-order tasks."
+      "With this level of achievement, [Student] is shows a solid understanding of the material and values the challenges presented in class.",
+      "[Student] is well positioned to end the school year with a high level of success and confidence."
     ],
     average: [
       "With steady routines and consistent review, [he/she] can turn this progress into stronger results.",
