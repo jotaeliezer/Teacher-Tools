@@ -182,6 +182,10 @@
         status('Load data before printing.');
         return;
       }
+      if (!(printMeta.teacher || '').trim()){
+        showTeacherNamePrompt();
+        return;
+      }
       activateTab('print');
     });
   }
@@ -223,6 +227,27 @@
     markWarningCancel.addEventListener('click', () => {
       closeMarkWarningModal();
       pendingMarkWarningAction = null;
+    });
+  }
+  if (teacherNamePromptSave){
+    teacherNamePromptSave.addEventListener('click', () => {
+      const name = (teacherNamePromptInput?.value || '').trim();
+      if (name){
+        printMeta.teacher = name;
+        saveSettings({ printTeacher: name });
+        if (printTeacherInput) printTeacherInput.value = name;
+        closeTeacherNamePrompt();
+        activateTab('print');
+      }
+    });
+  }
+  if (teacherNamePromptCancel){
+    teacherNamePromptCancel.addEventListener('click', closeTeacherNamePrompt);
+  }
+  if (teacherNamePromptInput){
+    teacherNamePromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') teacherNamePromptSave?.click();
+      if (e.key === 'Escape') closeTeacherNamePrompt();
     });
   }
   [printTeacherInput, printClassInput, printTitleInput].forEach(input => {
@@ -443,6 +468,18 @@ function setupSelectAnimations(){
       if (builderIncludeFinalGradeInput){
     builderIncludeFinalGradeInput.addEventListener('change', () => {
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+    });
+  }
+  const builderFutureSearchEl = document.getElementById('builderFutureAssignmentsSearch');
+  if (builderFutureSearchEl){
+    builderFutureSearchEl.addEventListener('input', () => {
+      const filterText = builderFutureSearchEl.value.trim().toLowerCase();
+      const listEl = document.getElementById('builderFutureAssignmentsList');
+      if (!listEl) return;
+      Array.from(listEl.children).forEach(wrapper => {
+        if (!wrapper.dataset || !wrapper.dataset.label) return;
+        wrapper.style.display = filterText && !wrapper.dataset.label.includes(filterText) ? 'none' : 'flex';
+      });
     });
   }
 if (builderGradeGroupSelect){
@@ -2344,7 +2381,7 @@ function getPerformanceToneLine(coreLevel, context){
       node.style.width = `${width}px`;
     };
     const teacherName = (printMeta.teacher || '').trim();
-    const classDisplay = (ctx?.name || '').trim() || (printMeta.classInfo || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim() || getFileNameWithoutExtension(ctx?.name || '');
     const termLabel = getTermLabel(printMeta.term);
     const templateLabel = PRINT_TEMPLATE_DEFS[templateId]?.label || 'Template';
 
@@ -2569,7 +2606,7 @@ function getPerformanceToneLine(coreLevel, context){
       return empty;
     }
     const teacherName = (printMeta.teacher || '').trim();
-    const classDisplay = (ctx?.name || '').trim() || (printMeta.classInfo || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim() || getFileNameWithoutExtension(ctx?.name || '');
     const termLabel = getTermLabel(printMeta.term);
     const title = (printMeta.title || '').trim();
 
@@ -3428,6 +3465,15 @@ function getPerformanceToneLine(coreLevel, context){
   function closeMarkWarningModal(){
     if (markWarningModal) markWarningModal.style.display = 'none';
   }
+  function showTeacherNamePrompt(){
+    if (!teacherNamePrompt || !teacherNamePromptInput) return;
+    teacherNamePromptInput.value = (printMeta.teacher || '').trim();
+    teacherNamePrompt.style.display = 'flex';
+    setTimeout(() => teacherNamePromptInput?.focus(), 50);
+  }
+  function closeTeacherNamePrompt(){
+    if (teacherNamePrompt) teacherNamePrompt.style.display = 'none';
+  }
   function activateTab(kind){
     const sections = {
       data: dataTabSection,
@@ -3725,6 +3771,7 @@ function getPerformanceToneLine(coreLevel, context){
     updateBuilderSelectedTags();
     // Populate assignment columns list
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
   }
   function shouldAutoGenerateBuilderReport(){
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
@@ -3841,6 +3888,91 @@ function getPerformanceToneLine(coreLevel, context){
       });
     });
   }
+  function buildBuilderFutureAssignmentsList(){
+    const listEl = document.getElementById('builderFutureAssignmentsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    const studentRow = (builderSelectedRowIndex != null && rows[builderSelectedRowIndex])
+      ? rows[builderSelectedRowIndex]
+      : null;
+
+    const futureColumns = allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      if (!studentRow) return false;
+      const val = studentRow[col];
+      return val == null || String(val).trim() === '';
+    });
+
+    if (!futureColumns.length){
+      const msg = document.createElement('div');
+      msg.className = 'muted';
+      msg.style.fontSize = '12px';
+      msg.textContent = 'No upcoming columns found for this student.';
+      listEl.appendChild(msg);
+      return;
+    }
+
+    const searchEl = document.getElementById('builderFutureAssignmentsSearch');
+    const filterText = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+    futureColumns.forEach(col => {
+      const label = cleanAssignmentLabel(col);
+      const isLate = columnHasData(col);
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = filterText && !label.toLowerCase().includes(filterText) ? 'none' : 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '8px';
+      wrapper.style.padding = '4px 0';
+      wrapper.style.borderBottom = '1px solid #eee';
+      wrapper.dataset.label = label.toLowerCase();
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = col;
+      checkbox.dataset.futureCol = col;
+      checkbox.style.flexShrink = '0';
+
+      const labelText = document.createElement('span');
+      labelText.textContent = label;
+      labelText.style.flex = '1';
+      labelText.style.fontSize = '13px';
+      labelText.style.textAlign = 'left';
+
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(labelText);
+
+      if (isLate){
+        const lateIcon = document.createElement('span');
+        lateIcon.textContent = '⚠️';
+        lateIcon.title = 'Other students have a mark for this — may be a late assignment';
+        lateIcon.style.flexShrink = '0';
+        lateIcon.style.fontSize = '13px';
+        wrapper.appendChild(lateIcon);
+      }
+
+      listEl.appendChild(wrapper);
+
+      const handleToggle = () => {
+        if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
+          builderGenerateReport();
+        }
+      };
+      checkbox.addEventListener('change', handleToggle);
+      wrapper.addEventListener('click', (e) => {
+        if (e.target === checkbox) return;
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      });
+    });
+  }
   function buildBuilderStudentOptions(){
     if (!builderStudentSelect) return;
     builderStudentSelect.innerHTML = '';
@@ -3912,6 +4044,7 @@ function getPerformanceToneLine(coreLevel, context){
     applyHintValue(builderTermAverageInput, row, BUILDER_HINTS.termAverage, true);
     // Refresh assignment list to show new student's marks
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
     autoSelectBuilderTemplate(row);
     applyRandomLookingAheadSelection();
   }
@@ -4520,6 +4653,50 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     const m = String(label || '').match(/^L\d+\s*-\s*(.*)$/i);
     return m ? m[1].trim() || String(label || '').trim() : String(label || '');
   }
+  function buildFutureAssignmentSentences(selectedFuture, context){
+    if (!selectedFuture || !selectedFuture.length) return '';
+    const name = context.studentName || 'The student';
+    const seed = name + selectedFuture.join(',');
+    const labels = selectedFuture.map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    if (!labels.length) return '';
+    const count = labels.length;
+
+    if (count === 1){
+      const label = labels[0];
+      const variants = [
+        `${name} has an upcoming ${label} and should begin preparing for it soon.`,
+        `${label} is approaching — ${name} is encouraged to review the relevant material ahead of time.`,
+        `With ${label} on the horizon, ${name} would benefit from setting aside time to prepare.`,
+        `${label} is coming up, and ${name} should take time to review and get ready for it.`,
+        `${name} is reminded that ${label} is approaching and is encouraged to start reviewing the material.`,
+        `As ${label} approaches, ${name} should dedicate time to reviewing the key concepts covered so far.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    if (count === 2){
+      const [a, b] = labels;
+      const variants = [
+        `${name} has upcoming assessments — ${a} and ${b} — and should begin reviewing for both.`,
+        `With ${a} and ${b} on the horizon, ${name} is encouraged to start preparing in advance.`,
+        `Looking ahead, ${name} has ${a} and ${b} coming up and would do well to begin studying for each.`,
+        `${a} and ${b} are both approaching, and ${name} should set aside time to prepare accordingly.`,
+        `${name} is reminded that both ${a} and ${b} are coming up and should begin reviewing the material for each.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    const allButLast = labels.slice(0, -1);
+    const last = labels[labels.length - 1];
+    const listStr = allButLast.join(', ') + ', and ' + last;
+    const variants = [
+      `${name} has several upcoming assessments — including ${listStr} — and should dedicate time to preparing for each.`,
+      `Looking ahead, ${name} has a number of items coming up: ${listStr}. Starting preparations early will be beneficial.`,
+      `With ${listStr} on the schedule, ${name} would benefit from reviewing the relevant material in advance.`,
+      `${name} is encouraged to prepare for upcoming assessments, including ${listStr}, by reviewing the material covered so far.`,
+    ];
+    return pickVariant(variants, seed);
+  }
   function collectAssignmentFacts(selectedAssignments, row){
     if (!Array.isArray(selectedAssignments) || !selectedAssignments.length || !row) return [];
     const facts = [];
@@ -5003,7 +5180,7 @@ function splitIntoSentences(text){
     if (!variants || !variants.length) return '';
     return pickVariant(variants, seed + '|transition|' + key);
   }
-  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, lookingAheadText }){
+  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, futureParagraph, lookingAheadText }){
     let baseText = baseComment || '';
     if (termLabel){
       baseText = `${termLabel}: ${baseText}`;
@@ -5036,6 +5213,7 @@ function splitIntoSentences(text){
     appendUniqueBlock(toneLine, 'tone');
     appendUniqueBlock(commentSnippet, 'comment');
     appendUniqueBlock(assignmentParagraph, 'assignment');
+    appendUniqueBlock(futureParagraph, 'future-upcoming');
     appendUniqueBlock(lookingAheadText, 'lookingAhead');
     appendUniqueBlock(closing, 'closing');
     const seed = String(baseText || '').slice(0, 40);
@@ -5644,6 +5822,11 @@ function varySentenceOpenings(text, studentName){
       .map(cb => cb.value)
       .filter(Boolean);
   }
+  function getSelectedBuilderFutureAssignments(){
+    return Array.from(document.querySelectorAll('#builderFutureAssignmentsList input[type="checkbox"]:checked'))
+      .map(cb => cb.value)
+      .filter(Boolean);
+  }
   function normalizeBuilderAiEndpoint(raw){
     const value = String(raw || '').trim();
     if (!value) return '';
@@ -5820,9 +6003,11 @@ function varySentenceOpenings(text, studentName){
     context.termAverage = (context.gradeGroup === 'elem') ? '' : finalGradeToUse;
 
     const selectedAssignments = getSelectedBuilderAssignments();
+    const selectedFutureAssignments = getSelectedBuilderFutureAssignments();
     const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
     const assignmentParagraph = assignmentSentences || '';
+    const futureParagraph = buildFutureAssignmentSentences(selectedFutureAssignments, context);
 
     const selectedComments = getBuilderSelectedComments();
     const commentBlocks = buildCommentBlocks(selectedComments, context);
@@ -5844,6 +6029,7 @@ function varySentenceOpenings(text, studentName){
         toneLine,
         commentSnippet: commentSnippetText,
         assignmentParagraph,
+        futureParagraph,
         lookingAheadText: lookingAheadSelected
       });
     }else{
@@ -5881,6 +6067,7 @@ function varySentenceOpenings(text, studentName){
       if (toneLine) blocks.push(toneLine);
       if (commentSnippetText) blocks.push(commentSnippetText);
       if (assignmentParagraph) blocks.push(assignmentParagraph);
+      if (futureParagraph) blocks.push(futureParagraph);
       const tailText = lookingAheadSelected;
       if (tailText) blocks.push(tailText);
       if (partB) blocks.push(partB);
@@ -5995,6 +6182,7 @@ function varySentenceOpenings(text, studentName){
     updateBuilderSelectedTags();
     // restore assignments
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
     const assignSet = new Set(entry.assignments || []);
     const assignmentCbs = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]'));
     assignmentCbs.forEach(cb => {

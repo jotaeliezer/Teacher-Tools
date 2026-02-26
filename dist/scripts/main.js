@@ -10,12 +10,23 @@
   updateColumnDataFilterButton();
   isTransposed = !!(initialSettings.transposed);
   updateTransposeButton();
-  setFilesDrawerExpanded(initialSettings.filesDrawerExpanded !== false, false);
+  setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
+  selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
+  printAllClasses = !!initialSettings.printAllClasses;
+  builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
+  if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
+  saveSettings({ printTemplateId: selectedTemplateId });
 
   let builderActiveCommentSection = null;
   let builderLookingAheadAutoKey = '';
   let builderLookingAheadManualKey = '';
   let builderLookingAheadAutoUpdating = false;
+  let builderOutputAnimationMode = 'instant';
+  let builderOutputAnimationToken = 0;
+  let builderOutputAnimating = false;
+  let builderLastFullOutput = '';
+  let builderDiffClearTimer = null;
+  let builderRevisedAnimationToken = 0;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -171,6 +182,10 @@
         status('Load data before printing.');
         return;
       }
+      if (!(printMeta.teacher || '').trim()){
+        showTeacherNamePrompt();
+        return;
+      }
       activateTab('print');
     });
   }
@@ -214,16 +229,66 @@
       pendingMarkWarningAction = null;
     });
   }
+  if (teacherNamePromptSave){
+    teacherNamePromptSave.addEventListener('click', () => {
+      const name = (teacherNamePromptInput?.value || '').trim();
+      if (name){
+        printMeta.teacher = name;
+        saveSettings({ printTeacher: name });
+        if (printTeacherInput) printTeacherInput.value = name;
+        closeTeacherNamePrompt();
+        activateTab('print');
+      }
+    });
+  }
+  if (teacherNamePromptCancel){
+    teacherNamePromptCancel.addEventListener('click', closeTeacherNamePrompt);
+  }
+  if (teacherNamePromptInput){
+    teacherNamePromptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') teacherNamePromptSave?.click();
+      if (e.key === 'Escape') closeTeacherNamePrompt();
+    });
+  }
   [printTeacherInput, printClassInput, printTitleInput].forEach(input => {
     if (!input) return;
     input.addEventListener('input', handlePrintMetaInputChange);
   });
+  if (builderReportOutput && builderReportOverlay){
+    builderReportOutput.addEventListener('scroll', () => {
+      builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+      builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    });
+  }
   printTermInputs.forEach(radio => {
     radio.addEventListener('change', handlePrintMetaInputChange);
   });
   printTemplateInputs.forEach(input => {
     input.addEventListener('change', handleTemplateSelectionChange);
   });
+  if (printDrillCountInput){
+    printDrillCountInput.addEventListener('input', () => {
+      renderPrintPreview();
+    });
+  }
+  if (printAllClassesToggle){
+    printAllClassesToggle.addEventListener('change', () => {
+      printAllClasses = !!printAllClassesToggle.checked;
+      saveSettings({ printAllClasses });
+      selectedClassIds = new Set(getEffectivePrintContextIds());
+      renderPrintPreview();
+      renderPrintMarkingColumnPanel();
+    });
+  }
+  if (printReportAllStudentsToggle){
+    printReportAllStudentsToggle.addEventListener('change', () => {
+      printReportAllStudents = !!printReportAllStudentsToggle.checked;
+      if (printReportStudentSelect){
+        printReportStudentSelect.disabled = printReportAllStudents;
+      }
+      renderPrintPreview();
+    });
+  }
   if (printMarkingSelectAllBtn){
     printMarkingSelectAllBtn.addEventListener('click', handlePrintMarkingSelectAll);
   }
@@ -237,11 +302,12 @@
       });
     }
   });
-  if (printPreviewPrintBtn){
-    printPreviewPrintBtn.addEventListener('click', () => {
+  [printPreviewPrintTopBtn, printPreviewPrintBtn].forEach(btn => {
+    if (!btn) return;
+    btn.addEventListener('click', () => {
       launchPrintDialog();
     });
-  }
+  });
   if (printCommentsBtn){
     printCommentsBtn.addEventListener('click', () => togglePrintCommentsDrawer(true));
   }
@@ -296,7 +362,13 @@
     });
   }
   if (builderGenerateBtn){
-    builderGenerateBtn.addEventListener('click', builderGenerateReport);
+    builderGenerateBtn.addEventListener('click', () => {
+      builderOutputAnimationMode = 'generate';
+      builderGenerateReport();
+    });
+  }
+  if (builderGenerateAiBtn){
+    builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
   }
   if (builderCopyBtn){
     builderCopyBtn.addEventListener('click', () => {
@@ -396,6 +468,18 @@ function setupSelectAnimations(){
       if (builderIncludeFinalGradeInput){
     builderIncludeFinalGradeInput.addEventListener('change', () => {
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+    });
+  }
+  const builderFutureSearchEl = document.getElementById('builderFutureAssignmentsSearch');
+  if (builderFutureSearchEl){
+    builderFutureSearchEl.addEventListener('input', () => {
+      const filterText = builderFutureSearchEl.value.trim().toLowerCase();
+      const listEl = document.getElementById('builderFutureAssignmentsList');
+      if (!listEl) return;
+      Array.from(listEl.children).forEach(wrapper => {
+        if (!wrapper.dataset || !wrapper.dataset.label) return;
+        wrapper.style.display = filterText && !wrapper.dataset.label.includes(filterText) ? 'none' : 'flex';
+      });
     });
   }
 if (builderGradeGroupSelect){
@@ -1214,8 +1298,8 @@ if (builderGradeGroupSelect){
   };
   const PERFORMANCE_TONE_VARIANTS = {
     good: [
-      "With this level of achievement, [Student] is ready for deeper challenges and enrichment.",
-      "[Student] is well positioned to extend learning through enrichment and higher-order tasks."
+      "With this level of achievement, [Student] is shows a solid understanding of the material and values the challenges presented in class.",
+      "[Student] is well positioned to end the school year with a high level of success and confidence."
     ],
     average: [
       "With steady routines and consistent review, [he/she] can turn this progress into stronger results.",
@@ -1609,8 +1693,10 @@ function getPerformanceToneLine(coreLevel, context){
     highlightActiveFile();
     renderWarning(ctx.studentNameWarning || '');
     status('READY');
-    // Align Print View selection with the clicked file so preview reflects the active roster
-    selectedClassIds = new Set([ctx.id]);
+    // Align Print View selection with the clicked file in single-class mode.
+    if (!printAllClasses){
+      selectedClassIds = new Set([ctx.id]);
+    }
     if (isPrintTabActive()){
       renderPrintClassList();
       renderPrintPreview();
@@ -1646,11 +1732,22 @@ function getPerformanceToneLine(coreLevel, context){
     Array.from(filesList.querySelectorAll('.file-item')).forEach(el => {
       el.classList.toggle('active', activeContext && Number(el.dataset.id) === activeContext.id);
     });
+    if (filesDrawerMiniList){
+      Array.from(filesDrawerMiniList.querySelectorAll('.files-mini-item')).forEach(el => {
+        el.classList.toggle('active', activeContext && Number(el.dataset.id) === activeContext.id);
+      });
+    }
     renderWarning(activeContext?.studentNameWarning || '');
   }
+  function getFileNameWithoutExtension(name){
+    const raw = String(name || '').trim();
+    if (!raw) return 'file';
+    return raw.replace(/\.[^./\\]+$/, '') || raw;
+  }
   function updateFilesUI(){
-    fileCountEl.textContent = String(fileContexts.length);
+    if (fileCountEl) fileCountEl.textContent = String(fileContexts.length);
     filesList.innerHTML = "";
+    if (filesDrawerMiniList) filesDrawerMiniList.innerHTML = "";
     fileContexts.forEach(ctx => {
       const item = document.createElement('div');
       item.className = 'file-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
@@ -1714,6 +1811,18 @@ function getPerformanceToneLine(coreLevel, context){
       actions.appendChild(removeBtn);
       item.appendChild(actions);
       filesList.appendChild(item);
+
+      if (filesDrawerMiniList){
+        const mini = document.createElement('button');
+        mini.type = 'button';
+        mini.className = 'files-mini-item' + (activeContext && ctx.id === activeContext.id ? ' active' : '');
+        mini.dataset.id = ctx.id;
+        mini.title = ctx.name;
+        mini.textContent = getFileNameWithoutExtension(ctx.name);
+        mini.setAttribute('aria-label', `Switch to ${ctx.name}`);
+        mini.addEventListener('click', () => setActiveContext(ctx.id));
+        filesDrawerMiniList.appendChild(mini);
+      }
     });
     highlightActiveFile();
     syncPrintClassSelection();
@@ -2059,11 +2168,20 @@ function getPerformanceToneLine(coreLevel, context){
     ];
     if (templateId === 'attendance'){
       const range = getTermWeekRange(printMeta.term || 'T1');
-      for (let week = range.start; week <= range.end; week++){
+      let maxWeek = range.end;
+      if (ctx && Array.isArray(ctx.columnOrder)){
+        const weekCols = ctx.columnOrder.filter(c => /week\s*\d+/i.test(c));
+        if (weekCols.length){
+          const nums = weekCols.map(c => parseInt((c.match(/\d+/) || ['0'])[0], 10)).filter(n => n >= range.start && n <= range.end);
+          if (nums.length) maxWeek = Math.max(...nums);
+        }
+      }
+      for (let week = range.start; week <= maxWeek; week++){
         base.push({ id:`w${week}`, label:`Week ${week}` });
       }
     }else if (templateId === 'drill'){
-      for (let i = 1; i <= 23; i += 2){
+      const drillCount = Math.max(1, Math.min(30, parseInt(printDrillCountInput?.value, 10) || 12));
+      for (let i = 1; i <= drillCount; i++){
         base.push({ id:`drill${i}`, label:`Drill ${i}` });
       }
     }else if (templateId === 'marking'){
@@ -2162,25 +2280,88 @@ function getPerformanceToneLine(coreLevel, context){
     wrap.textContent = message;
     return wrap;
   }
-  function getSelectedPrintTemplates(){
-    if (!selectedTemplateIds.size){
-      // default to attendance if nothing chosen
-      selectedTemplateIds.add('attendance');
-      printTemplateInputs.forEach(input => {
-        if (input.value === 'attendance') input.checked = true;
-      });
+  function createReportCardFooter(classDisplay, termLabel, teacherName){
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rc-footer-wrapper';
+    const sigBlock = document.createElement('div');
+    sigBlock.className = 'rc-signature-block';
+    sigBlock.innerHTML = `
+      <div class="rc-sig-field"><span class="rc-sig-label">Teacher Signature:</span><span class="rc-sig-line"></span></div>
+      <div class="rc-sig-field"><span class="rc-sig-label">Date:</span><span class="rc-sig-line"></span></div>
+      <div class="rc-sig-field"><span class="rc-sig-label">Parent / Guardian:</span><span class="rc-sig-line"></span></div>
+    `;
+    wrapper.appendChild(sigBlock);
+    wrapper.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
+    return wrapper;
+  }
+  function createUnifiedPrintFooter(classDisplay, termLabel, teacherName){
+    const footer = document.createElement('div');
+    footer.className = 'print-footer';
+    const left = document.createElement('div');
+    left.className = 'print-footer-left';
+    left.textContent = classDisplay || '[class info]';
+    const center = document.createElement('div');
+    center.className = 'print-footer-center';
+    center.textContent = termLabel || '';
+    const right = document.createElement('div');
+    right.className = 'print-footer-right';
+    right.textContent = teacherName || '[teacher name]';
+    footer.appendChild(left);
+    footer.appendChild(center);
+    footer.appendChild(right);
+    return footer;
+  }
+  function normalizePrintTemplateId(value){
+    return Object.prototype.hasOwnProperty.call(PRINT_TEMPLATE_DEFS, value) ? value : null;
+  }
+  function resolveSavedPrintTemplate(settings){
+    const direct = normalizePrintTemplateId(settings?.printTemplateId);
+    if (direct) return direct;
+    const legacyOrder = ['attendance', 'marking', 'drill', 'reportCard'];
+    const legacyList = Array.isArray(settings?.printTemplateIds) ? settings.printTemplateIds : [];
+    for (const key of legacyOrder){
+      if (legacyList.includes(key) && normalizePrintTemplateId(key)) return key;
     }
-    return Array.from(selectedTemplateIds);
+    return 'attendance';
+  }
+  function setSelectedPrintTemplate(templateId, persist = true){
+    const next = normalizePrintTemplateId(templateId) || 'attendance';
+    selectedTemplateId = next;
+    printTemplateInputs.forEach(input => {
+      input.checked = input.value === next;
+    });
+    if (persist){
+      saveSettings({ printTemplateId: next });
+    }
+  }
+  function getSelectedPrintTemplates(){
+    if (!normalizePrintTemplateId(selectedTemplateId)){
+      setSelectedPrintTemplate('attendance');
+    }else{
+      setSelectedPrintTemplate(selectedTemplateId, false);
+    }
+    return [selectedTemplateId];
+  }
+  function getEffectivePrintContextIds(){
+    if (printAllClasses){
+      return fileContexts.map(ctx => ctx.id);
+    }
+    if (activeContext?.id != null){
+      return [activeContext.id];
+    }
+    if (fileContexts.length){
+      return [fileContexts[0].id];
+    }
+    return [];
   }
   function getSelectedPrintContexts(){
     const valid = new Map(fileContexts.map(ctx => [ctx.id, ctx]));
     const contexts = [];
-    selectedClassIds.forEach(id => {
+    getEffectivePrintContextIds().forEach(id => {
       if (valid.has(id)) contexts.push(valid.get(id));
     });
-    if (!contexts.length && activeContext){
+    if (!contexts.length && activeContext && valid.has(activeContext.id)){
       contexts.push(activeContext);
-      selectedClassIds.add(activeContext.id);
     }
     return contexts;
   }
@@ -2199,8 +2380,8 @@ function getPerformanceToneLine(coreLevel, context){
       node.style.minWidth = `${width}px`;
       node.style.width = `${width}px`;
     };
-    const teacherName = (printMeta.teacher || '').trim() || '__________';
-    const classDisplay = (printMeta.classInfo || '').trim() || getContextDisplayName(ctx);
+    const teacherName = (printMeta.teacher || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim() || getFileNameWithoutExtension(ctx?.name || '');
     const termLabel = getTermLabel(printMeta.term);
     const templateLabel = PRINT_TEMPLATE_DEFS[templateId]?.label || 'Template';
 
@@ -2236,6 +2417,9 @@ function getPerformanceToneLine(coreLevel, context){
     if (templateId === 'marking'){
       table.classList.add('template-table-marking');
       table.style.tableLayout = 'fixed';
+      const dataCols = columns.filter(c => c.id !== 'index' && c.id !== 'name').length;
+      const density = dataCols > 40 ? 'xl' : dataCols > 30 ? 'lg' : dataCols > 20 ? 'md' : 'sm';
+      table.dataset.colDensity = density;
     }
     const colgroup = document.createElement('colgroup');
     columns.forEach(col => {
@@ -2328,12 +2512,80 @@ function getPerformanceToneLine(coreLevel, context){
       });
     }
     table.appendChild(tbody);
-    page.appendChild(table);
 
-    const footer = document.createElement('div');
-    footer.className = 'page-footer';
-    footer.innerHTML = `<span>Teacher: ${teacherName}</span><span>Class: ${classDisplay}</span><span>${termLabel}</span>`;
-    page.appendChild(footer);
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'template-table-scroll-wrap';
+    tableWrap.appendChild(table);
+    page.appendChild(tableWrap);
+
+    page.appendChild(createUnifiedPrintFooter(classDisplay, termLabel, teacherName));
+    return page;
+  }
+  function buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title){
+    const studentName = deriveContextStudentName(ctx, row, displayIdx);
+
+    const page = document.createElement('div');
+    page.className = 'report-card-page';
+
+    const header = document.createElement('div');
+    header.className = 'report-card-header';
+    header.innerHTML = `
+      <div class="report-card-meta">
+        ${title ? `<div class="rc-title">${escapeHtml(title)}</div>` : ''}
+        <div class="rc-name">${escapeHtml(studentName || `Student ${displayIdx + 1}`)}</div>
+        <div class="rc-line">${escapeHtml(classDisplay)} · ${escapeHtml(termLabel)}</div>
+        <div class="rc-line">Teacher: ${escapeHtml(teacherName)}</div>
+      </div>
+    `;
+    page.appendChild(header);
+
+    const marksHeading = document.createElement('h4');
+    marksHeading.className = 'rc-section-heading';
+    marksHeading.textContent = 'Marks Summary';
+    page.appendChild(marksHeading);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'report-card-table-wrap';
+    const table = document.createElement('table');
+    table.className = 'report-card-table report-card-table-transposed';
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Field', 'Value'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    markColumns.forEach(col => {
+      const tr = document.createElement('tr');
+      const labelTd = document.createElement('td');
+      labelTd.textContent = cleanAssignmentLabel(col);
+      const markTd = document.createElement('td');
+      const meta = deriveMarkMeta(row[col], col);
+      markTd.textContent = meta ? formatMarkText(meta, meta.raw) : (row[col] || '').toString();
+      tr.appendChild(labelTd);
+      tr.appendChild(markTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    page.appendChild(tableWrap);
+
+    const commentHeading = document.createElement('h4');
+    commentHeading.className = 'rc-section-heading';
+    commentHeading.textContent = 'Teacher Comments';
+    page.appendChild(commentHeading);
+
+    const commentBox = document.createElement('div');
+    commentBox.className = 'report-card-comment';
+    const commentsText = getReportCardCommentsText(ctx, studentName);
+    commentBox.textContent = commentsText ? commentsText : '';
+    page.appendChild(commentBox);
+
+    page.appendChild(createReportCardFooter(classDisplay, termLabel, teacherName));
+
     return page;
   }
   function renderReportCards(ctx){
@@ -2353,72 +2605,22 @@ function getPerformanceToneLine(coreLevel, context){
       empty.textContent = 'No mark columns available for this term.';
       return empty;
     }
-    const teacherName = (printMeta.teacher || '').trim() || '__________';
-    const classDisplay = (printMeta.classInfo || '').trim() || getContextDisplayName(ctx);
+    const teacherName = (printMeta.teacher || '').trim();
+    const classDisplay = (printMeta.classInfo || '').trim() || getFileNameWithoutExtension(ctx?.name || '');
     const termLabel = getTermLabel(printMeta.term);
     const title = (printMeta.title || '').trim();
 
-    const targetIdx = (reportStudentIndex != null && indices.includes(reportStudentIndex)) ? reportStudentIndex : indices[0];
-    const row = ctx.rows[targetIdx] || {};
-    const displayIdx = indices.indexOf(targetIdx);
-    const studentName = deriveContextStudentName(ctx, row, displayIdx);
-
-      const page = document.createElement('div');
-      page.className = 'report-card-page';
-
-      const header = document.createElement('div');
-      header.className = 'report-card-header';
-      header.innerHTML = `
-        <div class="report-card-meta">
-          <div class="rc-name">${escapeHtml(studentName || `Student ${displayIdx + 1}`)}</div>
-          <div class="rc-line">${escapeHtml(classDisplay)} · ${escapeHtml(termLabel)}</div>
-          ${title ? `<div class="rc-line">${escapeHtml(title)}</div>` : ''}
-          <div class="rc-line">Teacher: ${escapeHtml(teacherName)}</div>
-        </div>
-      `;
-      page.appendChild(header);
-
-    const tableWrap = document.createElement('div');
-    tableWrap.className = 'report-card-table-wrap';
-      const table = document.createElement('table');
-      table.className = 'report-card-table report-card-table-transposed';
-      const thead = document.createElement('thead');
-      const headRow = document.createElement('tr');
-      ['Field', 'Value'].forEach(label => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        headRow.appendChild(th);
+    if (printReportAllStudents){
+      indices.forEach((rowIdx, displayIdx) => {
+        const row = ctx.rows[rowIdx] || {};
+        frag.appendChild(buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title));
       });
-      thead.appendChild(headRow);
-      table.appendChild(thead);
-      const tbody = document.createElement('tbody');
-      markColumns.forEach(col => {
-        const tr = document.createElement('tr');
-        const labelTd = document.createElement('td');
-        labelTd.textContent = cleanAssignmentLabel(col);
-        const markTd = document.createElement('td');
-        const meta = deriveMarkMeta(row[col], col);
-        markTd.textContent = meta ? formatMarkText(meta, meta.raw) : (row[col] || '').toString();
-        tr.appendChild(labelTd);
-        tr.appendChild(markTd);
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      tableWrap.appendChild(table);
-      page.appendChild(tableWrap);
-
-      const commentBox = document.createElement('div');
-      commentBox.className = 'report-card-comment';
-      const commentsText = getReportCardCommentsText(ctx, studentName);
-      commentBox.textContent = commentsText ? commentsText : 'Comments:';
-      page.appendChild(commentBox);
-
-      const footer = document.createElement('div');
-      footer.className = 'report-card-footer';
-      footer.innerHTML = `<span>Date: __________</span><span>Signature: ____________________</span>`;
-      page.appendChild(footer);
-
-      frag.appendChild(page);
+    } else {
+      const targetIdx = (reportStudentIndex != null && indices.includes(reportStudentIndex)) ? reportStudentIndex : indices[0];
+      const row = ctx.rows[targetIdx] || {};
+      const displayIdx = indices.indexOf(targetIdx);
+      frag.appendChild(buildSingleReportCardPage(ctx, row, displayIdx, markColumns, teacherName, classDisplay, termLabel, title));
+    }
     return frag;
   }
   function getReportCardColumns(ctx){
@@ -2469,8 +2671,17 @@ function getPerformanceToneLine(coreLevel, context){
         .replace(/\[him\/her\]/gi, (m) => m === m.toUpperCase() ? pronouns.Him : pronouns.him)
         .replace(/\[his\/her\]/gi, (m) => m === m.toUpperCase() ? pronouns.His : pronouns.his);
     };
-    const lines = Array.from(reportCardCommentsMap.values()).map(base => replaceText(base));
-    return lines.filter(Boolean).join('\n');
+    const manualLines = Array.from(reportCardCommentsMap.values()).map(base => replaceText(base)).filter(Boolean);
+    if (manualLines.length) return manualLines.join('\n');
+    if (Array.isArray(savedReports) && savedReports.length && name){
+      const normName = name.trim().toLowerCase();
+      const match = savedReports.find(r => {
+        const rName = (r.studentName || '').trim().toLowerCase();
+        return rName && rName === normName;
+      });
+      if (match && match.text) return match.text;
+    }
+    return '';
   }
   function getReportStudentName(ctx){
     const indices = getPrintableRowIndices(ctx);
@@ -2533,16 +2744,21 @@ function getPerformanceToneLine(coreLevel, context){
     });
   }
   function renderPrintPreview(){
-    if (!printPreviewContent) return;
+    if (!printPreviewContent || !printContainer) return;
+    if (isPrintTabActive()){
+      document.body.classList.add('print-preview');
+    }
     printPreviewContent.innerHTML = "";
+    movePrintContainerToPreview();
+    printContainer.innerHTML = "";
     const contexts = getSelectedPrintContexts();
     if (!contexts.length){
-      printPreviewContent.appendChild(createPrintEmptyState('Select at least one roster to print.'));
+      printContainer.appendChild(createPrintEmptyState('Select at least one roster to print.'));
       return;
     }
     const templates = getSelectedPrintTemplates();
     if (!templates.length){
-      printPreviewContent.appendChild(createPrintEmptyState('Select at least one template.'));
+      printContainer.appendChild(createPrintEmptyState('Select at least one template.'));
       return;
     }
     // Sync student selector with current active context
@@ -2559,9 +2775,27 @@ function getPerformanceToneLine(coreLevel, context){
     if (!stack.children.length){
       stack.appendChild(createPrintEmptyState('No students available to print.'));
     }
-    printPreviewContent.appendChild(stack);
+    printContainer.appendChild(stack);
+  }
+  function movePrintContainerToPreview(){
+    if (!printPreviewContent || !printContainer) return;
+    printContainer.style.display = 'block';
+    if (printContainer.parentElement !== printPreviewContent){
+      printPreviewContent.appendChild(printContainer);
+    }
+  }
+  function movePrintContainerToPrintRoot(){
+    if (!printContainer) return;
+    printContainer.style.display = 'none';
+    if (printContainer.parentElement !== document.body){
+      document.body.appendChild(printContainer);
+    }
   }
   function syncPrintClassSelection(){
+    if (printAllClasses){
+      selectedClassIds = new Set(fileContexts.map(ctx => ctx.id));
+      return;
+    }
     const validIds = new Set(fileContexts.map(ctx => ctx.id));
     selectedClassIds = new Set([...selectedClassIds].filter(id => validIds.has(id)));
     if (!selectedClassIds.size){
@@ -2894,56 +3128,22 @@ function getPerformanceToneLine(coreLevel, context){
     resetPerformanceFilterState();
   };
   
-  async function capturePreviewImage() {
-    try {
-      // 1) Ensure we have the elements we expect
-      const src = document.getElementById('printPreviewContent'); // what you see in the modal
-      const dst = document.getElementById('printContainer');      // what gets printed in print mode
-      if (!src || !dst) {
-        console.warn('PRINT: preview or container missing.');
-        return false; // nothing to print
-      }
-
-      // 2) Clear previous content and clone current preview
-      dst.innerHTML = '';
-      const clone = src.cloneNode(true);
-      // Optional: remove scroll constraints that preview uses
-      clone.style.maxHeight = 'none';
-      clone.style.overflow = 'visible';
-
-      // 3) Insert into print container
-      dst.appendChild(clone);
-
-      // 4) If you later *must* render to an image, uncomment the block below:
-      /*
-      if (window.html2canvas) {
-        const canvas = await html2canvas(src, {backgroundColor: '#ffffff', scale: 2});
-        dst.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.width = '100%';
-        dst.appendChild(img);
-      }
-      */
-
-      return true; // signal success
-    } catch (err) {
-      console.error('PRINT: capturePreviewImage failed', err);
-      return false;
-    }
-  }
-
-
   async function launchPrintDialog(){
-    const ready = await capturePreviewImage();
-    if (!ready) return;
-    closePrintPreviewModal();
+    if (!printContainer) return;
+    renderPrintPreview();
+    movePrintContainerToPrintRoot();
+    printContainer.style.display = 'block';
+    document.body.classList.remove('print-preview');
     document.body.classList.add('printing-preview');
     try {
       window.print();
     } finally {
+      printContainer.style.display = 'none';
       document.body.classList.remove('printing-preview');
-      if (printContainer) printContainer.innerHTML = "";
+      if (isPrintTabActive()){
+        movePrintContainerToPreview();
+        document.body.classList.add('print-preview');
+      }
     }
   }
 
@@ -3064,12 +3264,36 @@ function getPerformanceToneLine(coreLevel, context){
     closeHeaderModal();
   });
 
+  let headerModalHome = null;
+  let headerModalNext = null;
+  function detachHeaderModal(){
+    if (!modalBackdrop) return;
+    if (modalBackdrop.parentElement !== document.body){
+      headerModalHome = modalBackdrop.parentElement;
+      headerModalNext = modalBackdrop.nextSibling;
+      document.body.appendChild(modalBackdrop);
+    }
+  }
+  function restoreHeaderModal(){
+    if (!modalBackdrop || !headerModalHome) return;
+    if (headerModalNext){
+      headerModalHome.insertBefore(modalBackdrop, headerModalNext);
+    }else{
+      headerModalHome.appendChild(modalBackdrop);
+    }
+    headerModalHome = null;
+    headerModalNext = null;
+  }
   function openHeaderModal(){
     headerCountChip.textContent = `${allColumns.length} headers`;
     refreshHeaderPreview();
+    detachHeaderModal();
     modalBackdrop.style.display = 'flex';
   }
-  function closeHeaderModal(){ modalBackdrop.style.display = 'none'; }
+  function closeHeaderModal(){
+    modalBackdrop.style.display = 'none';
+    restoreHeaderModal();
+  }
 
   function computeHeaderMapping(){
     const rules = {
@@ -3241,6 +3465,15 @@ function getPerformanceToneLine(coreLevel, context){
   function closeMarkWarningModal(){
     if (markWarningModal) markWarningModal.style.display = 'none';
   }
+  function showTeacherNamePrompt(){
+    if (!teacherNamePrompt || !teacherNamePromptInput) return;
+    teacherNamePromptInput.value = (printMeta.teacher || '').trim();
+    teacherNamePrompt.style.display = 'flex';
+    setTimeout(() => teacherNamePromptInput?.focus(), 50);
+  }
+  function closeTeacherNamePrompt(){
+    if (teacherNamePrompt) teacherNamePrompt.style.display = 'none';
+  }
   function activateTab(kind){
     const sections = {
       data: dataTabSection,
@@ -3266,6 +3499,12 @@ function getPerformanceToneLine(coreLevel, context){
     Object.entries(buttons).forEach(([key, btn]) => {
       if (btn) btn.classList.toggle('active', key === kind);
     });
+    const printActive = kind === 'print';
+    document.body.classList.toggle('print-preview', printActive);
+    if (!printActive){
+      document.body.classList.remove('printing-preview');
+      movePrintContainerToPrintRoot();
+    }
     if (kind !== 'print'){
       togglePrintCommentsDrawer(false, true);
     }
@@ -3299,9 +3538,10 @@ function getPerformanceToneLine(coreLevel, context){
     printTermInputs.forEach(radio => {
       radio.checked = radio.value === termValue;
     });
-    printTemplateInputs.forEach(input => {
-      input.checked = selectedTemplateIds.has(input.value);
-    });
+    setSelectedPrintTemplate(selectedTemplateId, false);
+    if (printAllClassesToggle){
+      printAllClassesToggle.checked = !!printAllClasses;
+    }
     buildReportStudentOptions(activeContext);
   }
   function handlePrintMetaInputChange(){
@@ -3309,6 +3549,7 @@ function getPerformanceToneLine(coreLevel, context){
     printMeta.teacher = (printTeacherInput?.value || '').trim();
     printMeta.classInfo = (printClassInput?.value || '').trim();
     printMeta.title = (printTitleInput?.value || '').trim();
+    saveSettings({ printTeacher: printMeta.teacher });
     const checkedTerm = printTermInputs.find(radio => radio.checked)?.value;
     if (checkedTerm) printMeta.term = checkedTerm;
     if (checkedTerm && checkedTerm !== prevTerm){
@@ -3320,17 +3561,16 @@ function getPerformanceToneLine(coreLevel, context){
     renderPrintPreview();
     renderPrintMarkingColumnPanel();
   }
-  function handleTemplateSelectionChange(){
-    selectedTemplateIds = new Set(
-      printTemplateInputs
-        .filter(input => input.checked)
-        .map(input => input.value)
-    );
+  function handleTemplateSelectionChange(event){
+    const target = event?.target;
+    const next = normalizePrintTemplateId(target?.value) || selectedTemplateId || 'attendance';
+    // Checkbox UI behaves like radio: exactly one template always selected.
+    setSelectedPrintTemplate(next);
     renderPrintPreview();
     renderPrintMarkingColumnPanel();
   }
   function isMarkingTemplateSelected(){
-    return selectedTemplateIds.has('marking');
+    return selectedTemplateId === 'marking';
   }
   function getPrintMarkingSourceColumns(ctx){
     if (!ctx) return [];
@@ -3531,6 +3771,7 @@ function getPerformanceToneLine(coreLevel, context){
     updateBuilderSelectedTags();
     // Populate assignment columns list
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
   }
   function shouldAutoGenerateBuilderReport(){
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
@@ -3635,6 +3876,81 @@ function getPerformanceToneLine(coreLevel, context){
 
       const handleToggle = () => {
         if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
+          builderGenerateReport();
+        }
+      };
+      checkbox.addEventListener('change', handleToggle);
+      wrapper.addEventListener('click', (e) => {
+        if (e.target === checkbox) return;
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      });
+    });
+  }
+  function buildBuilderFutureAssignmentsList(){
+    const listEl = document.getElementById('builderFutureAssignmentsList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    const studentRow = (builderSelectedRowIndex != null && rows[builderSelectedRowIndex])
+      ? rows[builderSelectedRowIndex]
+      : null;
+
+    const futureColumns = allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      if (!studentRow) return false;
+      const val = studentRow[col];
+      return val == null || String(val).trim() === '';
+    });
+
+    if (!futureColumns.length){
+      const msg = document.createElement('div');
+      msg.className = 'muted';
+      msg.style.fontSize = '12px';
+      msg.textContent = 'No upcoming columns found for this student.';
+      listEl.appendChild(msg);
+      return;
+    }
+
+    const searchEl = document.getElementById('builderFutureAssignmentsSearch');
+    const filterText = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+    futureColumns.forEach(col => {
+      const label = cleanAssignmentLabel(col);
+
+      const wrapper = document.createElement('div');
+      wrapper.style.display = filterText && !label.toLowerCase().includes(filterText) ? 'none' : 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '8px';
+      wrapper.style.padding = '4px 0';
+      wrapper.style.borderBottom = '1px solid #eee';
+      wrapper.dataset.label = label.toLowerCase();
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = col;
+      checkbox.dataset.futureCol = col;
+      checkbox.style.flexShrink = '0';
+
+      const labelText = document.createElement('span');
+      labelText.textContent = label;
+      labelText.style.flex = '1';
+      labelText.style.fontSize = '13px';
+      labelText.style.textAlign = 'left';
+
+      wrapper.appendChild(checkbox);
+      wrapper.appendChild(labelText);
+      listEl.appendChild(wrapper);
+
+      const handleToggle = () => {
+        if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
           builderGenerateReport();
         }
       };
@@ -3717,6 +4033,7 @@ function getPerformanceToneLine(coreLevel, context){
     applyHintValue(builderTermAverageInput, row, BUILDER_HINTS.termAverage, true);
     // Refresh assignment list to show new student's marks
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
     autoSelectBuilderTemplate(row);
     applyRandomLookingAheadSelection();
   }
@@ -3760,7 +4077,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function formatMarkForComment(meta, rawValue, numericValue){
     if (meta){
-      return meta.hasPercent ? `${meta.raw} %` : meta.raw;
+      return meta.hasPercent ? formatPercentValue(meta.raw) : meta.raw;
     }
     if (rawValue != null && String(rawValue).trim()){
       return String(rawValue).trim();
@@ -3876,7 +4193,7 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     });
     const baseWithIntro = introLine ? replaceFirstSentence(baseComment, introLine) : baseComment;
     if (baseWithIntro && builderReportOutput){
-      builderReportOutput.value = polishGrammar(cleanFluency(baseWithIntro));
+      setBuilderReportOutputText(polishGrammar(cleanFluency(baseWithIntro)), 'generate');
     }
   }
   function updatePerformanceSelectStyle(){
@@ -4045,7 +4362,10 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
         }
       }
       updateBuilderSelectedTags();
-      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+      if (shouldAutoGenerateBuilderReport()){
+        builderOutputAnimationMode = 'selection';
+        builderGenerateReport();
+      }
     });
   }
 
@@ -4059,9 +4379,33 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     }
     if (builderSelectedCommentsEl) builderSelectedCommentsEl.style.display = 'block';
     selected.forEach(cb => {
-      const tag = document.createElement('span');
+      const tag = document.createElement('button');
+      tag.type = 'button';
       tag.className = 'builder-tag';
-      tag.textContent = cb.dataset.label || 'Selected';
+      const type = (cb.dataset.type || '').toLowerCase();
+      if (type === 'positive'){
+        tag.classList.add('builder-tag-positive');
+      }else if (type){
+        tag.classList.add('builder-tag-constructive');
+      }
+      tag.setAttribute('aria-label', `Remove ${cb.dataset.label || 'selected comment'}`);
+      const label = document.createElement('span');
+      label.className = 'builder-tag-label';
+      label.textContent = cb.dataset.label || 'Selected';
+      const remove = document.createElement('span');
+      remove.className = 'builder-tag-remove';
+      remove.textContent = 'x';
+      tag.appendChild(label);
+      tag.appendChild(remove);
+      tag.addEventListener('click', () => {
+        cb.checked = false;
+        cb.dataset.auto = 'false';
+        updateBuilderSelectedTags();
+        if (shouldAutoGenerateBuilderReport()){
+          builderOutputAnimationMode = 'selection';
+          builderGenerateReport();
+        }
+      });
       builderSelectedTagsEl.appendChild(tag);
     });
   }
@@ -4134,6 +4478,20 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       return variants[idx];
     }
     return variants || '';
+  }
+  function pickUniqueVariant(variants, seed, usedSet, scopeKey){
+    const list = Array.isArray(variants) ? variants.filter(Boolean) : [variants].filter(Boolean);
+    if (!list.length) return '';
+    const start = hashString(seed) % list.length;
+    for (let offset = 0; offset < list.length; offset += 1){
+      const idx = (start + offset) % list.length;
+      const id = `${scopeKey}:${idx}`;
+      if (!usedSet || !usedSet.has(id)){
+        usedSet?.add(id);
+        return list[idx];
+      }
+    }
+    return list[start];
   }
   const ASSIGNMENT_TEMPLATES = {
     default: {
@@ -4284,73 +4642,147 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     const m = String(label || '').match(/^L\d+\s*-\s*(.*)$/i);
     return m ? m[1].trim() || String(label || '').trim() : String(label || '');
   }
+  function buildFutureAssignmentSentences(selectedFuture, context){
+    if (!selectedFuture || !selectedFuture.length) return '';
+    const name = context.studentName || 'The student';
+    const seed = name + selectedFuture.join(',');
+    const labels = selectedFuture.map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    if (!labels.length) return '';
+    const count = labels.length;
+
+    if (count === 1){
+      const label = labels[0];
+      const variants = [
+        `${name} has an upcoming ${label} and should begin preparing for it soon.`,
+        `${label} is approaching — ${name} is encouraged to review the relevant material ahead of time.`,
+        `With ${label} on the horizon, ${name} would benefit from setting aside time to prepare.`,
+        `${label} is coming up, and ${name} should take time to review and get ready for it.`,
+        `${name} is reminded that ${label} is approaching and is encouraged to start reviewing the material.`,
+        `As ${label} approaches, ${name} should dedicate time to reviewing the key concepts covered so far.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    if (count === 2){
+      const [a, b] = labels;
+      const variants = [
+        `${name} has upcoming assessments — ${a} and ${b} — and should begin reviewing for both.`,
+        `With ${a} and ${b} on the horizon, ${name} is encouraged to start preparing in advance.`,
+        `Looking ahead, ${name} has ${a} and ${b} coming up and would do well to begin studying for each.`,
+        `${a} and ${b} are both approaching, and ${name} should set aside time to prepare accordingly.`,
+        `${name} is reminded that both ${a} and ${b} are coming up and should begin reviewing the material for each.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    const allButLast = labels.slice(0, -1);
+    const last = labels[labels.length - 1];
+    const listStr = allButLast.join(', ') + ', and ' + last;
+    const variants = [
+      `${name} has several upcoming assessments — including ${listStr} — and should dedicate time to preparing for each.`,
+      `Looking ahead, ${name} has a number of items coming up: ${listStr}. Starting preparations early will be beneficial.`,
+      `With ${listStr} on the schedule, ${name} would benefit from reviewing the relevant material in advance.`,
+      `${name} is encouraged to prepare for upcoming assessments, including ${listStr}, by reviewing the material covered so far.`,
+    ];
+    return pickVariant(variants, seed);
+  }
+  function collectAssignmentFacts(selectedAssignments, row){
+    if (!Array.isArray(selectedAssignments) || !selectedAssignments.length || !row) return [];
+    const facts = [];
+    selectedAssignments.slice(0, 2).forEach((col) => {
+      const meta = deriveMarkMeta(row[col], col);
+      if (!meta) return;
+      facts.push({
+        label: cleanAssignmentLabel(col),
+        score: meta.value,
+        scoreText: meta.raw
+      });
+    });
+    return facts;
+  }
   function buildAssignmentSentences(selectedAssignments, row, context, overallMeta){
     if (!selectedAssignments.length || !row) return '';
-    const connectors = ['', 'Additionally, ', 'Furthermore, ', 'In follow-up work, ', ''];
-    const parts = [];
     const overallValue = overallMeta?.value;
-    const overallDisplay = overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '';
-    const highThreshold = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
-    const midThreshold = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
-    const overallBand = (overallValue == null)
-      ? ''
-      : (overallValue >= highThreshold ? 'high' : (overallValue >= midThreshold ? 'mid' : 'low'));
+    const used = new Set();
+    const entries = collectAssignmentFacts(selectedAssignments, row);
+    if (!entries.length) return '';
+    const clauseOpenersA = [
+      "On {label}, [Student] scored {score}%",
+      "For {label}, [Student] recorded {score}%",
+      "In {label}, [Student] earned {score}%",
+      "Across {label}, [Student] posted {score}%",
+      "With {score}% on {label}, [Student] demonstrated",
+      "[Student] earned {score}% on {label}",
+      "Scoring {score}% on {label}, [Student]",
+      "[Student] achieved {score}% in {label}"
+    ];
+    const clauseOpenersB = [
+      "On {label}, [he/she] scored {score}%",
+      "For {label}, [he/she] recorded {score}%",
+      "In {label}, [he/she] earned {score}%",
+      "On {label}, [he/she] posted {score}%",
+      "With {score}% on {label}, [he/she] showed",
+      "[He/She] earned {score}% on {label}",
+      "Scoring {score}% on {label}, [he/she]",
+      "[He/She] achieved {score}% in {label}"
+    ];
     const aboveNotes = [
-      ` This stands above the overall ${overallDisplay}, showing a strength to leverage across other tasks.`,
-      ` This outperforms the overall ${overallDisplay}, highlighting a skill area to model elsewhere.`,
-      ` This is stronger than the overall ${overallDisplay} and can anchor confidence in upcoming work.`
+      `-- above [his/her] term average -- highlighting an area of strength`,
+      `which is above [his/her] overall result and signals a strength to build from`,
+      `reflecting a strong point relative to [his/her] overall standing`
     ];
     const belowNotes = [
-      ` This sits below the overall ${overallDisplay}, so tightening practice here will help keep progress aligned.`,
-      ` This is weaker than the overall ${overallDisplay}; focused review will bring it in line with other results.`,
-      ` This trails the overall ${overallDisplay}, suggesting a small gap to target next.`
+      `-- below [his/her] term average -- identifying an area to reinforce`,
+      `which trails [his/her] overall result and would benefit from focused review`,
+      `pointing to a targeted area for further practice`
     ];
-    const contrastHighOverallLowAssignment = [
-      ` Despite strong overall results (${overallDisplay}), this result is lower and points to a specific skill gap to reinforce.`,
-      ` Even with a strong overall mark (${overallDisplay}), this lower result highlights an area to revisit.`,
-      ` This is below the overall ${overallDisplay}, so targeted review here will balance otherwise strong performance.`
+    const alignedNotes = [
+      `which is in line with [his/her] overall result`,
+      `which aligns closely with [his/her] overall standing`,
+      `consistent with [his/her] overall performance`
     ];
-    const contrastLowOverallHighAssignment = [
-      ` Even though the overall mark is lower (${overallDisplay}), this stronger result shows a clear strength to build on.`,
-      ` Despite a lower overall mark (${overallDisplay}), this higher score suggests the skill is emerging well.`,
-      ` This outperforms the overall ${overallDisplay}, highlighting a promising area to leverage for growth.`
+    const contrastConnectors = [
+      'By comparison, ',
+      'Meanwhile, ',
+      'On the other hand, '
     ];
-    let aboveCount = 0;
-    let belowCount = 0;
-    let contrastHighCount = 0;
-    let contrastLowCount = 0;
-    const limitedAssignments = selectedAssignments.slice(0, 2);
-    limitedAssignments.forEach((col, idx) => {
-      const raw = row[col];
-      const meta = deriveMarkMeta(raw, col);
-      if (!meta) return;
-      const score = meta.value;
-      const displayLabel = cleanAssignmentLabel(col);
-      const bandKey = (ASSIGNMENT_BANDS.find(b => score >= b.min) || ASSIGNMENT_BANDS[ASSIGNMENT_BANDS.length - 1]).key;
-      const type = detectAssignmentType(col);
-      const tmplMap = ASSIGNMENT_TEMPLATES[type] || ASSIGNMENT_TEMPLATES.default;
-      const variants = tmplMap[bandKey] || ASSIGNMENT_TEMPLATES.default[bandKey];
-      const tmpl = pickVariant(variants, `${displayLabel}|${bandKey}|${meta.raw}|${idx}`);
-      let sentence = tmpl.replace('{label}', displayLabel).replace('{score}', meta.raw);
-      sentence = builderReplacePlaceholders(sentence, context);
-      if (overallValue != null){
-        const diff = score - overallValue;
-        if (diff <= -8){
-          const note = (overallBand === 'high')
-            ? contrastHighOverallLowAssignment[contrastHighCount++ % contrastHighOverallLowAssignment.length]
-            : belowNotes[belowCount++ % belowNotes.length];
-          sentence += note;
-        }else if (diff >= 8){
-          const note = (overallBand === 'low')
-            ? contrastLowOverallHighAssignment[contrastLowCount++ % contrastLowOverallHighAssignment.length]
-            : aboveNotes[aboveCount++ % aboveNotes.length];
-          sentence += note;
-        }
+    const singleCloseVariants = [
+      "This gives a clear direction for next-step practice.",
+      "This result helps shape focused support going forward."
+    ];
+    const chooseRelation = (entry, idx) => {
+      if (overallValue == null) return '';
+      const diff = entry.score - overallValue;
+      if (diff >= 8){
+        return pickUniqueVariant(aboveNotes, `${entry.label}|above|${idx}`, used, 'rel-above');
       }
-      const connector = connectors[Math.min(idx, connectors.length - 1)];
-      parts.push(connector + sentence);
-    });
-    return parts.join(' ');
+      if (diff <= -8){
+        return pickUniqueVariant(belowNotes, `${entry.label}|below|${idx}`, used, 'rel-below');
+      }
+      return pickUniqueVariant(alignedNotes, `${entry.label}|aligned|${idx}`, used, 'rel-aligned');
+    };
+    const buildClause = (openers, entry, idx, scopeKey) => {
+      const opener = pickUniqueVariant(openers, `${entry.label}|${scopeKey}`, used, scopeKey);
+      let clause = opener.replace('{label}', entry.label).replace('{score}', entry.scoreText);
+      const relation = chooseRelation(entry, idx);
+      if (relation){
+        clause += /[,;]$/.test(clause.trim()) ? ` ${relation}.` : `, ${relation}.`;
+      } else {
+        clause += clause.trim().endsWith('.') ? '' : '.';
+      }
+      return builderReplacePlaceholders(clause, context);
+    };
+    const clauseA = buildClause(clauseOpenersA, entries[0], 0, 'openA');
+    if (entries.length === 1){
+      const close = builderReplacePlaceholders(pickUniqueVariant(singleCloseVariants, `${entries[0].label}|close`, used, 'close'), context);
+      return `${clauseA} ${close}`.trim();
+    }
+    const connector = pickUniqueVariant(contrastConnectors, `${entries[0].label}|${entries[1].label}|conn`, used, 'conn');
+    const rawClauseB = buildClause(clauseOpenersB, entries[1], 1, 'openB');
+    const clauseB = connector
+      ? connector + rawClauseB.charAt(0).toLowerCase() + rawClauseB.slice(1)
+      : rawClauseB;
+    return `${clauseA} ${clauseB}`.trim();
   }
   function builderGetScoreCommentary(score, testNumber, level){
     if (!score && score !== 0) return '';
@@ -4474,7 +4906,270 @@ function splitIntoSentences(text){
     if (!text) return [];
     return String(text).split(/(?<=[.!?])\s+/).filter(Boolean);
   }
-  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, lookingAheadText }){
+  function normalizeSentenceForDedupe(sentence, context){
+    let text = String(sentence || '').toLowerCase();
+    const studentName = String(context?.studentName || '').trim();
+    if (studentName){
+      text = text.replace(new RegExp(`\\b${escapeRegExp(studentName)}\\b`, 'gi'), ' student ');
+    }
+    text = text
+      .replace(/\b(he|she|his|her|him|they|their|them)\b/g, ' pronoun ')
+      .replace(/\d+(?:\.\d+)?\s*%/g, ' percent ')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\b(the|a|an|and|or|but|to|of|in|on|at|with|for|from|this|that|is|are|was|were|be|been|being)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text;
+  }
+  function sentenceSimilarity(a, b, context){
+    const aa = normalizeSentenceForDedupe(a, context).split(' ').filter(Boolean);
+    const bb = normalizeSentenceForDedupe(b, context).split(' ').filter(Boolean);
+    if (!aa.length || !bb.length) return 0;
+    const setA = new Set(aa);
+    const setB = new Set(bb);
+    let intersect = 0;
+    setA.forEach(token => {
+      if (setB.has(token)) intersect += 1;
+    });
+    const union = new Set([...setA, ...setB]).size || 1;
+    return intersect / union;
+  }
+  function detectSentenceIntentBucket(sentence){
+    const s = String(sentence || '').toLowerCase();
+    if (/(next term|coming term|year ahead|look forward|successful year|move forward|going forward)/.test(s)) return 'future';
+    if (/(above|stronger than|outperform|strength to build|area of confidence)/.test(s) && /\d+(?:\.\d+)?\s*%/.test(s)) return 'assignment-strength';
+    if (/(below|trails|weaker than|reinforce|focused review)/.test(s) && /\d+(?:\.\d+)?\s*%/.test(s)) return 'assignment-weakness';
+    if (/(assignment|test|quiz|exam|challenge|topic|\d+(?:\.\d+)?\s*%)/.test(s)) return 'assignment';
+    if (/(overall|\babove\b|\bbelow\b|outperform|stronger than|weaker than|align)/.test(s)) return 'comparison';
+    if (/(time management|starting .* early|on time|routine|consistent review|study habit)/.test(s)) return 'time-management';
+    if (/(participat|raises? .* hand|contribut|engag|discussion)/.test(s)) return 'participation';
+    if (/(attendance|morale|demeanor|attitude|behavior|behaviour|pleasure to have)/.test(s)) return 'behavior';
+    if (/(homework|assignment quality|neatness|presentation|submission)/.test(s)) return 'homework';
+    if (/(steady progress|meeting expectations|progressing|growth|improving)/.test(s)) return 'progress';
+    if (/(brightspace|video|resource|microsoft teams|seek.* help|ask.* question)/.test(s)) return 'resources';
+    return 'general';
+  }
+  function sentenceInfoScore(sentence, requirements){
+    const text = String(sentence || '');
+    let score = text.length;
+    if (/\d+(?:\.\d+)?\s*%/.test(text)) score += 25;
+    const labels = Array.isArray(requirements?.assignmentLabels) ? requirements.assignmentLabels : [];
+    labels.forEach(label => {
+      if (label && text.toLowerCase().includes(String(label).toLowerCase())) score += 30;
+    });
+    if (requirements?.overallMark && text.includes(requirements.overallMark)) score += 18;
+    if (detectSentenceIntentBucket(text) === 'future') score += 8;
+    return score;
+  }
+  function computeTrigramOverlap(a, b){
+    const wordsA = normalizeSentenceForDedupe(a, {}).split(' ').filter(Boolean);
+    const wordsB = normalizeSentenceForDedupe(b, {}).split(' ').filter(Boolean);
+    if (wordsA.length < 3 || wordsB.length < 3) return 0;
+    const trigramsA = new Set();
+    for (let i = 0; i <= wordsA.length - 3; i++){
+      trigramsA.add(wordsA.slice(i, i + 3).join(' '));
+    }
+    let overlap = 0;
+    for (let i = 0; i <= wordsB.length - 3; i++){
+      if (trigramsA.has(wordsB.slice(i, i + 3).join(' '))) overlap++;
+    }
+    return overlap;
+  }
+  function dedupeGeneratedComment(report, context, requirements = {}){
+    const source = String(report || '').trim();
+    if (!source) return '';
+    if (commentOrderMode === 'bullet') return source;
+    const sentences = splitIntoSentences(source);
+    const kept = [];
+    sentences.forEach(sentence => {
+      const current = sentence.trim();
+      if (!current) return;
+      const bucket = detectSentenceIntentBucket(current);
+      let duplicateIndex = -1;
+      let duplicateStrength = 0;
+      for (let i = 0; i < kept.length; i += 1){
+        const existing = kept[i];
+        const sim = sentenceSimilarity(current, existing.text, context);
+        const sameBucket = bucket !== 'general' && existing.bucket === bucket;
+        const exactKey = normalizeSentenceForDedupe(current, context) === normalizeSentenceForDedupe(existing.text, context);
+        const trigramHit = computeTrigramOverlap(current, existing.text) >= 3;
+        if (exactKey || sim >= 0.72 || trigramHit || (sameBucket && sim >= 0.55)){
+          duplicateIndex = i;
+          duplicateStrength = sim;
+          break;
+        }
+      }
+      if (duplicateIndex === -1){
+        kept.push({ text: current, bucket });
+        return;
+      }
+      const existing = kept[duplicateIndex];
+      const keepCurrent = sentenceInfoScore(current, requirements) > sentenceInfoScore(existing.text, requirements);
+      if (keepCurrent || duplicateStrength >= 0.9){
+        kept[duplicateIndex] = { text: current, bucket };
+      }
+    });
+    return kept.map(item => item.text).join(' ');
+  }
+  function ensureRequiredFactsInReport(report, requirements = {}){
+    const result = String(report || '').trim();
+    if (!result || commentOrderMode === 'bullet') return result;
+    const sourceSentences = splitIntoSentences(requirements.sourceText || '');
+    const outputSentences = splitIntoSentences(result);
+    const hasText = (needle) => String(outputSentences.join(' ')).toLowerCase().includes(String(needle || '').toLowerCase());
+    const appendFromSource = (matchFn) => {
+      const hit = sourceSentences.find(matchFn);
+      if (hit && !hasText(hit)){
+        outputSentences.push(hit.trim());
+      }
+    };
+    const labels = Array.isArray(requirements.assignmentLabels) ? requirements.assignmentLabels : [];
+    labels.forEach(label => {
+      if (!label || hasText(label)) return;
+      appendFromSource(sentence => sentence.toLowerCase().includes(String(label).toLowerCase()));
+    });
+    const scores = Array.isArray(requirements.assignmentScores) ? requirements.assignmentScores : [];
+    scores.forEach(score => {
+      if (!score || hasText(score)) return;
+      appendFromSource(sentence => sentence.includes(score));
+    });
+    if (requirements.overallMark && !hasText(requirements.overallMark)){
+      appendFromSource(sentence => sentence.includes(requirements.overallMark));
+    }
+    if (requirements.requireFutureSentence){
+      const hasFuture = outputSentences.some(s => detectSentenceIntentBucket(s) === 'future');
+      if (!hasFuture && requirements.futureSentence){
+        outputSentences.push(String(requirements.futureSentence).trim());
+      }
+    }
+    return outputSentences.filter(Boolean).join(' ');
+  }
+  function buildGenerationRequirements({
+    sourceText,
+    selectedAssignments,
+    studentRow,
+    overallMeta,
+    lookingAheadText
+  }){
+    const assignmentFacts = collectAssignmentFacts(selectedAssignments, studentRow);
+    return {
+      sourceText: String(sourceText || ''),
+      assignmentLabels: assignmentFacts.map(item => item.label).filter(Boolean),
+      assignmentScores: assignmentFacts.map(item => item.scoreText).filter(Boolean),
+      overallMark: overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '',
+      requireFutureSentence: Boolean(String(lookingAheadText || '').trim()),
+      futureSentence: String(lookingAheadText || '').trim()
+    };
+  }
+  function createOverallMentionRules(context){
+    const groupKey = normalizeGradeGroup(context?.gradeGroup);
+    return {
+      maxMentions: 1,
+      mentionCount: 0,
+      placeAtEnd: true,
+      includeExplicitOverall: (groupKey !== 'elem') || !!context?.includeFinalGrade
+    };
+  }
+  function sentenceEndsWithPunctuation(text){
+    return /[.!?]["')\]]?\s*$/.test(String(text || '').trim());
+  }
+  function ensureSentencePunctuation(text){
+    const sentence = String(text || '').trim();
+    if (!sentence) return '';
+    return sentenceEndsWithPunctuation(sentence) ? sentence : `${sentence}.`;
+  }
+  function buildOverallMarkPattern(overallMark){
+    const markText = String(overallMark || '').trim();
+    if (!markText) return null;
+    const numeric = markText.replace(/[^0-9.]/g, '').trim();
+    if (!numeric) return null;
+    return new RegExp(`${escapeRegExp(numeric)}\\s*%?`, 'i');
+  }
+  function isOverallMarkSentence(sentence, overallMarkPattern, assignmentLabels = []){
+    const text = String(sentence || '').trim();
+    if (!text || !overallMarkPattern) return false;
+    if (!overallMarkPattern.test(text)) return false;
+    const lowered = text.toLowerCase();
+    if (assignmentLabels.some(label => label && lowered.includes(String(label).toLowerCase()))){
+      return false;
+    }
+    if (/(assignment|test|quiz|exam|challenge|review|topic|retest)/i.test(text)){
+      return false;
+    }
+    return true;
+  }
+  function enforceOverallMarkMentionPolicy(report, requirements = {}, mentionRules = {}){
+    const source = String(report || '').trim();
+    if (!source) return '';
+    const includeOverall = !!mentionRules.includeExplicitOverall;
+    const overallMark = String(requirements?.overallMark || '').trim();
+    if (!overallMark) return source;
+    const markPattern = buildOverallMarkPattern(overallMark);
+    if (!markPattern) return source;
+    const assignmentLabels = Array.isArray(requirements.assignmentLabels) ? requirements.assignmentLabels : [];
+    const sentences = splitIntoSentences(source);
+    const kept = [];
+    const overallCandidates = [];
+    sentences.forEach(sentence => {
+      if (isOverallMarkSentence(sentence, markPattern, assignmentLabels)){
+        overallCandidates.push(sentence.trim());
+      }else{
+        kept.push(sentence.trim());
+      }
+    });
+    if (!includeOverall){
+      mentionRules.mentionCount = 0;
+      return kept.filter(Boolean).join(' ');
+    }
+    const canonicalMark = formatPercentValue(overallMark.replace(/\s*%/g, ''));
+    let finalOverallSentence = overallCandidates.length
+      ? overallCandidates[overallCandidates.length - 1]
+      : `Current overall mark is ${canonicalMark}`;
+    finalOverallSentence = ensureSentencePunctuation(finalOverallSentence).replace(/\s+%/g, '%');
+    mentionRules.mentionCount = Math.min(mentionRules.maxMentions || 1, 1);
+    if (mentionRules.placeAtEnd){
+      kept.push(finalOverallSentence);
+    }else{
+      kept.unshift(finalOverallSentence);
+    }
+    return kept.filter(Boolean).join(' ');
+  }
+  function cleanPlaceholderGaps(text){
+    if (!text) return '';
+    let t = String(text);
+    t = t.replace(/\[\s*\]/g, '');
+    t = t.replace(/[ \t]{2,}/g, ' ');
+    const sentences = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const cleaned = sentences.filter(s => {
+      const stripped = s.replace(/[^a-zA-Z0-9]/g, '').trim();
+      return stripped.length > 0;
+    });
+    return cleaned.join(' ').trim();
+  }
+  const BLOCK_TRANSITIONS = {
+    'base->tone':       ['', '', ''],
+    'base->comment':    ['In the classroom, ', 'Regarding classroom habits, ', 'On the classroom side, '],
+    'base->assignment': ['Looking at recent work, ', 'Turning to specific results, ', 'Across recent assessments, '],
+    'base->lookingAhead': ['', '', ''],
+    'base->closing':    ['', '', ''],
+    'tone->comment':    ['', '', ''],
+    'tone->assignment': ['Turning to specific results, ', 'Looking at individual tasks, ', 'Across recent work, '],
+    'tone->lookingAhead': ['', '', ''],
+    'tone->closing':    ['', '', ''],
+    'comment->assignment': ['Looking at recent work, ', 'Turning to specific results, ', 'On the assessment side, '],
+    'comment->lookingAhead': ['', '', ''],
+    'comment->closing': ['', '', ''],
+    'assignment->lookingAhead': ['', '', ''],
+    'assignment->closing': ['', '', ''],
+    'lookingAhead->closing': ['', '', '']
+  };
+  function getBlockTransition(prevType, nextType, seed){
+    const key = `${prevType}->${nextType}`;
+    const variants = BLOCK_TRANSITIONS[key];
+    if (!variants || !variants.length) return '';
+    return pickVariant(variants, seed + '|transition|' + key);
+  }
+  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, futureParagraph, lookingAheadText }){
     let baseText = baseComment || '';
     if (termLabel){
       baseText = `${termLabel}: ${baseText}`;
@@ -4488,20 +5183,51 @@ function splitIntoSentences(text){
         core = sentences.join(' ');
       }
     }
-    const blocks = [];
-    if (core) blocks.push(core.trim());
-    if (toneLine) blocks.push(toneLine.trim());
-    if (commentSnippet) blocks.push(commentSnippet.trim());
-    if (assignmentParagraph) blocks.push(assignmentParagraph.trim());
-    if (lookingAheadText) blocks.push(lookingAheadText.trim());
-    if (closing) blocks.push(closing.trim());
-    return blocks.filter(Boolean).join('\n\n');
+    const taggedBlocks = [];
+    const appendUniqueBlock = (text, blockType) => {
+      const blockText = String(text || '').trim();
+      if (!blockText) return;
+      const existingText = taggedBlocks.map(b => b.text).join(' ');
+      const existing = splitIntoSentences(existingText);
+      const incoming = splitIntoSentences(blockText);
+      const filtered = incoming.filter(sentence => {
+        const bucket = detectSentenceIntentBucket(sentence);
+        if (bucket === 'future' && existing.some(s => detectSentenceIntentBucket(s) === 'future')) return false;
+        return !existing.some(s => sentenceSimilarity(sentence, s, { studentName: '' }) >= 0.74);
+      });
+      if (!filtered.length) return;
+      taggedBlocks.push({ text: filtered.join(' '), type: blockType });
+    };
+    appendUniqueBlock(core, 'base');
+    appendUniqueBlock(toneLine, 'tone');
+    appendUniqueBlock(commentSnippet, 'comment');
+    appendUniqueBlock(assignmentParagraph, 'assignment');
+    appendUniqueBlock(futureParagraph, 'future-upcoming');
+    appendUniqueBlock(lookingAheadText, 'lookingAhead');
+    appendUniqueBlock(closing, 'closing');
+    const seed = String(baseText || '').slice(0, 40);
+    const parts = [];
+    for (let i = 0; i < taggedBlocks.length; i++){
+      const block = taggedBlocks[i];
+      if (i === 0){
+        parts.push(block.text);
+        continue;
+      }
+      const prev = taggedBlocks[i - 1];
+      const transition = getBlockTransition(prev.type, block.type, seed);
+      if (transition){
+        const firstChar = block.text.charAt(0);
+        const lowerStart = firstChar === firstChar.toUpperCase()
+          ? firstChar.toLowerCase() + block.text.slice(1)
+          : block.text;
+        parts.push(transition + lowerStart);
+      } else {
+        parts.push(block.text);
+      }
+    }
+    return parts.filter(Boolean).join('\n\n');
   }
 
-      function pickRandomItem(items){
-    if (!Array.isArray(items) || !items.length) return null;
-    return items[Math.floor(Math.random() * items.length)];
-  }
   function getBuilderLookingAheadKey(){
     const studentKey = builderSelectedRowIndex != null
       ? `row:${builderSelectedRowIndex}`
@@ -4529,7 +5255,9 @@ function splitIntoSentences(text){
       cb.checked = false;
       cb.dataset.auto = 'false';
     });
-    const pick = lookingCbs[Math.floor(Math.random() * lookingCbs.length)];
+    const positiveLooking = lookingCbs.filter(cb => (cb.dataset.type || '').toLowerCase() === 'positive');
+    const pool = positiveLooking.length ? positiveLooking : lookingCbs;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
     if (pick){
       pick.checked = true;
       pick.dataset.auto = 'true';
@@ -4540,36 +5268,51 @@ function splitIntoSentences(text){
     return pick ? pick.dataset.text || '' : '';
   }
 
-function getBankOptions(){
-    const flat = [];
-    REPORT_COMMENT_BANK.forEach(section => {
-      const sectionId = (section.id || '').toLowerCase();
-      section.options.forEach(opt => {
-        flat.push({
-          ...opt,
-          sectionId
-        });
-      });
+  const MERGEABLE_SECTIONS = {
+    'homeworkquality': 'homework',
+    'homeworkcompletion': 'homework',
+    'participation': 'engagement',
+    'peer': 'engagement',
+    'studyhabits': 'preparation',
+    'brightspace': 'preparation',
+    'attendance': 'classroom',
+    'helpseeking': 'classroom'
+  };
+  function mergeRelatedSentences(sentences, sectionIds){
+    if (sentences.length <= 1) return sentences;
+    const groups = new Map();
+    const ungrouped = [];
+    sentences.forEach((txt, i) => {
+      const sectionId = (sectionIds[i] || '').toLowerCase();
+      const groupKey = MERGEABLE_SECTIONS[sectionId];
+      if (groupKey){
+        if (!groups.has(groupKey)) groups.set(groupKey, []);
+        groups.get(groupKey).push(txt);
+      } else {
+        ungrouped.push(txt);
+      }
     });
-    return flat;
+    const merged = [];
+    groups.forEach((items) => {
+      if (items.length >= 2){
+        const first = items[0].replace(/\.\s*$/, '');
+        const rest = items.slice(1).map(s => {
+          const trimmed = s.trim();
+          return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+        });
+        merged.push(first + '; ' + rest.join(' '));
+      } else {
+        merged.push(items[0]);
+      }
+    });
+    return [...merged, ...ungrouped];
   }
-  function getAutoTailSentences(coreLevel, context){
-    const allOptions = getBankOptions();
-    const lookingAhead = allOptions.filter(opt => opt.sectionId === 'future');
-    const isSupport = String(coreLevel || '').startsWith('poor') || String(coreLevel || '').startsWith('newstu');
-    const levelOptions = allOptions.filter(opt => isSupport ? opt.type !== 'positive' : opt.type === 'positive');
-    const levelOpt = pickRandomItem(levelOptions.filter(opt => opt.sectionId !== 'future'));
-    return {
-      levelText: levelOpt ? builderReplacePlaceholders(levelOpt.text, context) : ''
-    };
-  }
-
-function buildCommentBlocks(selectedComments, context){
+  function buildCommentBlocks(selectedComments, context){
     if (!Array.isArray(selectedComments) || !selectedComments.length){
-      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: '' };
+      return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: '' };
     }
     if (commentOrderMode === 'bullet'){
-      return { pqSentences: [], lookingAheadSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
+      return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
     }
     const replace = (item) => builderReplacePlaceholders(item.text, context);
     let ordered = selectedComments;
@@ -4581,17 +5324,87 @@ function buildCommentBlocks(selectedComments, context){
     }
     const pqSentences = [];
     const lookingAheadSentences = [];
+    const lookingAheadPositiveSentences = [];
     const otherSentences = [];
+    const otherSectionIds = [];
     ordered.forEach(item => {
       const txt = replace(item);
       if (item.section === 'personalqualities') pqSentences.push(txt);
-      else if (item.section === 'future') lookingAheadSentences.push(txt);
-      else otherSentences.push(txt);
+      else if (item.section === 'future'){
+        lookingAheadSentences.push(txt);
+        if ((item.type || '').toLowerCase() === 'positive'){
+          lookingAheadPositiveSentences.push(txt);
+        }
+      }
+      else {
+        otherSentences.push(txt);
+        otherSectionIds.push(item.section || '');
+      }
     });
-    return { pqSentences, lookingAheadSentences, otherSentences, otherText: otherSentences.join(' ') };
+    const mergedOther = mergeRelatedSentences(otherSentences, otherSectionIds);
+    return { pqSentences, lookingAheadSentences, lookingAheadPositiveSentences, otherSentences: mergedOther, otherText: mergedOther.join(' ') };
   }
 
-function cleanFluency(text){
+function varySentenceOpenings(text, studentName){
+    if (!text) return text || '';
+    const safeName = (studentName || '').trim();
+    const lines = String(text).split(/\n+/);
+    const ADVERB_FRONTS = [
+      'Additionally, ',
+      'Notably, ',
+      'Furthermore, ',
+      'In particular, ',
+      'At the same time, ',
+      'Throughout the term, ',
+      'Across class activities, ',
+      'On this note, '
+    ];
+    const ENCOURAGED_FRONTS = [
+      'Moving forward, ',
+      'Going forward, ',
+      'As a next step, '
+    ];
+    const pronounPat = /^(he|she|they)\b/i;
+    const namePat = safeName ? new RegExp(`^${escapeRegExp(safeName)}\\b`, 'i') : null;
+    const startsWithSubject = (s) => {
+      if (pronounPat.test(s.trim())) return true;
+      if (namePat && namePat.test(s.trim())) return true;
+      return false;
+    };
+    let adverbIdx = 0;
+    let adverbCooldown = 0;
+    const varied = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      const sentences = trimmed.split(/(?<=[.!?])\s+/);
+      let streak = 0;
+      const result = sentences.map((s, idx) => {
+        if (idx === 0){ streak = startsWithSubject(s) ? 1 : 0; return s; }
+        if (!startsWithSubject(s)){ streak = 0; return s; }
+        streak++;
+        if (streak < 2) return s;
+        const firstChar = s.charAt(0).toLowerCase();
+        const lowered = firstChar + s.slice(1);
+        if (/^(he|she|they|\w+)\s+is encouraged\b/i.test(s) || /^(he|she|they|\w+)\s+should\b/i.test(s)){
+          const front = ENCOURAGED_FRONTS[adverbIdx % ENCOURAGED_FRONTS.length];
+          adverbIdx++;
+          return front + lowered;
+        }
+        if (adverbCooldown > 0){
+          adverbCooldown--;
+          return lowered;
+        }
+        const front = ADVERB_FRONTS[adverbIdx % ADVERB_FRONTS.length];
+        adverbIdx++;
+        adverbCooldown = 2;
+        return front + lowered;
+      });
+      return result.join(' ');
+    }).filter(Boolean);
+    return varied.join('\n\n').trim();
+  }
+
+  function cleanFluency(text){
     if (!text) return '';
     const lines = String(text).split(/\n+/);
     const cleanedLines = lines.map(line => {
@@ -4613,11 +5426,38 @@ function cleanFluency(text){
   function polishGrammar(text){
     if (!text) return '';
     let t = String(text);
-    t = t.replace(/\s+([,.;:!])/g, '$1');
+    t = t.replace(/\.{2,}/g, '.');
+    t = t.replace(/\[\s*\]/g, '');
+    t = t.replace(/\s+([,.;:!?])/g, '$1');
     t = t.replace(/[ \t]{2,}/g, ' ');
     t = t.replace(/ \n/g, '\n');
+    t = t.replace(/(\d)\s+%/g, '$1%');
     t = t.replace(/\b(a)\s+([aeiou])/gi, (_, a, v) => (a === 'A' ? 'An ' : 'an ') + v);
     t = t.replace(/\b(an)\s+([^aeiou\W])/gi, (_, an, c) => (an === 'An' ? 'A ' : 'a ') + c);
+    t = t.replace(/,\s*\./g, '.');
+    t = t.replace(/;\s*\./g, '.');
+    const lines = t.split(/\n+/);
+    const polished = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      const sentences = trimmed.split(/(?<=[.!?])\s+/);
+      const merged = [];
+      for (let i = 0; i < sentences.length; i++){
+        const cur = sentences[i].trim();
+        if (!cur) continue;
+        const curWords = cur.split(/\s+/).length;
+        const next = (i + 1 < sentences.length) ? sentences[i + 1].trim() : '';
+        const nextWords = next ? next.split(/\s+/).length : 99;
+        if (curWords <= 7 && nextWords <= 7 && next){
+          merged.push(cur.replace(/\.\s*$/, '') + '; ' + next.charAt(0).toLowerCase() + next.slice(1));
+          i++;
+        } else {
+          merged.push(cur);
+        }
+      }
+      return merged.join(' ');
+    }).filter(Boolean);
+    t = polished.join('\n\n');
     return t.trim();
   }
   function applyPronounsAfterFirstSentence(text, name, pronouns){
@@ -4625,24 +5465,509 @@ function cleanFluency(text){
     const safeName = escapeRegExp(name.trim());
     if (!safeName) return text;
     const sentences = String(text).split(/(?<=[.!?])\s+/);
+    const nameRe = new RegExp(`\\b${safeName}\\b`, 'gi');
+    const totalMentions = (String(text).match(nameRe) || []).length;
+    const aggressiveMode = totalMentions >= 3;
+    const lastIdx = sentences.length - 1;
+    const startRe = new RegExp(`^(\\s*)${safeName}('s)?\\b`, 'i');
+    const midPossRe = new RegExp(`(?<!^\\s*)\\b${safeName}'s\\b`, 'gi');
+    const midNameRe = new RegExp(`(?<!^\\s*)\\b${safeName}\\b`, 'gi');
     return sentences.map((s, idx) => {
       if (idx === 0) return s;
-      const re = new RegExp(`^\\s*${safeName}(\\b|'s\\b)`, 'i');
-      if (!re.test(s)) return s;
-      return s.replace(re, (_, possessive) => possessive ? pronouns.His : pronouns.He);
+      let result = s.replace(startRe, (_, ws, poss) => (ws || '') + (poss ? pronouns.His : pronouns.He));
+      if (aggressiveMode && idx !== lastIdx){
+        result = result.replace(new RegExp(`\\b${safeName}'s\\b`, 'gi'), pronouns.His);
+        result = result.replace(new RegExp(`\\b${safeName}\\b`, 'gi'), pronouns.He);
+      }
+      return result;
     }).join(' ');
+  }
+  function clearBuilderOutputAnimation(){
+    builderOutputAnimationToken += 1;
+    builderOutputAnimating = false;
+    clearBuilderSelectionOverlay();
+  }
+  function escapeHtml(text){
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function splitWords(text){
+    const parts = String(text || '').match(/(\s+|[^\s]+)/g) || [];
+    return parts;
+  }
+  function buildWordDiffMap(prevText, nextText){
+    const prevWords = String(prevText || '').trim().split(/\s+/).filter(Boolean).map(w => w.toLowerCase());
+    const nextWords = String(nextText || '').trim().split(/\s+/).filter(Boolean);
+    const marks = new Array(nextWords.length).fill(false);
+    if (!nextWords.length) return marks;
+    if (!prevWords.length){
+      marks.fill(true);
+      return marks;
+    }
+    const m = prevWords.length;
+    const n = nextWords.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i += 1){
+      const a = prevWords[i - 1];
+      for (let j = 1; j <= n; j += 1){
+        const b = String(nextWords[j - 1] || '').toLowerCase();
+        dp[i][j] = a === b ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    let i = m;
+    let j = n;
+    while (i > 0 && j > 0){
+      const a = prevWords[i - 1];
+      const b = String(nextWords[j - 1] || '').toLowerCase();
+      if (a === b){
+        marks[j - 1] = false;
+        i -= 1;
+        j -= 1;
+      }else if (dp[i - 1][j] >= dp[i][j - 1]){
+        i -= 1;
+      }else{
+        marks[j - 1] = true;
+        j -= 1;
+      }
+    }
+    while (j > 0){
+      marks[j - 1] = true;
+      j -= 1;
+    }
+    return marks;
+  }
+  function renderBuilderDiffOverlay(prevText, nextText){
+    if (!builderOutputWrap || !builderReportOverlay || !builderReportOutput) return;
+    if (builderDiffClearTimer){
+      clearTimeout(builderDiffClearTimer);
+      builderDiffClearTimer = null;
+    }
+    const tokens = splitWords(nextText);
+    const marks = buildWordDiffMap(prevText, nextText);
+    let wordIdx = 0;
+    const html = tokens.map(token => {
+      if (/^\s+$/.test(token)){
+        return escapeHtml(token);
+      }
+      const changed = !!marks[wordIdx];
+      wordIdx += 1;
+      const safe = escapeHtml(token);
+      return changed ? `<span class="revise-diff">${safe}</span>` : safe;
+    }).join('');
+    builderReportOverlay.innerHTML = html;
+    builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+    builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    builderOutputWrap.classList.add('overlay-active');
+    builderDiffClearTimer = setTimeout(() => {
+      builderOutputWrap?.classList.remove('overlay-active');
+      if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+      builderDiffClearTimer = null;
+    }, 2000);
+  }
+  function clearBuilderDiffOverlay(){
+    if (builderDiffClearTimer){
+      clearTimeout(builderDiffClearTimer);
+      builderDiffClearTimer = null;
+    }
+    builderOutputWrap?.classList.remove('overlay-active');
+    if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+  }
+  function renderBuilderSelectionOverlay(stableText, animatedText = '', trailingText = '', direction = 'in'){
+    if (!builderOutputWrap || !builderReportOverlay || !builderReportOutput) return;
+    const stable = escapeHtml(stableText || '');
+    const animated = escapeHtml(animatedText || '');
+    const trailing = escapeHtml(trailingText || '');
+    const klass = direction === 'out' ? 'selection-fade-out' : 'selection-fade-in';
+    builderReportOverlay.innerHTML = animated
+      ? `${stable}<span class="${klass}">${animated}</span>${trailing}`
+      : `${stable}${trailing}`;
+    builderReportOverlay.scrollTop = builderReportOutput.scrollTop;
+    builderReportOverlay.scrollLeft = builderReportOutput.scrollLeft;
+    builderOutputWrap.classList.add('overlay-active');
+  }
+  function clearBuilderSelectionOverlay(){
+    if (builderDiffClearTimer) return;
+    builderOutputWrap?.classList.remove('overlay-active');
+    if (builderReportOverlay) builderReportOverlay.innerHTML = '';
+  }
+  function pulseBuilderOutput(className = 'builder-output-pulse'){
+    if (!builderReportOutput) return;
+    builderReportOutput.classList.remove('builder-output-pulse');
+    void builderReportOutput.offsetWidth;
+    builderReportOutput.classList.add(className);
+  }
+  function countChangedSentences(prev, next){
+    const toSentences = (txt) => String(txt || '')
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    const a = toSentences(prev);
+    const b = toSentences(next);
+    const total = Math.max(a.length, b.length);
+    if (!total) return 0;
+    let changed = 0;
+    for (let i = 0; i < total; i += 1){
+      if ((a[i] || '') !== (b[i] || '')) changed += 1;
+    }
+    return changed;
+  }
+  function getCommonPrefixLength(a, b){
+    const left = String(a || '');
+    const right = String(b || '');
+    const max = Math.min(left.length, right.length);
+    let i = 0;
+    while (i < max && left[i] === right[i]) i += 1;
+    return i;
+  }
+  function getCommonSuffixLength(a, b, prefixLen = 0){
+    const left = String(a || '');
+    const right = String(b || '');
+    const max = Math.min(left.length - prefixLen, right.length - prefixLen);
+    let i = 0;
+    while (i < max && left[left.length - 1 - i] === right[right.length - 1 - i]) i += 1;
+    return i;
+  }
+  function getSelectionChangeMeta(prev, next){
+    const left = String(prev || '');
+    const right = String(next || '');
+    const prefixLen = getCommonPrefixLength(left, right);
+    const suffixLen = getCommonSuffixLength(left, right, prefixLen);
+    const prevMiddle = left.slice(prefixLen, left.length - suffixLen);
+    const nextMiddle = right.slice(prefixLen, right.length - suffixLen);
+    return { prefixLen, suffixLen, prevMiddle, nextMiddle };
+  }
+  function getFirstDiffIndex(a, b){
+    const left = String(a || '');
+    const right = String(b || '');
+    const minLen = Math.min(left.length, right.length);
+    for (let i = 0; i < minLen; i += 1){
+      if (left[i] !== right[i]) return i;
+    }
+    if (left.length !== right.length) return minLen;
+    return -1;
+  }
+  function getSelectionAnimationStart(prev, next){
+    const target = String(next || '');
+    const diff = getFirstDiffIndex(prev, target);
+    if (diff <= 0) return 0;
+    let start = 0;
+    const boundaries = ['\n\n', '. ', '! ', '? ', '\n'];
+    boundaries.forEach(marker => {
+      const idx = target.lastIndexOf(marker, diff - 1);
+      if (idx >= 0){
+        start = Math.max(start, idx + marker.length);
+      }
+    });
+    if (start === 0){
+      const wordIdx = target.lastIndexOf(' ', diff - 1);
+      if (wordIdx >= 0) start = wordIdx + 1;
+    }
+    return Math.min(start, target.length);
+  }
+  function animateBuilderOutputWords(prevText, nextText){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
+    const token = builderOutputAnimationToken;
+    const next = String(nextText || '');
+    const start = getSelectionAnimationStart(prevText, next);
+    const prefix = next.slice(0, start);
+    const suffix = next.slice(start);
+    const parts = suffix.split(/(\s+)/);
+    let i = 0;
+    builderReportOutput.value = prefix;
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      const previousEnd = i;
+      const end = Math.min(i + 2, parts.length);
+      for (; i < end; i += 1){
+        builderReportOutput.value = prefix + parts.slice(0, i + 1).join('');
+      }
+      const stable = prefix + parts.slice(0, previousEnd).join('');
+      const animated = parts.slice(previousEnd, end).join('');
+      renderBuilderSelectionOverlay(stable, animated, '', 'in');
+      if (i < parts.length){
+        setTimeout(step, 36);
+      }else{
+        builderReportOutput.value = next;
+        builderOutputAnimating = false;
+        clearBuilderSelectionOverlay();
+      }
+    };
+    step();
+  }
+  function animateBuilderOutputRemoval(prevText, nextText){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
+    const token = builderOutputAnimationToken;
+    const prev = String(prevText || '');
+    const next = String(nextText || '');
+    const change = getSelectionChangeMeta(prev, next);
+    const prefix = prev.slice(0, change.prefixLen);
+    const suffix = prev.slice(prev.length - change.suffixLen);
+    const removed = change.prevMiddle;
+    if (!removed){
+      builderReportOutput.value = next;
+      builderOutputAnimating = false;
+      clearBuilderSelectionOverlay();
+      return;
+    }
+    let keepLen = removed.length;
+    builderReportOutput.value = prev;
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      const nextKeep = keepLen - 2;
+      const keptPart = removed.slice(0, Math.max(nextKeep, 0));
+      const fadingPart = removed.slice(Math.max(nextKeep, 0), Math.max(keepLen, 0));
+      builderReportOutput.value = prefix + keptPart + suffix;
+      renderBuilderSelectionOverlay(prefix + keptPart, fadingPart, suffix, 'out');
+      keepLen = nextKeep;
+      if (keepLen >= 0){
+        setTimeout(step, 28);
+      }else{
+        builderReportOutput.value = next;
+        builderOutputAnimating = false;
+        clearBuilderSelectionOverlay();
+      }
+    };
+    step();
+  }
+  function animateBuilderOutputChars(text, onDone = null){
+    if (!builderReportOutput) return;
+    clearBuilderOutputAnimation();
+    builderOutputAnimating = true;
+    const token = builderOutputAnimationToken;
+    const source = String(text || '');
+    let i = 0;
+    builderReportOutput.value = '';
+    builderReportOutput.classList.remove('builder-output-fade');
+    void builderReportOutput.offsetWidth;
+    builderReportOutput.classList.add('builder-output-fade');
+    const step = () => {
+      if (token !== builderOutputAnimationToken || !builderReportOutput) return;
+      builderReportOutput.value = source.slice(0, i);
+      i += 4;
+      if (i <= source.length){
+        setTimeout(step, 14);
+      }else{
+        builderReportOutput.value = source;
+        builderOutputAnimating = false;
+        if (typeof onDone === 'function') onDone();
+      }
+    };
+    step();
+  }
+  function setBuilderReportOutputText(nextText, mode = 'instant'){
+    if (!builderReportOutput) return;
+    const previous = String(builderReportOutput.value || '');
+    const next = String(nextText || '');
+    builderLastFullOutput = next;
+    if (mode === 'selection'){
+      clearBuilderDiffOverlay();
+      const change = getSelectionChangeMeta(previous, next);
+      const isPureRemoval = !!change.prevMiddle && !change.nextMiddle;
+      if (isPureRemoval){
+        animateBuilderOutputRemoval(previous, next);
+      }else{
+        animateBuilderOutputWords(previous, next);
+      }
+      return;
+    }
+    if (mode === 'revise'){
+      animateBuilderOutputChars(next, () => renderBuilderDiffOverlay(previous, next));
+      return;
+    }
+    clearBuilderOutputAnimation();
+    clearBuilderDiffOverlay();
+    builderReportOutput.value = next;
+    if (mode === 'generate'){
+      const changed = countChangedSentences(previous, next);
+      const pulses = Math.min(Math.max(changed, 1), 3);
+      for (let p = 0; p < pulses; p += 1){
+        setTimeout(() => pulseBuilderOutput('builder-output-pulse'), p * 110);
+      }
+    }
+  }
+  function setBuilderRevisedOutputText(text, mode = 'instant'){
+    if (!builderRevisedOutput) return;
+    const next = String(text || '');
+    builderRevisedAnimationToken += 1;
+    builderRevisedOutput.value = next;
+    if (mode === 'revise'){
+      builderRevisedOutput.classList.remove('builder-output-fade');
+      void builderRevisedOutput.offsetWidth;
+      builderRevisedOutput.classList.add('builder-output-fade');
+    }else{
+      builderRevisedOutput.classList.remove('builder-output-fade');
+    }
+  }
+  function getSelectedBuilderAssignments(){
+    return Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
+      .map(cb => cb.value)
+      .filter(Boolean);
+  }
+  function getSelectedBuilderFutureAssignments(){
+    return Array.from(document.querySelectorAll('#builderFutureAssignmentsList input[type="checkbox"]:checked'))
+      .map(cb => cb.value)
+      .filter(Boolean);
+  }
+  function normalizeBuilderAiEndpoint(raw){
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    const noSlash = value.replace(/\/+$/, '');
+    if (/\/api\/generate-comment$/i.test(noSlash)) return noSlash;
+    if (/^https?:\/\//i.test(noSlash)) return `${noSlash}/api/generate-comment`;
+    return '';
+  }
+  function ensureBuilderAiEndpoint(){
+    const current = normalizeBuilderAiEndpoint(builderAiEndpoint);
+    if (current){
+      builderAiEndpoint = current;
+      return current;
+    }
+    const entered = window.prompt(
+      'Paste your deployed Revise API URL (example: https://teacher-tools-api.vercel.app).',
+      builderAiEndpoint || ''
+    );
+    if (entered == null) return '';
+    const normalized = normalizeBuilderAiEndpoint(entered);
+    if (!normalized){
+      status('Invalid API URL. Use a full https:// URL.');
+      return '';
+    }
+    builderAiEndpoint = normalized;
+    saveSettings({ builderAiEndpoint });
+    return normalized;
+  }
+  function buildBuilderAiPayload(draft){
+    const selectedComments = getBuilderSelectedComments();
+    const assignments = getSelectedBuilderAssignments();
+    const studentRow = rows[builderSelectedRowIndex] || null;
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
+    const orderMode = ['sandwich', 'selection', 'bullet'].includes(commentOrderMode) ? commentOrderMode : 'selection';
+    return {
+      draft: String(draft || '').trim(),
+      reviseMode: 'rewrite',
+      orderMode,
+      sentenceFormatHint: orderMode === 'bullet' ? 'bullets' : 'paragraph',
+      studentName: builderStudentNameInput?.value.trim() || '',
+      pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
+      gradeGroup: builderGradeGroupSelect?.value || 'middle',
+      performanceLevel: builderCorePerformanceSelect?.value || '',
+      termLabel: builderTermSelector?.value || '',
+      finalGrade,
+      selectedAssignments: assignments,
+      selectedComments: selectedComments.map(item => ({
+        id: item.id,
+        category: item.section,
+        text: item.text,
+        type: item.type
+      })),
+      customComment: builderCustomCommentInput?.value.trim() || ''
+    };
+  }
+  function parseAiCommentResponse(data){
+    if (!data || typeof data !== 'object') return '';
+    const candidates = [
+      data.comment,
+      data.text,
+      data.output,
+      data.result
+    ];
+    for (const item of candidates){
+      const text = String(item || '').trim();
+      if (text) return text;
+    }
+    return '';
+  }
+  function getWordCount(text){
+    return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  }
+  function getSentenceCount(text){
+    return String(text || '').trim().split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean).length;
+  }
+  function shouldKeepOriginalDraft(draft, revised, orderMode){
+    const draftText = String(draft || '').trim();
+    const revisedText = String(revised || '').trim();
+    const draftWords = getWordCount(draftText);
+    const revisedWords = getWordCount(revisedText);
+    if (!revisedWords) return true;
+    if (draftWords >= 28 && revisedWords < Math.max(20, Math.floor(draftWords * 0.6))) return true;
+    if (orderMode !== 'bullet' && getSentenceCount(revisedText) < 4) return true;
+    return false;
+  }
+  async function builderGenerateReportWithAI(){
+    if (!builderReportOutput) return;
+    const draft = String(builderLastFullOutput || builderReportOutput.value || '').trim();
+    if (!draft){
+      status('Generate a local draft first, then click Revise.');
+      return;
+    }
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const payload = buildBuilderAiPayload(draft);
+    const originalLabel = builderGenerateAiBtn?.textContent || 'Revise';
+    try{
+      if (builderGenerateAiBtn){
+        builderGenerateAiBtn.disabled = true;
+        builderGenerateAiBtn.textContent = 'Revising...';
+      }
+      status('Revising comment with AI...');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok){
+        const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
+        status(`AI error: ${detail}`);
+        return;
+      }
+      const aiText = parseAiCommentResponse(data);
+      if (!aiText){
+        status('AI returned an empty comment.');
+        return;
+      }
+      const modelUsed = String(data?.modelUsed || '').trim();
+      const polished = polishGrammar(cleanFluency(aiText));
+      setBuilderRevisedOutputText(polished, 'revise');
+      if (polished.trim() === draft.trim()){
+        status('AI returned the same wording. Try Revise again for a different rewrite.');
+      }else{
+        status(modelUsed ? `AI revision ready (${modelUsed}).` : 'AI revision ready.');
+      }
+    }catch(err){
+      console.error(err);
+      status('Could not reach AI API.');
+    }finally{
+      if (builderGenerateAiBtn){
+        builderGenerateAiBtn.disabled = false;
+        builderGenerateAiBtn.textContent = originalLabel;
+      }
+    }
   }
 
   function builderGenerateReport(){
     if (!builderReportOutput) return;
+    const outputMode = builderOutputAnimationMode || 'instant';
+    builderOutputAnimationMode = 'instant';
+    setBuilderRevisedOutputText('', 'instant');
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
     if (!studentName){
-      builderReportOutput.innerHTML = '<em>Provide a student name.</em>';
+      setBuilderReportOutputText('Provide a student name.', 'instant');
       return;
     }
     if (!coreLevel && (builderGradeGroupSelect?.value || 'middle') !== 'elem'){
-      builderReportOutput.innerHTML = '<em>Select a core performance level.</em>';
+      setBuilderReportOutputText('Select a core performance level.', 'instant');
       return;
     }
     const studentRow = rows[builderSelectedRowIndex];
@@ -4666,15 +5991,16 @@ function cleanFluency(text){
     const finalGradeToUse = derivedGrade || (providedMeta ? providedMeta.raw : providedGrade);
     context.termAverage = (context.gradeGroup === 'elem') ? '' : finalGradeToUse;
 
-    const selectedAssignments = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]:checked'))
-      .map(cb => cb.value);
+    const selectedAssignments = getSelectedBuilderAssignments();
+    const selectedFutureAssignments = getSelectedBuilderFutureAssignments();
     const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
-    const assignmentParagraph = assignmentSentences ? `In recent assignments, ${assignmentSentences}` : '';
+    const assignmentParagraph = assignmentSentences || '';
+    const futureParagraph = buildFutureAssignmentSentences(selectedFutureAssignments, context);
 
     const selectedComments = getBuilderSelectedComments();
     const commentBlocks = buildCommentBlocks(selectedComments, context);
-    const autoTail = getAutoTailSentences(coreLevel, context);
+    const lookingAheadSelected = commentBlocks.lookingAheadPositiveSentences?.[0] || '';
     const commentSnippetText = commentBlocks.otherText;
     const toneLine = getPerformanceToneLine(coreLevel, context);
 
@@ -4692,12 +6018,13 @@ function cleanFluency(text){
         toneLine,
         commentSnippet: commentSnippetText,
         assignmentParagraph,
-        lookingAheadText: [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ')
+        futureParagraph,
+        lookingAheadText: lookingAheadSelected
       });
     }else{
       const template = getReportBuilderTemplate(coreLevel, context);
       if (!template){
-        builderReportOutput.textContent = 'Template not available for this selection.';
+        setBuilderReportOutputText('Template not available for this selection.', 'instant');
         return;
       }
       let partA = template.partA;
@@ -4718,6 +6045,8 @@ function cleanFluency(text){
       }
       partA = builderReplacePlaceholders(partA, context);
       partB = builderReplacePlaceholders(partB, context);
+      partA = cleanPlaceholderGaps(partA);
+      partB = cleanPlaceholderGaps(partB);
       const blocks = [];
       if (context.termLabel){
         blocks.push(`${context.termLabel}: ${partA}`);
@@ -4727,7 +6056,8 @@ function cleanFluency(text){
       if (toneLine) blocks.push(toneLine);
       if (commentSnippetText) blocks.push(commentSnippetText);
       if (assignmentParagraph) blocks.push(assignmentParagraph);
-      const tailText = [autoTail.levelText, commentBlocks.lookingAheadSentences.join(' ')].filter(Boolean).join(' ');
+      if (futureParagraph) blocks.push(futureParagraph);
+      const tailText = lookingAheadSelected;
       if (tailText) blocks.push(tailText);
       if (partB) blocks.push(partB);
       report = blocks.filter(Boolean).join('\n\n');
@@ -4738,9 +6068,21 @@ function cleanFluency(text){
     }
 
     const pronounAdjusted = applyPronounsAfterFirstSentence(report, context.studentName, context.pronouns);
-    const trimmedReport = cleanFluency(pronounAdjusted.trim());
-    const polishedReport = polishGrammar(trimmedReport);
-    builderReportOutput.value = polishedReport;
+    const variedReport = varySentenceOpenings(pronounAdjusted, context.studentName);
+    const trimmedReport = cleanFluency(variedReport.trim());
+    const requirements = buildGenerationRequirements({
+      sourceText: trimmedReport,
+      selectedAssignments,
+      studentRow,
+      overallMeta,
+      lookingAheadText: lookingAheadSelected
+    });
+    const mentionRules = createOverallMentionRules(context);
+    const dedupedReport = dedupeGeneratedComment(trimmedReport, context, requirements);
+    const factSafeReport = ensureRequiredFactsInReport(dedupedReport, requirements);
+    const overallBalancedReport = enforceOverallMarkMentionPolicy(factSafeReport, requirements, mentionRules);
+    const polishedReport = polishGrammar(overallBalancedReport);
+    setBuilderReportOutputText(polishedReport, outputMode);
     builderReportOutput.dataset.lastSig = computeReportSignature(polishedReport, {
       studentName: context.studentName,
       coreLevel,
@@ -4829,6 +6171,7 @@ function cleanFluency(text){
     updateBuilderSelectedTags();
     // restore assignments
     buildBuilderAssignmentsList();
+    buildBuilderFutureAssignmentsList();
     const assignSet = new Set(entry.assignments || []);
     const assignmentCbs = Array.from(document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]'));
     assignmentCbs.forEach(cb => {
@@ -4836,7 +6179,7 @@ function cleanFluency(text){
     });
     // restore text
     if (builderReportOutput){
-      builderReportOutput.value = entry.text || '';
+      setBuilderReportOutputText(entry.text || '', 'instant');
       builderReportOutput.dataset.lastSig = entry.signature || '';
     }
     builderGenerateReport();

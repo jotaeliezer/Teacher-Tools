@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <title>Teacher TOOLs</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="styles/teacher_tools.css" />
+  <link rel="icon" type="image/png" href="icon/teacher_tools_logo3.png?v=3" />
+  <link rel="shortcut icon" type="image/png" href="icon/teacher_tools_logo3.png?v=3" />
+  <link rel="stylesheet" href="styles/teacher_tools.css" />
 
 
 
@@ -14,10 +16,24 @@
   
 </head>
 <body>
+<aside id="filesDrawer" class="files-drawer" aria-expanded="true">
+    <div class="files-drawer-head">
+      <button class="btn icon-btn files-drawer-toggle" id="filesDrawerToggle" type="button" aria-expanded="true" aria-controls="filesList" title="Toggle files panel">📂</button>
+      <b class="files-drawer-title">FILES</b>
+    </div>
+    <div id="filesDrawerMiniList" class="files-drawer-mini"></div>
+    <div id="filesList"></div>
+    <div id="filesWarning" class="warning-banner" style="margin:0;">
+      <span style="font-weight:600;">!</span>
+      <span id="filesWarningText"></span>
+    </div>
+    <div class="muted files-drawer-tip" style="font-size:12px;">Upload multiple CSV/XLSX files and click to switch class.</div>
+  </aside>
+
 <div id="appRoot" class="app-shell">
   <div class="app-header">
     <a class="header-brand header-brand-link" href="home.html" aria-label="Go to TeacherTools home">
-      <img src="icon/teacher_tools_logo2.png" alt="TT logo" class="brand-logo">
+      <img src="icon/teacher_tools_logo3.png" alt="TT logo" class="brand-logo">
       <h1>TEACHER TOOLs</h1>
     </a>
   </div>
@@ -69,19 +85,6 @@
     <div id="status" class="muted"></div>
   </div>
   <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
-  <aside id="filesDrawer" class="files-drawer" aria-expanded="true">
-    <div class="files-drawer-head">
-      <button class="btn icon-btn files-drawer-toggle" id="filesDrawerToggle" type="button" aria-expanded="true" aria-controls="filesList" title="Toggle files panel">📂</button>
-      <b class="files-drawer-title">FILES</b>
-      <span class="badge" id="fileCount">0</span>
-    </div>
-    <div id="filesList"></div>
-    <div id="filesWarning" class="warning-banner" style="margin:0;">
-      <span style="font-weight:600;">!</span>
-      <span id="filesWarningText"></span>
-    </div>
-    <div class="muted files-drawer-tip" style="font-size:12px;">Upload multiple CSV/XLSX files and click to switch class.</div>
-  </aside>
   <div class="tab-bar">
     <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
     <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
@@ -135,13 +138,36 @@
       </footer>
     </div>
   </div>
+  <div id="teacherNamePrompt" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>Teacher Name</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="padding:16px;">
+        <p style="margin:0 0 12px 0; color:var(--ink);">Please enter your name to use on printed templates.</p>
+        <p class="muted" style="margin:0 0 12px 0; font-size:13px;">It will be saved for future sessions, but you can change it anytime in the Print View form.</p>
+        <label style="display:block; font-size:13px; margin-bottom:6px; font-weight:600;">Your name</label>
+        <input id="teacherNamePromptInput" type="text" placeholder="e.g. Ms. Rivera" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d7d7d7; font-size:15px; box-sizing:border-box;" />
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
+        <button class="btn" id="teacherNamePromptCancel">Cancel</button>
+        <button class="btn primary" id="teacherNamePromptSave">Continue</button>
+      </footer>
+    </div>
+  </div>
 <div id="printPreviewModal" class="tab-section" style="display:none;">
   <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
-    <header style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
+    <header style="display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
       <h3 style="margin:0;">Print Preview</h3>
       <span class="spacer"></span>
-      <button class="btn" type="button" id="printCommentsBtn">Comments</button>
-      <button class="btn" id="printPreviewClose">Back to Data</button>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn" type="button" id="printCommentsBtn">Comments</button>
+          <button class="btn" id="printPreviewClose">Back to Data</button>
+        </div>
+        <button class="btn primary" id="printPreviewPrintTop">Print</button>
+      </div>
     </header>
       <div class="content" style="display:grid; grid-template-columns:320px 1fr; gap:18px; padding:0 0 14px 0;">
         <div class="print-meta-form">
@@ -158,6 +184,25 @@
             <input id="printTitleInput" type="text" placeholder="e.g. Unit 4 Performance Snapshot" style="padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:15px;" />
           </label>
           <div class="muted" style="font-size:12px;">Edits appear in the preview instantly.</div>
+          <div class="print-template-panel" style="font-size:15px;">
+            <h4>Templates</h4>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="attendance" checked />
+              Attendance Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="marking" />
+              Marking Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="drill" />
+              Drill Sheet
+            </label>
+            <label class="template-option">
+              <input type="checkbox" name="printTemplate" value="reportCard" />
+              Report Card (per student)
+            </label>
+          </div>
           <div>
             <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Term</label>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -175,36 +220,25 @@
               </label>
             </div>
           </div>
+          <div>
+            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Drill columns</label>
+            <input id="printDrillCount" type="number" min="1" max="30" value="12" style="width:80px; padding:6px 10px; border-radius:8px; border:1px solid #d7d7d7; font-size:14px;" />
+            <span class="muted" style="font-size:11px;">Number of drill columns to print.</span>
+          </div>
+          <label class="template-option print-bulk-toggle" style="margin:0;">
+            <input type="checkbox" id="printAllClassesToggle" />
+            Print all loaded classes
+          </label>
           <div class="print-helpers">
-            <div class="print-template-panel" style="font-size:15px;">
-              <h4>Templates</h4>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="attendance" checked />
-                Attendance Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="marking" />
-                Marking Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="drill" />
-                Drill Sheet
-              </label>
-              <label class="template-option">
-                <input type="checkbox" name="printTemplate" value="reportCard" />
-                Report Card (per student)
-              </label>
-            </div>
             <div class="print-template-panel" style="font-size:15px;">
               <h4>Report Card Student</h4>
               <select id="printReportStudentSelect" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d7d7d7;">
               </select>
               <div class="muted" style="font-size:11px;">Choose which student to render on report cards.</div>
-            </div>
-            <div class="print-class-panel" style="font-size:15px;">
-              <h4>Classes to Print</h4>
-              <div id="printClassList" class="print-class-list"></div>
-              <div class="muted" style="font-size:11px;">Select the rosters that should be included.</div>
+              <label class="template-option" style="margin-top:6px;">
+                <input type="checkbox" id="printReportAllStudents" />
+                Print all students (one per page)
+              </label>
             </div>
             <div id="printMarkingPanel" class="print-marking-panel" style="display:none; font-size:15px;">
               <h4>Marking Columns</h4>
@@ -278,7 +312,7 @@
     <div class="panel data-panel">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
         <b>DATA</b>
-        <input id="search" type="text" placeholder="Type to filter rows..." style="flex:1 1 240px; min-width:180px;" />
+        <input id="search" type="text" placeholder="Type to filter rows..." style="flex:1 1 180px; min-width:120px; max-width:260px;" />
         <label class="muted" style="display:flex; align-items:center; gap:4px; font-size:13px;">
           <input type="checkbox" id="wrapHeadersToggle" />
           Wrap headers
@@ -542,6 +576,15 @@
                 <!-- Will be populated dynamically -->
               </div>
             </div>
+
+            <div class="builder-card">
+              <h4>Future Assignments &amp; Tests</h4>
+              <div class="builder-helper">Columns with no mark yet for this student. Select upcoming items to mention in the comment.</div>
+              <input type="text" id="builderFutureAssignmentsSearch" placeholder="Search upcoming..." style="width:100%; box-sizing:border-box; margin-bottom:6px;" />
+              <div id="builderFutureAssignmentsList" class="extras-list" style="max-height:200px; overflow:auto;">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
             
             <div class="builder-card">
               <h4>Custom Comment</h4>
@@ -555,12 +598,18 @@
               <h4>Generated Report</h4>
               <div class="button-group">
                 <button class="btn" type="button" id="builderGenerateBtn">Generate</button>
+                <button class="btn" type="button" id="builderGenerateAiBtn">Revise</button>
                 <button class="btn" type="button" id="builderCopyBtn">Copy</button>
                 <button class="btn" type="button" id="builderSaveBtn">Save</button>
                 <button class="btn" type="button" id="builderClearBtn">Clear</button>
                 <button class="btn" type="button" id="savedReportsOpenBtn">Saved Comments</button>
               </div>
-              <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate." style="width:100%; min-height:140px; padding:12px; border:1px solid #d7dae3; border-radius:8px; resize:vertical; font-size:14px; line-height:1.5;"></textarea>
+              <div class="builder-output-wrap" id="builderOutputWrap">
+                <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate."></textarea>
+                <div id="builderReportOverlay" class="builder-report-overlay" aria-hidden="true"></div>
+              </div>
+              <label class="builder-revised-label" for="builderRevisedOutput">Revised Comment</label>
+              <textarea id="builderRevisedOutput" placeholder="AI revised comment will appear here." readonly></textarea>
             </div>
             <div class="builder-card comment-bank-card">
               <h4>Comment Bank</h4>
@@ -594,12 +643,6 @@
     </div>
   </div>
   </div>
-
-<script src="scripts/state.js"></script>
-<script src="scripts/main.js"></script>
-<script src="scripts/comments.js"></script>
-<script src="scripts/animations.js"></script>
-
 </div>
 <footer class="site-footer footer-merged">
   <div class="footer-links">
@@ -611,5 +654,9 @@
   <span class="nav-beta">Local-only beta</span>
 </footer>
 <div id="printContainer"></div>
+<script src="scripts/state.js"></script>
+<script src="scripts/main.js"></script>
+<script src="scripts/comments.js"></script>
+<script src="scripts/animations.js"></script>
 </body>
 </html>

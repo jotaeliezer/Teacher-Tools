@@ -23,7 +23,7 @@
       low: "{name} is building core skills. With guided practice and routines, [he/she] can improve accuracy and confidence."
     },
     middle: {
-      high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently. Next term we will extend to multi-step and enrichment tasks.",
+      high: "{name} is performing strongly and shows solid reasoning. With {mark}, [he/she] works carefully and applies strategies independently.",
       mid: "{name} is progressing well and meets most expectations. With {mark}, [he/she] benefits from showing full reasoning and checking work.",
       low: "{name} is building foundational skills and currently holds {mark}. With structured practice and feedback, [he/she] can improve consistency. Next term we will reinforce core skills."
     },
@@ -227,9 +227,12 @@ const PRINT_TEMPLATE_DEFS = {
   drill: { id:'drill', label:'Drill Sheet' },
   reportCard: { id:'reportCard', label:'Report Card' }
 };
-const PRINT_EXTRA_BLANK_ROWS = 5;
-let selectedTemplateIds = new Set(['attendance']);
+const PRINT_EXTRA_BLANK_ROWS = 4;
+let selectedTemplateId = 'attendance';
 let selectedClassIds = new Set();
+let printAllClasses = false;
+let printReportAllStudents = false;
+let builderAiEndpoint = '';
 const textMeasureCanvas = document.createElement('canvas');
 const textMeasureCtx = textMeasureCanvas.getContext('2d');
 function getTemplateFontVariants(){
@@ -332,6 +335,7 @@ function computePrintColumnWidths(students){
   const zoomOutBtn = document.getElementById('zoomOutBtn');
   const filesDrawer = document.getElementById('filesDrawer');
   const filesDrawerToggle = document.getElementById('filesDrawerToggle');
+  const filesDrawerMiniList = document.getElementById('filesDrawerMiniList');
   const tabDataBtn = document.getElementById('tabDataBtn');
   const tabPrintBtn = document.getElementById('tabPrintBtn');
   const tabCommentsBtn = document.getElementById('tabCommentsBtn');
@@ -384,9 +388,13 @@ function computePrintColumnWidths(students){
   const savedReportsBackdrop = document.getElementById('savedReportsBackdrop');
   const savedReportsPanel = document.getElementById('savedReportsPanel');
   const builderGenerateBtn = document.getElementById('builderGenerateBtn');
+  const builderGenerateAiBtn = document.getElementById('builderGenerateAiBtn');
   const builderCopyBtn = document.getElementById('builderCopyBtn');
   const builderClearBtn = document.getElementById('builderClearBtn');
+  const builderOutputWrap = document.getElementById('builderOutputWrap');
   const builderReportOutput = document.getElementById('builderReportOutput');
+  const builderReportOverlay = document.getElementById('builderReportOverlay');
+  const builderRevisedOutput = document.getElementById('builderRevisedOutput');
   const savedReportsListEl = document.getElementById('savedReportsList');
   const savedReportsClearBtn = document.getElementById('savedReportsClearBtn');
   const printContainer = document.getElementById('printContainer');
@@ -397,13 +405,17 @@ function computePrintColumnWidths(students){
   const printPreviewContent = document.getElementById('printPreviewContent');
   const printPreviewCloseBtn = document.getElementById('printPreviewClose');
   const printPreviewCancelBtn = document.getElementById('printPreviewCancel');
+  const printPreviewPrintTopBtn = document.getElementById('printPreviewPrintTop');
   const printPreviewPrintBtn = document.getElementById('printPreviewPrint');
 const printMarkingPanel = document.getElementById('printMarkingPanel');
 const printMarkingColumnsList = document.getElementById('printMarkingColumnsList');
 const printMarkingSelectAllBtn = document.getElementById('printMarkingSelectAll');
 const printMarkingClearBtn = document.getElementById('printMarkingClear');
 const printClassList = document.getElementById('printClassList');
+const printAllClassesToggle = document.getElementById('printAllClassesToggle');
+const printDrillCountInput = document.getElementById('printDrillCount');
 const printReportStudentSelect = document.getElementById('printReportStudentSelect');
+const printReportAllStudentsToggle = document.getElementById('printReportAllStudents');
 const printCommentsBtn = document.getElementById('printCommentsBtn');
 const printCommentsDrawer = document.getElementById('printCommentsDrawer');
 const printCommentsClose = document.getElementById('printCommentsClose');
@@ -422,6 +434,10 @@ const printTermInputs = Array.from(document.querySelectorAll('input[name="printT
   const markWarningContinue = document.getElementById('markWarningContinue');
   const markWarningCancel = document.getElementById('markWarningCancel');
   const markWarningMessage = document.getElementById('markWarningMessage');
+  const teacherNamePrompt = document.getElementById('teacherNamePrompt');
+  const teacherNamePromptInput = document.getElementById('teacherNamePromptInput');
+  const teacherNamePromptCancel = document.getElementById('teacherNamePromptCancel');
+  const teacherNamePromptSave = document.getElementById('teacherNamePromptSave');
 
   // Modal elements
   const modalBackdrop = document.getElementById('modalBackdrop');

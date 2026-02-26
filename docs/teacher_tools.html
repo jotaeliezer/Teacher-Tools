@@ -138,6 +138,24 @@
       </footer>
     </div>
   </div>
+  <div id="teacherNamePrompt" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>Teacher Name</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="padding:16px;">
+        <p style="margin:0 0 12px 0; color:var(--ink);">Please enter your name to use on printed templates.</p>
+        <p class="muted" style="margin:0 0 12px 0; font-size:13px;">It will be saved for future sessions, but you can change it anytime in the Print View form.</p>
+        <label style="display:block; font-size:13px; margin-bottom:6px; font-weight:600;">Your name</label>
+        <input id="teacherNamePromptInput" type="text" placeholder="e.g. Ms. Rivera" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d7d7d7; font-size:15px; box-sizing:border-box;" />
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
+        <button class="btn" id="teacherNamePromptCancel">Cancel</button>
+        <button class="btn primary" id="teacherNamePromptSave">Continue</button>
+      </footer>
+    </div>
+  </div>
 <div id="printPreviewModal" class="tab-section" style="display:none;">
   <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
     <header style="display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
@@ -555,6 +573,15 @@
               <div class="builder-helper">Check the assignments you want to reference in the comment.</div>
               <label class="builder-inline-toggle"><input type="checkbox" id="builderIncludeFinalGrade"> Include Calculated Final Grade (SK to Gr4)</label>
               <div id="builderAssignmentsList" class="extras-list" style="max-height:200px; overflow:auto;">
+                <!-- Will be populated dynamically -->
+              </div>
+            </div>
+
+            <div class="builder-card">
+              <h4>Future Assignments &amp; Tests</h4>
+              <div class="builder-helper">Columns with no mark yet for this student. Select upcoming items to mention in the comment.</div>
+              <input type="text" id="builderFutureAssignmentsSearch" placeholder="Search upcoming..." style="width:100%; box-sizing:border-box; margin-bottom:6px;" />
+              <div id="builderFutureAssignmentsList" class="extras-list" style="max-height:200px; overflow:auto;">
                 <!-- Will be populated dynamically -->
               </div>
             </div>

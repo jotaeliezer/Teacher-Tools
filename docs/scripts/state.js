@@ -434,6 +434,10 @@ const printTermInputs = Array.from(document.querySelectorAll('input[name="printT
   const markWarningContinue = document.getElementById('markWarningContinue');
   const markWarningCancel = document.getElementById('markWarningCancel');
   const markWarningMessage = document.getElementById('markWarningMessage');
+  const teacherNamePrompt = document.getElementById('teacherNamePrompt');
+  const teacherNamePromptInput = document.getElementById('teacherNamePromptInput');
+  const teacherNamePromptCancel = document.getElementById('teacherNamePromptCancel');
+  const teacherNamePromptSave = document.getElementById('teacherNamePromptSave');
 
   // Modal elements
   const modalBackdrop = document.getElementById('modalBackdrop');
