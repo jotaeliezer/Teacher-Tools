@@ -213,11 +213,12 @@
       min-height: max(100vh, calc(100% / var(--zoom-factor,1)));
       transition:padding-left .24s ease;
       padding:16px 16px 160px 16px;
-      padding-left:calc(var(--files-drawer-expanded) + 32px);
+      /* Compensate for zoom: padding scales with transform, so divide by zoom to keep visual gap */
+      padding-left:calc((var(--files-drawer-expanded) + 32px) / var(--zoom-factor, 1));
       box-sizing:border-box;
     }
     #appRoot.files-drawer-collapsed{
-      padding-left:calc(var(--files-drawer-collapsed) + 28px);
+      padding-left:calc((var(--files-drawer-collapsed) + 28px) / var(--zoom-factor, 1));
     }
     .app-header{
       display:flex;
@@ -1468,14 +1469,17 @@
       grid-template-areas:
         "details      assignments"
         "performance  future";
-      gap:12px;
+      gap:12px 12px;
+      row-gap:8px;
       align-items:stretch;
     }
     .builder-grid .builder-card:nth-child(1){
       grid-area:details;
+      align-self:start;
     }
     .builder-grid .builder-card:nth-child(2){
       grid-area:performance;
+      align-self:start;
     }
     .builder-grid .builder-card:nth-child(3){
       grid-area:assignments;
@@ -2031,6 +2035,14 @@
     }
     .builder-report-overlay .selection-fade-out{
       animation:selectionTokenOut .16s ease;
+    }
+    .builder-output-wrap.builder-output-crossfade-out{
+      transition: opacity 0.28s ease;
+      opacity: 0;
+    }
+    .builder-output-wrap.builder-output-crossfade-in{
+      transition: opacity 0.28s ease;
+      opacity: 1;
     }
     @keyframes builderOutputPulse{
       0%{ box-shadow:0 0 0 rgba(175,0,111,0); }

@@ -3923,6 +3923,7 @@ function getPerformanceToneLine(coreLevel, context){
 
     futureColumns.forEach(col => {
       const label = cleanAssignmentLabel(col);
+      const isLate = columnHasData(col);
 
       const wrapper = document.createElement('div');
       wrapper.style.display = filterText && !label.toLowerCase().includes(filterText) ? 'none' : 'flex';
@@ -3936,6 +3937,7 @@ function getPerformanceToneLine(coreLevel, context){
       checkbox.type = 'checkbox';
       checkbox.value = col;
       checkbox.dataset.futureCol = col;
+      if (isLate) checkbox.dataset.isLate = 'true';
       checkbox.style.flexShrink = '0';
 
       const labelText = document.createElement('span');
@@ -3946,6 +3948,16 @@ function getPerformanceToneLine(coreLevel, context){
 
       wrapper.appendChild(checkbox);
       wrapper.appendChild(labelText);
+
+      if (isLate){
+        const lateIcon = document.createElement('span');
+        lateIcon.textContent = '⚠️';
+        lateIcon.title = 'Other students have a mark for this — may be a late assignment';
+        lateIcon.style.flexShrink = '0';
+        lateIcon.style.fontSize = '13px';
+        wrapper.appendChild(lateIcon);
+      }
+
       listEl.appendChild(wrapper);
 
       const handleToggle = () => {
@@ -4686,6 +4698,49 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     ];
     return pickVariant(variants, seed);
   }
+  function buildLateAssignmentSentences(selectedLate, context){
+    if (!selectedLate || !selectedLate.length) return '';
+    const name = context.studentName || 'The student';
+    const seed = name + 'late' + selectedLate.join(',');
+    const labels = selectedLate.map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    if (!labels.length) return '';
+    const count = labels.length;
+
+    if (count === 1){
+      const label = labels[0];
+      const variants = [
+        `It is noted that ${label} has not yet been submitted — ${name} is encouraged to complete and hand it in as soon as possible.`,
+        `${label} appears to be outstanding at this time. ${name} is encouraged to submit the work at the earliest opportunity.`,
+        `${name} has not yet submitted ${label} and is encouraged to do so promptly.`,
+        `At this time, ${label} has not been received. ${name} is strongly encouraged to submit this work.`,
+        `${label} is currently missing from ${name}'s submissions and should be completed and handed in as soon as possible.`,
+        `${name} is reminded that ${label} has not been submitted and is urged to follow up on this promptly.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    if (count === 2){
+      const [a, b] = labels;
+      const variants = [
+        `It is noted that ${a} and ${b} have not yet been submitted. ${name} is encouraged to complete and hand in both assignments promptly.`,
+        `${a} and ${b} are currently outstanding. ${name} is urged to submit these as soon as possible.`,
+        `${name} has not yet submitted ${a} or ${b} and is encouraged to do so at the earliest opportunity.`,
+        `Both ${a} and ${b} are missing from ${name}'s submissions. Completing and handing these in promptly is strongly encouraged.`,
+      ];
+      return pickVariant(variants, seed);
+    }
+
+    const allButLast = labels.slice(0, -1);
+    const last = labels[labels.length - 1];
+    const listStr = allButLast.join(', ') + ', and ' + last;
+    const variants = [
+      `It is noted that several assignments — ${listStr} — have not yet been submitted. ${name} is strongly encouraged to complete and hand these in as soon as possible.`,
+      `${name} currently has a number of outstanding assignments, including ${listStr}. Submitting these promptly is strongly encouraged.`,
+      `The following assignments are missing from ${name}'s submissions: ${listStr}. ${name} is urged to follow up on these at the earliest opportunity.`,
+      `${name} is reminded that ${listStr} have not been received and should be submitted as soon as possible.`,
+    ];
+    return pickVariant(variants, seed);
+  }
   function collectAssignmentFacts(selectedAssignments, row){
     if (!Array.isArray(selectedAssignments) || !selectedAssignments.length || !row) return [];
     const facts = [];
@@ -5169,7 +5224,7 @@ function splitIntoSentences(text){
     if (!variants || !variants.length) return '';
     return pickVariant(variants, seed + '|transition|' + key);
   }
-  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, futureParagraph, lookingAheadText }){
+  function buildUnifiedComment({ baseComment, termLabel, toneLine, commentSnippet, assignmentParagraph, futureParagraph, lateParagraph, lookingAheadText }){
     let baseText = baseComment || '';
     if (termLabel){
       baseText = `${termLabel}: ${baseText}`;
@@ -5203,6 +5258,7 @@ function splitIntoSentences(text){
     appendUniqueBlock(commentSnippet, 'comment');
     appendUniqueBlock(assignmentParagraph, 'assignment');
     appendUniqueBlock(futureParagraph, 'future-upcoming');
+    appendUniqueBlock(lateParagraph, 'late-missing');
     appendUniqueBlock(lookingAheadText, 'lookingAhead');
     appendUniqueBlock(closing, 'closing');
     const seed = String(baseText || '').slice(0, 40);
@@ -5813,6 +5869,13 @@ function varySentenceOpenings(text, studentName){
   }
   function getSelectedBuilderFutureAssignments(){
     return Array.from(document.querySelectorAll('#builderFutureAssignmentsList input[type="checkbox"]:checked'))
+      .filter(cb => !cb.dataset.isLate)
+      .map(cb => cb.value)
+      .filter(Boolean);
+  }
+  function getSelectedBuilderLateAssignments(){
+    return Array.from(document.querySelectorAll('#builderFutureAssignmentsList input[type="checkbox"]:checked'))
+      .filter(cb => cb.dataset.isLate === 'true')
       .map(cb => cb.value)
       .filter(Boolean);
   }
@@ -5993,10 +6056,12 @@ function varySentenceOpenings(text, studentName){
 
     const selectedAssignments = getSelectedBuilderAssignments();
     const selectedFutureAssignments = getSelectedBuilderFutureAssignments();
+    const selectedLateAssignments = getSelectedBuilderLateAssignments();
     const overallMeta = (context.gradeGroup === 'elem') ? null : deriveMarkMeta(finalGradeToUse, gradeColumn);
     const assignmentSentences = buildAssignmentSentences(selectedAssignments, studentRow, context, overallMeta);
     const assignmentParagraph = assignmentSentences || '';
     const futureParagraph = buildFutureAssignmentSentences(selectedFutureAssignments, context);
+    const lateParagraph = buildLateAssignmentSentences(selectedLateAssignments, context);
 
     const selectedComments = getBuilderSelectedComments();
     const commentBlocks = buildCommentBlocks(selectedComments, context);
@@ -6019,6 +6084,7 @@ function varySentenceOpenings(text, studentName){
         commentSnippet: commentSnippetText,
         assignmentParagraph,
         futureParagraph,
+        lateParagraph,
         lookingAheadText: lookingAheadSelected
       });
     }else{
@@ -6057,6 +6123,7 @@ function varySentenceOpenings(text, studentName){
       if (commentSnippetText) blocks.push(commentSnippetText);
       if (assignmentParagraph) blocks.push(assignmentParagraph);
       if (futureParagraph) blocks.push(futureParagraph);
+      if (lateParagraph) blocks.push(lateParagraph);
       const tailText = lookingAheadSelected;
       if (tailText) blocks.push(tailText);
       if (partB) blocks.push(partB);
