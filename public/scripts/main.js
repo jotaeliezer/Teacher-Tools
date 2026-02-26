@@ -14,6 +14,7 @@
   selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
   printAllClasses = !!initialSettings.printAllClasses;
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
+  if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
   saveSettings({ printTemplateId: selectedTemplateId });
 
   let builderActiveCommentSection = null;
@@ -1260,8 +1261,8 @@ if (builderGradeGroupSelect){
   };
   const PERFORMANCE_TONE_VARIANTS = {
     good: [
-      "With this level of achievement, [Student] is ready for deeper challenges and enrichment.",
-      "[Student] is well positioned to extend learning through enrichment and higher-order tasks."
+      "With this level of achievement, [Student] is shows a solid understanding of the material and values the challenges presented in class.",
+      "[Student] is well positioned to end the school year with a high level of success and confidence."
     ],
     average: [
       "With steady routines and consistent review, [he/she] can turn this progress into stronger results.",
@@ -2343,7 +2344,7 @@ function getPerformanceToneLine(coreLevel, context){
       node.style.width = `${width}px`;
     };
     const teacherName = (printMeta.teacher || '').trim();
-    const classDisplay = (printMeta.classInfo || '').trim();
+    const classDisplay = (ctx?.name || '').trim() || (printMeta.classInfo || '').trim();
     const termLabel = getTermLabel(printMeta.term);
     const templateLabel = PRINT_TEMPLATE_DEFS[templateId]?.label || 'Template';
 
@@ -2568,7 +2569,7 @@ function getPerformanceToneLine(coreLevel, context){
       return empty;
     }
     const teacherName = (printMeta.teacher || '').trim();
-    const classDisplay = (printMeta.classInfo || '').trim();
+    const classDisplay = (ctx?.name || '').trim() || (printMeta.classInfo || '').trim();
     const termLabel = getTermLabel(printMeta.term);
     const title = (printMeta.title || '').trim();
 
@@ -3502,6 +3503,7 @@ function getPerformanceToneLine(coreLevel, context){
     printMeta.teacher = (printTeacherInput?.value || '').trim();
     printMeta.classInfo = (printClassInput?.value || '').trim();
     printMeta.title = (printTitleInput?.value || '').trim();
+    saveSettings({ printTeacher: printMeta.teacher });
     const checkedTerm = printTermInputs.find(radio => radio.checked)?.value;
     if (checkedTerm) printMeta.term = checkedTerm;
     if (checkedTerm && checkedTerm !== prevTerm){
