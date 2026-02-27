@@ -190,6 +190,9 @@
       activateTab('print');
     });
   }
+  if (tabTestBtn){
+    tabTestBtn.addEventListener('click', () => activateTab('test'));
+  }
   if (tabCommentsBtn){
     tabCommentsBtn.addEventListener('click', () => {
       if (!rows.length){
@@ -3485,12 +3488,14 @@ function getPerformanceToneLine(coreLevel, context){
     const sections = {
       data: dataTabSection,
       print: printTabSection,
-      comments: commentsTabSection
+      comments: commentsTabSection,
+      test: testTabSection
     };
     const buttons = {
       data: tabDataBtn,
       print: tabPrintBtn,
-      comments: tabCommentsBtn
+      comments: tabCommentsBtn,
+      test: tabTestBtn
     };
     Object.entries(sections).forEach(([key, el]) => {
       if (!el) return;
