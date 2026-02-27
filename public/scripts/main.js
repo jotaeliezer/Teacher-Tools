@@ -5535,12 +5535,18 @@ function varySentenceOpenings(text, studentName){
     const startRe = new RegExp(`^(\\s*)${safeName}('s)?\\b`, 'i');
     const midPossRe = new RegExp(`(?<!^\\s*)\\b${safeName}'s\\b`, 'gi');
     const midNameRe = new RegExp(`(?<!^\\s*)\\b${safeName}\\b`, 'gi');
+    const objectVerbRe = /\b(encourage[sd]?|remind[sd]?|support[sd]?|help[sd]?|assist[sd]?|prompt[sd]?|urge[sd]?|push(?:es)?|guide[sd]?|challenge[sd]?|advise[sd]?|ask[sd]?|tell[sd]?|told|invite[sd]?|expect[sd]?|require[sd]?|want[sd]?|need[sd]?|allow[sd]?|enable[sd]?|motivate[sd]?)\s+$/i;
+    const prepRe = /\b(for|with|to|of|by|from|about|on|through|without|around|beside|beyond|during|including|like|near|since|than|toward|via)\s+$/i;
     return sentences.map((s, idx) => {
       if (idx === 0) return s;
       let result = s.replace(startRe, (_, ws, poss) => (ws || '') + (poss ? pronouns.His : pronouns.He));
       if (aggressiveMode && idx !== lastIdx){
         result = result.replace(new RegExp(`\\b${safeName}'s\\b`, 'gi'), pronouns.His);
-        result = result.replace(new RegExp(`\\b${safeName}\\b`, 'gi'), pronouns.He);
+        result = result.replace(new RegExp(`\\b${safeName}\\b`, 'g'), (match, offset) => {
+          const before = result.slice(0, offset);
+          if (objectVerbRe.test(before) || prepRe.test(before)) return pronouns.Him;
+          return pronouns.He;
+        });
       }
       return result;
     }).join(' ');
