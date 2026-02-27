@@ -339,9 +339,11 @@ function computePrintColumnWidths(students){
   const tabDataBtn = document.getElementById('tabDataBtn');
   const tabPrintBtn = document.getElementById('tabPrintBtn');
   const tabCommentsBtn = document.getElementById('tabCommentsBtn');
+  const tabTestBtn = document.getElementById('tabTestBtn');
   const dataTabSection = document.getElementById('dataTabSection');
   const commentsTabSection = document.getElementById('commentsModal');
   const printTabSection = document.getElementById('printPreviewModal');
+  const testTabSection = document.getElementById('testTabSection');
   const commentsModal = document.getElementById('commentsModal');
   const commentsCloseBtn = document.getElementById('commentsCloseBtn');
   const commentsCopyAllBtn = document.getElementById('commentsCopyAll');

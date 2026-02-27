@@ -128,7 +128,7 @@ function loadCommentConfigForFile(name){
   }
   function ensureDefaultCommentGradeColumn(){
     if (commentConfig.gradeColumn && allColumns.includes(commentConfig.gradeColumn)) return;
-    let candidate = allColumns.find(c => c === 'Calculated Final Grade');
+    let candidate = allColumns.find(c => /^calculated final /i.test(c));
     if (!candidate){
       candidate = allColumns.find(c => isLikelyMarkColumn(c));
     }

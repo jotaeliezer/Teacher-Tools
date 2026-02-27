@@ -190,6 +190,9 @@
       activateTab('print');
     });
   }
+  if (tabTestBtn){
+    tabTestBtn.addEventListener('click', () => activateTab('test'));
+  }
   if (tabCommentsBtn){
     tabCommentsBtn.addEventListener('click', () => {
       if (!rows.length){
@@ -664,9 +667,12 @@ if (builderGradeGroupSelect){
       initRows();
       setupStudentNameColumn();
       applyDefaultStudentSort();
-      if (!commentConfig.gradeColumn && allColumns.includes('Calculated Final Grade')){
-        commentConfig.gradeColumn = 'Calculated Final Grade';
-        persistCommentConfig();
+      if (!commentConfig.gradeColumn){
+        const calcFinalCol = allColumns.find(c => /^calculated final /i.test(c));
+        if (calcFinalCol){
+          commentConfig.gradeColumn = calcFinalCol;
+          persistCommentConfig();
+        }
       }
       const s = loadSettings();
       isTransposed = !!s.transposed;
@@ -3482,12 +3488,14 @@ function getPerformanceToneLine(coreLevel, context){
     const sections = {
       data: dataTabSection,
       print: printTabSection,
-      comments: commentsTabSection
+      comments: commentsTabSection,
+      test: testTabSection
     };
     const buttons = {
       data: tabDataBtn,
       print: tabPrintBtn,
-      comments: tabCommentsBtn
+      comments: tabCommentsBtn,
+      test: tabTestBtn
     };
     Object.entries(sections).forEach(([key, el]) => {
       if (!el) return;
@@ -5823,29 +5831,41 @@ function varySentenceOpenings(text, studentName){
     step();
   }
   function animateBuilderOutputCrossfade(previous, next){
-    if (!builderOutputWrap || !builderReportOutput) return;
+    if (!builderOutputWrap || !builderReportOutput || !builderReportOverlay) return;
     builderOutputCrossfadeToken += 1;
     const token = builderOutputCrossfadeToken;
     clearBuilderDiffOverlay();
     clearBuilderSelectionOverlay();
-    builderOutputWrap.classList.remove('builder-output-crossfade-in');
-    builderOutputWrap.classList.add('builder-output-crossfade-out');
-    const fadeOutMs = 280;
+
+    // Show old text in overlay and start fading it out
+    builderReportOverlay.innerHTML = escapeHtml(previous);
+    builderReportOverlay.style.opacity = '1';
+    builderReportOverlay.classList.remove('overlay-fade-out');
+    builderOutputWrap.classList.add('overlay-active');
+
+    void builderReportOverlay.offsetHeight; // force reflow before transition
+    builderReportOverlay.classList.add('overlay-fade-out');
+
+    const fadeMs = 260;
     setTimeout(() => {
       if (token !== builderOutputCrossfadeToken) return;
-      builderOutputWrap.classList.remove('builder-output-crossfade-out');
+      // Swap in new text while overlay is invisible
       builderReportOutput.value = next;
       builderLastFullOutput = next;
-      builderOutputWrap.style.opacity = '0';
-      void builderOutputWrap.offsetHeight;
-      builderOutputWrap.classList.add('builder-output-crossfade-in');
-      builderOutputWrap.style.opacity = '';
-      const fadeInMs = 280;
+      // Hide overlay, remove fade class, restore opacity for next use
+      builderOutputWrap.classList.remove('overlay-active');
+      builderReportOverlay.classList.remove('overlay-fade-out');
+      builderReportOverlay.style.opacity = '';
+      builderReportOverlay.innerHTML = '';
+      // Fade textarea text back in
+      builderReportOutput.classList.remove('builder-text-fade-in');
+      void builderReportOutput.offsetHeight;
+      builderReportOutput.classList.add('builder-text-fade-in');
       setTimeout(() => {
         if (token !== builderOutputCrossfadeToken) return;
-        builderOutputWrap.classList.remove('builder-output-crossfade-in');
-      }, fadeInMs);
-    }, fadeOutMs);
+        builderReportOutput.classList.remove('builder-text-fade-in');
+      }, fadeMs);
+    }, fadeMs);
   }
   function setBuilderReportOutputText(nextText, mode = 'instant'){
     if (!builderReportOutput) return;

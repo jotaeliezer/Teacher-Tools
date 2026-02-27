@@ -27,6 +27,7 @@
   let builderLastFullOutput = '';
   let builderDiffClearTimer = null;
   let builderRevisedAnimationToken = 0;
+  let builderOutputCrossfadeToken = 0;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -358,7 +359,10 @@
     builderCorePerformanceSelect.addEventListener('change', () => {
       updatePerformanceSelectStyle();
       applyRandomLookingAheadSelection();
-      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+      if (shouldAutoGenerateBuilderReport()){
+        builderOutputAnimationMode = 'performance';
+        builderGenerateReport();
+      }
     });
   }
   if (builderGenerateBtn){
@@ -660,9 +664,12 @@ if (builderGradeGroupSelect){
       initRows();
       setupStudentNameColumn();
       applyDefaultStudentSort();
-      if (!commentConfig.gradeColumn && allColumns.includes('Calculated Final Grade')){
-        commentConfig.gradeColumn = 'Calculated Final Grade';
-        persistCommentConfig();
+      if (!commentConfig.gradeColumn){
+        const calcFinalCol = allColumns.find(c => /^calculated final /i.test(c));
+        if (calcFinalCol){
+          commentConfig.gradeColumn = calcFinalCol;
+          persistCommentConfig();
+        }
       }
       const s = loadSettings();
       isTransposed = !!s.transposed;
@@ -5818,6 +5825,43 @@ function varySentenceOpenings(text, studentName){
     };
     step();
   }
+  function animateBuilderOutputCrossfade(previous, next){
+    if (!builderOutputWrap || !builderReportOutput || !builderReportOverlay) return;
+    builderOutputCrossfadeToken += 1;
+    const token = builderOutputCrossfadeToken;
+    clearBuilderDiffOverlay();
+    clearBuilderSelectionOverlay();
+
+    // Show old text in overlay and start fading it out
+    builderReportOverlay.innerHTML = escapeHtml(previous);
+    builderReportOverlay.style.opacity = '1';
+    builderReportOverlay.classList.remove('overlay-fade-out');
+    builderOutputWrap.classList.add('overlay-active');
+
+    void builderReportOverlay.offsetHeight; // force reflow before transition
+    builderReportOverlay.classList.add('overlay-fade-out');
+
+    const fadeMs = 260;
+    setTimeout(() => {
+      if (token !== builderOutputCrossfadeToken) return;
+      // Swap in new text while overlay is invisible
+      builderReportOutput.value = next;
+      builderLastFullOutput = next;
+      // Hide overlay, remove fade class, restore opacity for next use
+      builderOutputWrap.classList.remove('overlay-active');
+      builderReportOverlay.classList.remove('overlay-fade-out');
+      builderReportOverlay.style.opacity = '';
+      builderReportOverlay.innerHTML = '';
+      // Fade textarea text back in
+      builderReportOutput.classList.remove('builder-text-fade-in');
+      void builderReportOutput.offsetHeight;
+      builderReportOutput.classList.add('builder-text-fade-in');
+      setTimeout(() => {
+        if (token !== builderOutputCrossfadeToken) return;
+        builderReportOutput.classList.remove('builder-text-fade-in');
+      }, fadeMs);
+    }, fadeMs);
+  }
   function setBuilderReportOutputText(nextText, mode = 'instant'){
     if (!builderReportOutput) return;
     const previous = String(builderReportOutput.value || '');
@@ -5836,6 +5880,10 @@ function varySentenceOpenings(text, studentName){
     }
     if (mode === 'revise'){
       animateBuilderOutputChars(next, () => renderBuilderDiffOverlay(previous, next));
+      return;
+    }
+    if (mode === 'performance'){
+      animateBuilderOutputCrossfade(previous, next);
       return;
     }
     clearBuilderOutputAnimation();
