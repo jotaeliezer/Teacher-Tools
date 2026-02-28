@@ -375,7 +375,16 @@
     builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
   }
   if (builderCreateAiBtn){
-    builderCreateAiBtn.addEventListener('click', builderCreateCommentWithAI);
+    builderCreateAiBtn.addEventListener('click', handleCreateCommentClick);
+  }
+  if (createConfirmYes){
+    createConfirmYes.addEventListener('click', () => {
+      closeCreateConfirmModal();
+      builderCreateCommentWithAI();
+    });
+  }
+  if (createConfirmNo){
+    createConfirmNo.addEventListener('click', closeCreateConfirmModal);
   }
   if (builderCopyBtn){
     builderCopyBtn.addEventListener('click', () => {
@@ -5982,6 +5991,19 @@ function varySentenceOpenings(text, studentName){
       customComment: builderCustomCommentInput?.value.trim() || ''
     };
   }
+  function closeCreateConfirmModal(){
+    if (createConfirmModal) createConfirmModal.style.display = 'none';
+  }
+  function handleCreateCommentClick(){
+    const futureSelected = getSelectedBuilderFutureAssignments();
+    const lateSelected = getSelectedBuilderLateAssignments();
+    const hasAnyFutureSelection = (futureSelected && futureSelected.length > 0) || (lateSelected && lateSelected.length > 0);
+    if (!hasAnyFutureSelection){
+      if (createConfirmModal) createConfirmModal.style.display = 'flex';
+      return;
+    }
+    builderCreateCommentWithAI();
+  }
   async function builderCreateCommentWithAI(){
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
@@ -6500,6 +6522,7 @@ function varySentenceOpenings(text, studentName){
     builderCommentCheckboxes.forEach(cb => cb.checked = false);
     updateBuilderSelectedTags();
     builderGenerateReport();
+    setBuilderAiCreatedOutputText('', 'instant');
   }
   function resetToEmptyState(){
     rows = [];

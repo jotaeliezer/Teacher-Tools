@@ -5923,15 +5923,38 @@ function varySentenceOpenings(text, studentName){
       builderRevisedOutput.classList.remove('builder-output-fade');
     }
   }
+  let builderAiCreatedAnimToken = 0;
+  function animateBuilderAiCreatedChars(text){
+    if (!builderAiCreatedOutput) return;
+    builderAiCreatedAnimToken += 1;
+    const token = builderAiCreatedAnimToken;
+    const source = String(text || '');
+    let i = 0;
+    builderAiCreatedOutput.value = '';
+    builderAiCreatedOutput.classList.remove('builder-output-fade');
+    void builderAiCreatedOutput.offsetWidth;
+    builderAiCreatedOutput.classList.add('builder-output-fade');
+    const step = () => {
+      if (token !== builderAiCreatedAnimToken || !builderAiCreatedOutput) return;
+      builderAiCreatedOutput.value = source.slice(0, i);
+      i += 4;
+      if (i <= source.length){
+        setTimeout(step, 14);
+      } else {
+        builderAiCreatedOutput.value = source;
+        builderAiCreatedOutput.classList.remove('builder-output-fade');
+      }
+    };
+    step();
+  }
   function setBuilderAiCreatedOutputText(text, mode = 'instant'){
     if (!builderAiCreatedOutput) return;
     const next = String(text || '');
-    builderAiCreatedOutput.value = next;
     if (mode === 'create'){
-      builderAiCreatedOutput.classList.remove('builder-output-fade');
-      void builderAiCreatedOutput.offsetWidth;
-      builderAiCreatedOutput.classList.add('builder-output-fade');
+      animateBuilderAiCreatedChars(next);
     } else {
+      builderAiCreatedAnimToken += 1;
+      builderAiCreatedOutput.value = next;
       builderAiCreatedOutput.classList.remove('builder-output-fade');
     }
   }

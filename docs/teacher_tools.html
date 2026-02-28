@@ -122,6 +122,20 @@
       </footer>
     </div>
   </div>
+  <div id="createConfirmModal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <header>
+        <h3>No Future Assignments Selected</h3>
+      </header>
+      <div class="content" style="display:block; padding:16px;">
+        <p style="margin:0; color:var(--ink);">You haven't selected anything from the <strong>Future Assignments &amp; Tests</strong> panel. Are you sure you want to continue?</p>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="createConfirmNo">No</button>
+        <button class="btn primary" id="createConfirmYes">Yes, create anyway</button>
+      </footer>
+    </div>
+  </div>
   <div id="folderPrompt" class="modal-backdrop" style="display:none;">
     <div class="modal" style="max-width:420px;">
       <header>
@@ -599,9 +613,7 @@
             <div class="builder-card builder-output-card">
               <h4>Generated Report</h4>
               <div class="button-group">
-                <button class="btn" type="button" id="builderGenerateBtn">Generate</button>
-                <button class="btn" type="button" id="builderGenerateAiBtn">Revise</button>
-                <button class="btn" type="button" id="builderCreateAiBtn">Create</button>
+                <button class="btn primary" type="button" id="builderCreateAiBtn">Create Comment</button>
                 <button class="btn" type="button" id="builderCopyBtn">Copy</button>
                 <button class="btn" type="button" id="builderSaveBtn">Save</button>
                 <button class="btn" type="button" id="builderClearBtn">Clear</button>
