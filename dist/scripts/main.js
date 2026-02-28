@@ -4658,8 +4658,12 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     return 'default';
   }
   function cleanAssignmentLabel(label = ''){
-    const m = String(label || '').match(/^L\d+\s*-\s*(.*)$/i);
-    return m ? m[1].trim() || String(label || '').trim() : String(label || '');
+    let s = String(label || '').trim();
+    // Strip Brightspace grading scheme suffixes
+    s = s.replace(/\s+(Scheme Symbol|Points Grade|Points Points|Grade Points|Percentage|Letter Grade|GPA Scale|Pass\/Fail|Complete\/Incomplete)\s*$/i, '').trim();
+    // Strip L##- prefix
+    const m = s.match(/^L\d+\s*-\s*(.*)$/i);
+    return m ? m[1].trim() || s : s;
   }
   function buildFutureAssignmentSentences(selectedFuture, context){
     if (!selectedFuture || !selectedFuture.length) return '';
@@ -4773,20 +4777,20 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       "For {label}, [Student] recorded {score}%",
       "In {label}, [Student] earned {score}%",
       "Across {label}, [Student] posted {score}%",
-      "With {score}% on {label}, [Student] demonstrated",
       "[Student] earned {score}% on {label}",
-      "Scoring {score}% on {label}, [Student]",
-      "[Student] achieved {score}% in {label}"
+      "[Student] achieved {score}% in {label}",
+      "[Student] scored {score}% on {label}",
+      "[Student] recorded {score}% on {label}"
     ];
     const clauseOpenersB = [
       "On {label}, [he/she] scored {score}%",
       "For {label}, [he/she] recorded {score}%",
       "In {label}, [he/she] earned {score}%",
       "On {label}, [he/she] posted {score}%",
-      "With {score}% on {label}, [he/she] showed",
-      "[He/She] earned {score}% on {label}",
-      "Scoring {score}% on {label}, [he/she]",
-      "[He/She] achieved {score}% in {label}"
+      "[he/she] earned {score}% on {label}",
+      "[he/she] achieved {score}% in {label}",
+      "[he/she] scored {score}% on {label}",
+      "[he/she] recorded {score}% on {label}"
     ];
     const aboveNotes = [
       `-- above [his/her] term average -- highlighting an area of strength`,
@@ -5535,12 +5539,18 @@ function varySentenceOpenings(text, studentName){
     const startRe = new RegExp(`^(\\s*)${safeName}('s)?\\b`, 'i');
     const midPossRe = new RegExp(`(?<!^\\s*)\\b${safeName}'s\\b`, 'gi');
     const midNameRe = new RegExp(`(?<!^\\s*)\\b${safeName}\\b`, 'gi');
+    const objectVerbRe = /\b(encourage[sd]?|remind[sd]?|support[sd]?|help[sd]?|assist[sd]?|prompt[sd]?|urge[sd]?|push(?:es)?|guide[sd]?|challenge[sd]?|advise[sd]?|ask[sd]?|tell[sd]?|told|invite[sd]?|expect[sd]?|require[sd]?|want[sd]?|need[sd]?|allow[sd]?|enable[sd]?|motivate[sd]?)\s+$/i;
+    const prepRe = /\b(for|with|to|of|by|from|about|on|through|without|around|beside|beyond|during|including|like|near|since|than|toward|via)\s+$/i;
     return sentences.map((s, idx) => {
       if (idx === 0) return s;
       let result = s.replace(startRe, (_, ws, poss) => (ws || '') + (poss ? pronouns.His : pronouns.He));
       if (aggressiveMode && idx !== lastIdx){
         result = result.replace(new RegExp(`\\b${safeName}'s\\b`, 'gi'), pronouns.His);
-        result = result.replace(new RegExp(`\\b${safeName}\\b`, 'gi'), pronouns.He);
+        result = result.replace(new RegExp(`\\b${safeName}\\b`, 'g'), (match, offset) => {
+          const before = result.slice(0, offset);
+          if (objectVerbRe.test(before) || prepRe.test(before)) return pronouns.him;
+          return pronouns.he;
+        });
       }
       return result;
     }).join(' ');

@@ -374,6 +374,9 @@
   if (builderGenerateAiBtn){
     builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
   }
+  if (builderCreateAiBtn){
+    builderCreateAiBtn.addEventListener('click', builderCreateCommentWithAI);
+  }
   if (builderCopyBtn){
     builderCopyBtn.addEventListener('click', () => {
       builderCopyReport();
@@ -4658,8 +4661,12 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
     return 'default';
   }
   function cleanAssignmentLabel(label = ''){
-    const m = String(label || '').match(/^L\d+\s*-\s*(.*)$/i);
-    return m ? m[1].trim() || String(label || '').trim() : String(label || '');
+    let s = String(label || '').trim();
+    // Strip Brightspace grading scheme suffixes
+    s = s.replace(/\s+(Scheme Symbol|Points Grade|Points Points|Grade Points|Percentage|Letter Grade|GPA Scale|Pass\/Fail|Complete\/Incomplete)\s*$/i, '').trim();
+    // Strip L##- prefix
+    const m = s.match(/^L\d+\s*-\s*(.*)$/i);
+    return m ? m[1].trim() || s : s;
   }
   function buildFutureAssignmentSentences(selectedFuture, context){
     if (!selectedFuture || !selectedFuture.length) return '';
@@ -4773,20 +4780,20 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
       "For {label}, [Student] recorded {score}%",
       "In {label}, [Student] earned {score}%",
       "Across {label}, [Student] posted {score}%",
-      "With {score}% on {label}, [Student] demonstrated",
       "[Student] earned {score}% on {label}",
-      "Scoring {score}% on {label}, [Student]",
-      "[Student] achieved {score}% in {label}"
+      "[Student] achieved {score}% in {label}",
+      "[Student] scored {score}% on {label}",
+      "[Student] recorded {score}% on {label}"
     ];
     const clauseOpenersB = [
       "On {label}, [he/she] scored {score}%",
       "For {label}, [he/she] recorded {score}%",
       "In {label}, [he/she] earned {score}%",
       "On {label}, [he/she] posted {score}%",
-      "With {score}% on {label}, [he/she] showed",
-      "[He/She] earned {score}% on {label}",
-      "Scoring {score}% on {label}, [he/she]",
-      "[He/She] achieved {score}% in {label}"
+      "[he/she] earned {score}% on {label}",
+      "[he/she] achieved {score}% in {label}",
+      "[he/she] scored {score}% on {label}",
+      "[he/she] recorded {score}% on {label}"
     ];
     const aboveNotes = [
       `-- above [his/her] term average -- highlighting an area of strength`,
@@ -5544,8 +5551,8 @@ function varySentenceOpenings(text, studentName){
         result = result.replace(new RegExp(`\\b${safeName}'s\\b`, 'gi'), pronouns.His);
         result = result.replace(new RegExp(`\\b${safeName}\\b`, 'g'), (match, offset) => {
           const before = result.slice(0, offset);
-          if (objectVerbRe.test(before) || prepRe.test(before)) return pronouns.Him;
-          return pronouns.He;
+          if (objectVerbRe.test(before) || prepRe.test(before)) return pronouns.him;
+          return pronouns.he;
         });
       }
       return result;
@@ -5914,6 +5921,88 @@ function varySentenceOpenings(text, studentName){
       builderRevisedOutput.classList.add('builder-output-fade');
     }else{
       builderRevisedOutput.classList.remove('builder-output-fade');
+    }
+  }
+  function setBuilderAiCreatedOutputText(text, mode = 'instant'){
+    if (!builderAiCreatedOutput) return;
+    const next = String(text || '');
+    builderAiCreatedOutput.value = next;
+    if (mode === 'create'){
+      builderAiCreatedOutput.classList.remove('builder-output-fade');
+      void builderAiCreatedOutput.offsetWidth;
+      builderAiCreatedOutput.classList.add('builder-output-fade');
+    } else {
+      builderAiCreatedOutput.classList.remove('builder-output-fade');
+    }
+  }
+  function buildBuilderAiCreatePayload(){
+    const studentRow = rows[builderSelectedRowIndex] || null;
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
+    const assignments = getSelectedBuilderAssignments();
+    const assignmentFacts = assignments.slice(0, 4).map(col => {
+      const meta = studentRow ? deriveMarkMeta(studentRow[col], col) : null;
+      return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
+    }).filter(Boolean);
+    const selectedComments = getBuilderSelectedComments();
+    return {
+      reviseMode: 'create',
+      studentName: builderStudentNameInput?.value.trim() || '',
+      pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
+      gradeGroup: builderGradeGroupSelect?.value || 'middle',
+      performanceLevel: builderCorePerformanceSelect?.value || '',
+      termLabel: builderTermSelector?.value || '',
+      finalGrade,
+      assignmentFacts,
+      selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
+      customComment: builderCustomCommentInput?.value.trim() || ''
+    };
+  }
+  async function builderCreateCommentWithAI(){
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const studentName = builderStudentNameInput?.value.trim();
+    if (!studentName){
+      status('Provide a student name before using Create.');
+      return;
+    }
+    const payload = buildBuilderAiCreatePayload();
+    const originalLabel = builderCreateAiBtn?.textContent || 'Create';
+    try {
+      if (builderCreateAiBtn){
+        builderCreateAiBtn.disabled = true;
+        builderCreateAiBtn.textContent = 'Creating...';
+      }
+      status('Creating new comment with AI...');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok){
+        const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
+        status(`AI error: ${detail}`);
+        return;
+      }
+      const aiText = parseAiCommentResponse(data);
+      if (!aiText){
+        status('AI returned an empty comment.');
+        return;
+      }
+      const modelUsed = String(data?.modelUsed || '').trim();
+      const polished = polishGrammar(cleanFluency(aiText));
+      setBuilderAiCreatedOutputText(polished, 'create');
+      status(modelUsed ? `AI comment created (${modelUsed}).` : 'AI comment created.');
+    } catch(err){
+      console.error(err);
+      status('Could not reach AI API.');
+    } finally {
+      if (builderCreateAiBtn){
+        builderCreateAiBtn.disabled = false;
+        builderCreateAiBtn.textContent = originalLabel;
+      }
     }
   }
   function getSelectedBuilderAssignments(){
