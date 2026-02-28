@@ -87,8 +87,9 @@
   <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
   <div class="tab-bar">
     <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
-    <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
-    <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
+  <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
+  <button class="tab-btn" id="tabPhoneLogsBtn" type="button">Phone Logs</button>
+  <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
   </div>
   <div id="renamePrompt" class="modal-backdrop" style="display:none;">
     <div class="modal" style="max-width:360px;">
@@ -454,6 +455,21 @@
     </div>
   </div>
 
+  <!-- ══════ Phone Logs Tab ══════ -->
+  <div id="phoneLogsSection" class="tab-section" style="display:none;">
+    <div class="panel phone-logs-panel">
+      <header class="phone-logs-header">
+        <h3 style="margin:0;">Phone Logs</h3>
+        <span class="spacer"></span>
+        <button class="btn primary" id="printPhoneLogsBtn" type="button">Print</button>
+      </header>
+      <p class="phone-logs-hint">Log a call for each student. Date, time, and notes will appear on the printed sheet.</p>
+      <div id="phoneLogsList" class="phone-logs-list">
+        <!-- populated dynamically -->
+      </div>
+    </div>
+  </div>
+
   <div id="commentsModal" class="tab-section" style="display:none;">
     <div class="panel comments-modal" style="width:100%; box-shadow:none;">
       <header style="display:flex; align-items:center; gap:8px; border-bottom:1px solid #eee; padding:8px 12px 10px 12px; margin-bottom:8px;">
@@ -670,6 +686,7 @@
   <span class="nav-beta">Local-only beta</span>
 </footer>
 <div id="printContainer"></div>
+<div id="phoneLogsPrintContainer" style="display:none;"></div>
 <script src="scripts/state.js"></script>
 <script src="scripts/main.js"></script>
 <script src="scripts/comments.js"></script>

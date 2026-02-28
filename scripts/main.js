@@ -17,6 +17,10 @@
   if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
   saveSettings({ printTemplateId: selectedTemplateId });
 
+  // Phone Logs state
+  let phoneLogsData = {}; // { rowIndex: { date, time, log } }
+  try { phoneLogsData = JSON.parse(localStorage.getItem('phoneLogsData') || '{}'); } catch(e){ phoneLogsData = {}; }
+
   let builderActiveCommentSection = null;
   let builderLookingAheadAutoKey = '';
   let builderLookingAheadManualKey = '';
@@ -190,6 +194,15 @@
       activateTab('print');
     });
   }
+  if (tabPhoneLogsBtn){
+    tabPhoneLogsBtn.addEventListener('click', () => {
+      if (!rows.length){
+        status('Load data before using Phone Logs.');
+        return;
+      }
+      activateTab('phonelogs');
+    });
+  }
   if (tabCommentsBtn){
     tabCommentsBtn.addEventListener('click', () => {
       if (!rows.length){
@@ -198,6 +211,9 @@
       }
       activateTab('comments');
     });
+  }
+  if (printPhoneLogsBtn){
+    printPhoneLogsBtn.addEventListener('click', printPhoneLogs);
   }
   if (commentsCloseBtn){
     commentsCloseBtn.addEventListener('click', () => activateTab('data'));
@@ -3497,11 +3513,13 @@ function getPerformanceToneLine(coreLevel, context){
     const sections = {
       data: dataTabSection,
       print: printTabSection,
+      phonelogs: phoneLogsSection,
       comments: commentsTabSection
     };
     const buttons = {
       data: tabDataBtn,
       print: tabPrintBtn,
+      phonelogs: tabPhoneLogsBtn,
       comments: tabCommentsBtn
     };
     Object.entries(sections).forEach(([key, el]) => {
@@ -3536,12 +3554,169 @@ function getPerformanceToneLine(coreLevel, context){
     if (kind === 'comments'){
       openCommentsModalInternal();
     }
+    if (kind === 'phonelogs'){
+      renderPhoneLogsList();
+    }
   }
   function isCommentsTabActive(){
     return !!(commentsTabSection && commentsTabSection.classList.contains('active'));
   }
   function isPrintTabActive(){
     return !!(printTabSection && printTabSection.classList.contains('active'));
+  }
+
+  // ══════ Phone Logs ══════
+  function savePhoneLogsData(){
+    try { localStorage.setItem('phoneLogsData', JSON.stringify(phoneLogsData)); } catch(e){}
+  }
+  function renderPhoneLogsList(){
+    if (!phoneLogsList) return;
+    phoneLogsList.innerHTML = '';
+    if (!rows.length){
+      phoneLogsList.innerHTML = '<p style="color:#6b7280;">No student data loaded.</p>';
+      return;
+    }
+    rows.forEach((row, idx) => {
+      const name = studentNameColumn ? String(row[studentNameColumn] || '').trim() : `Student ${idx + 1}`;
+      const entry = phoneLogsData[idx] || {};
+
+      const card = document.createElement('div');
+      card.className = 'phone-log-entry';
+      card.dataset.idx = idx;
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'phone-log-name';
+      nameEl.textContent = name || `Student ${idx + 1}`;
+      card.appendChild(nameEl);
+
+      const fieldsRow = document.createElement('div');
+      fieldsRow.className = 'phone-log-fields';
+
+      const dateLabel = document.createElement('label');
+      dateLabel.textContent = 'Date';
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.value = entry.date || '';
+      dateInput.addEventListener('change', () => {
+        if (!phoneLogsData[idx]) phoneLogsData[idx] = {};
+        phoneLogsData[idx].date = dateInput.value;
+        savePhoneLogsData();
+      });
+      dateLabel.appendChild(dateInput);
+
+      const timeLabel = document.createElement('label');
+      timeLabel.textContent = 'Time';
+      const timeInput = document.createElement('input');
+      timeInput.type = 'time';
+      timeInput.value = entry.time || '';
+      timeInput.addEventListener('change', () => {
+        if (!phoneLogsData[idx]) phoneLogsData[idx] = {};
+        phoneLogsData[idx].time = timeInput.value;
+        savePhoneLogsData();
+      });
+      timeLabel.appendChild(timeInput);
+
+      fieldsRow.appendChild(dateLabel);
+      fieldsRow.appendChild(timeLabel);
+      card.appendChild(fieldsRow);
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'phone-log-textarea';
+      textarea.placeholder = 'Enter phone log notes…';
+      textarea.value = entry.log || '';
+      textarea.addEventListener('input', () => {
+        if (!phoneLogsData[idx]) phoneLogsData[idx] = {};
+        phoneLogsData[idx].log = textarea.value;
+        savePhoneLogsData();
+      });
+      card.appendChild(textarea);
+
+      phoneLogsList.appendChild(card);
+    });
+  }
+  function formatPhoneLogTime(t){
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return t;
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  }
+  function printPhoneLogs(){
+    if (!phoneLogsPrintContainer) return;
+
+    // Build page header meta
+    const teacher = (printMeta.teacher || '').trim();
+    const classInfo = (printMeta.classInfo || '').trim();
+    const termLabel = (printMeta.termLabel || '').trim();
+    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+    // Chunk students into pages (20 per page keeps rows readable)
+    const ROWS_PER_PAGE = 20;
+    const totalStudents = rows.length;
+    const pages = Math.ceil(totalStudents / ROWS_PER_PAGE) || 1;
+    let html = '';
+
+    for (let p = 0; p < pages; p++){
+      const slice = rows.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+      const metaLine = [teacher && `Teacher: ${teacher}`, classInfo && `Class: ${classInfo}`, termLabel && `Term: ${termLabel}`, `Printed: ${today}`].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+      html += `<div class="phone-logs-print-page">
+  <div class="phone-logs-print-page-header">
+    <h2>Phone Log</h2>
+    <div class="phone-logs-print-meta">${metaLine}</div>
+  </div>
+  <table class="phone-logs-print-table">
+    <thead>
+      <tr>
+        <th style="width:22%">Student</th>
+        <th style="width:12%">Date</th>
+        <th style="width:9%">Time</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+      slice.forEach((row, localIdx) => {
+        const globalIdx = p * ROWS_PER_PAGE + localIdx;
+        const name = studentNameColumn ? String(row[studentNameColumn] || '').trim() : `Student ${globalIdx + 1}`;
+        const entry = phoneLogsData[globalIdx] || {};
+        const date = entry.date || '';
+        const time = formatPhoneLogTime(entry.time || '');
+        const log = (entry.log || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        html += `<tr>
+          <td>${name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td>
+          <td>${date}</td>
+          <td>${time}</td>
+          <td class="log-notes">${log}</td>
+        </tr>`;
+      });
+
+      html += `    </tbody>
+  </table>
+</div>`;
+    }
+
+    phoneLogsPrintContainer.innerHTML = html;
+
+    // Inject a portrait @page rule temporarily
+    const styleEl = document.createElement('style');
+    styleEl.id = 'phone-logs-print-style';
+    styleEl.textContent = '@page { size: letter portrait; margin: 0; }';
+    document.head.appendChild(styleEl);
+
+    document.body.classList.add('printing-phone-logs');
+    window.print();
+
+    // Restore after print dialog closes
+    const restore = () => {
+      document.body.classList.remove('printing-phone-logs');
+      const s = document.getElementById('phone-logs-print-style');
+      if (s) s.remove();
+    };
+    window.addEventListener('afterprint', restore, { once: true });
+    // Fallback for browsers that don't fire afterprint
+    setTimeout(restore, 3000);
   }
   function openPrintPreviewModal(){
     activateTab('print');
