@@ -3555,6 +3555,8 @@ function getPerformanceToneLine(coreLevel, context){
       openCommentsModalInternal();
     }
     if (kind === 'phonelogs'){
+      // Ensure section is explicitly visible (belt + suspenders alongside the class toggle)
+      if (phoneLogsSection) phoneLogsSection.style.display = 'block';
       renderPhoneLogsList();
     }
   }
@@ -3570,14 +3572,15 @@ function getPerformanceToneLine(coreLevel, context){
     try { localStorage.setItem('phoneLogsData', JSON.stringify(phoneLogsData)); } catch(e){}
   }
   function renderPhoneLogsList(){
-    if (!phoneLogsList) return;
-    phoneLogsList.innerHTML = '';
+    const listEl = phoneLogsList || document.getElementById('phoneLogsList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
     if (!rows.length){
-      phoneLogsList.innerHTML = '<p style="color:#6b7280;">No student data loaded.</p>';
+      listEl.innerHTML = '<p style="color:#6b7280;padding:12px;">No student data loaded.</p>';
       return;
     }
     rows.forEach((row, idx) => {
-      const name = studentNameColumn ? String(row[studentNameColumn] || '').trim() : `Student ${idx + 1}`;
+      const name = (studentNameColumn ? String(row[studentNameColumn] || '').trim() : '') || ('Student ' + (idx + 1));
       const entry = phoneLogsData[idx] || {};
 
       const card = document.createElement('div');
@@ -3593,7 +3596,8 @@ function getPerformanceToneLine(coreLevel, context){
       fieldsRow.className = 'phone-log-fields';
 
       const dateLabel = document.createElement('label');
-      dateLabel.textContent = 'Date';
+      const dateSpan = document.createElement('span');
+      dateSpan.textContent = 'Date';
       const dateInput = document.createElement('input');
       dateInput.type = 'date';
       dateInput.value = entry.date || '';
@@ -3602,10 +3606,12 @@ function getPerformanceToneLine(coreLevel, context){
         phoneLogsData[idx].date = dateInput.value;
         savePhoneLogsData();
       });
+      dateLabel.appendChild(dateSpan);
       dateLabel.appendChild(dateInput);
 
       const timeLabel = document.createElement('label');
-      timeLabel.textContent = 'Time';
+      const timeSpan = document.createElement('span');
+      timeSpan.textContent = 'Time';
       const timeInput = document.createElement('input');
       timeInput.type = 'time';
       timeInput.value = entry.time || '';
@@ -3614,6 +3620,7 @@ function getPerformanceToneLine(coreLevel, context){
         phoneLogsData[idx].time = timeInput.value;
         savePhoneLogsData();
       });
+      timeLabel.appendChild(timeSpan);
       timeLabel.appendChild(timeInput);
 
       fieldsRow.appendChild(dateLabel);
@@ -3631,7 +3638,7 @@ function getPerformanceToneLine(coreLevel, context){
       });
       card.appendChild(textarea);
 
-      phoneLogsList.appendChild(card);
+      listEl.appendChild(card);
     });
   }
   function formatPhoneLogTime(t){
