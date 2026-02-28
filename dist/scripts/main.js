@@ -374,6 +374,9 @@
   if (builderGenerateAiBtn){
     builderGenerateAiBtn.addEventListener('click', builderGenerateReportWithAI);
   }
+  if (builderCreateAiBtn){
+    builderCreateAiBtn.addEventListener('click', builderCreateCommentWithAI);
+  }
   if (builderCopyBtn){
     builderCopyBtn.addEventListener('click', () => {
       builderCopyReport();
@@ -5918,6 +5921,88 @@ function varySentenceOpenings(text, studentName){
       builderRevisedOutput.classList.add('builder-output-fade');
     }else{
       builderRevisedOutput.classList.remove('builder-output-fade');
+    }
+  }
+  function setBuilderAiCreatedOutputText(text, mode = 'instant'){
+    if (!builderAiCreatedOutput) return;
+    const next = String(text || '');
+    builderAiCreatedOutput.value = next;
+    if (mode === 'create'){
+      builderAiCreatedOutput.classList.remove('builder-output-fade');
+      void builderAiCreatedOutput.offsetWidth;
+      builderAiCreatedOutput.classList.add('builder-output-fade');
+    } else {
+      builderAiCreatedOutput.classList.remove('builder-output-fade');
+    }
+  }
+  function buildBuilderAiCreatePayload(){
+    const studentRow = rows[builderSelectedRowIndex] || null;
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
+    const assignments = getSelectedBuilderAssignments();
+    const assignmentFacts = assignments.slice(0, 4).map(col => {
+      const meta = studentRow ? deriveMarkMeta(studentRow[col], col) : null;
+      return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
+    }).filter(Boolean);
+    const selectedComments = getBuilderSelectedComments();
+    return {
+      reviseMode: 'create',
+      studentName: builderStudentNameInput?.value.trim() || '',
+      pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
+      gradeGroup: builderGradeGroupSelect?.value || 'middle',
+      performanceLevel: builderCorePerformanceSelect?.value || '',
+      termLabel: builderTermSelector?.value || '',
+      finalGrade,
+      assignmentFacts,
+      selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
+      customComment: builderCustomCommentInput?.value.trim() || ''
+    };
+  }
+  async function builderCreateCommentWithAI(){
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const studentName = builderStudentNameInput?.value.trim();
+    if (!studentName){
+      status('Provide a student name before using Create.');
+      return;
+    }
+    const payload = buildBuilderAiCreatePayload();
+    const originalLabel = builderCreateAiBtn?.textContent || 'Create';
+    try {
+      if (builderCreateAiBtn){
+        builderCreateAiBtn.disabled = true;
+        builderCreateAiBtn.textContent = 'Creating...';
+      }
+      status('Creating new comment with AI...');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok){
+        const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
+        status(`AI error: ${detail}`);
+        return;
+      }
+      const aiText = parseAiCommentResponse(data);
+      if (!aiText){
+        status('AI returned an empty comment.');
+        return;
+      }
+      const modelUsed = String(data?.modelUsed || '').trim();
+      const polished = polishGrammar(cleanFluency(aiText));
+      setBuilderAiCreatedOutputText(polished, 'create');
+      status(modelUsed ? `AI comment created (${modelUsed}).` : 'AI comment created.');
+    } catch(err){
+      console.error(err);
+      status('Could not reach AI API.');
+    } finally {
+      if (builderCreateAiBtn){
+        builderCreateAiBtn.disabled = false;
+        builderCreateAiBtn.textContent = originalLabel;
+      }
     }
   }
   function getSelectedBuilderAssignments(){

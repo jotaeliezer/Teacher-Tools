@@ -607,14 +607,13 @@
                 <button class="btn" type="button" id="builderClearBtn">Clear</button>
                 <button class="btn" type="button" id="savedReportsOpenBtn">Saved Comments</button>
               </div>
-              <div class="builder-output-wrap" id="builderOutputWrap">
+              <div class="builder-output-wrap" id="builderOutputWrap" style="display:none;">
                 <textarea id="builderReportOutput" placeholder="Fill the sections above and click Generate."></textarea>
                 <div id="builderReportOverlay" class="builder-report-overlay" aria-hidden="true"></div>
               </div>
-              <label class="builder-revised-label" for="builderRevisedOutput">Revised Comment</label>
-              <textarea id="builderRevisedOutput" placeholder="AI revised comment will appear here." readonly></textarea>
-              <label class="builder-revised-label" for="builderAiCreatedOutput">AI Created Comment</label>
-              <textarea id="builderAiCreatedOutput" placeholder="Click Create to generate a brand-new AI comment from your student data." readonly></textarea>
+              <label class="builder-revised-label" for="builderRevisedOutput" style="display:none;">Revised Comment</label>
+              <textarea id="builderRevisedOutput" placeholder="AI revised comment will appear here." readonly style="display:none;"></textarea>
+              <textarea id="builderAiCreatedOutput" placeholder="Click Generate then Create to produce a new AI comment." readonly></textarea>
             </div>
             <div class="builder-card comment-bank-card">
               <h4>Comment Bank</h4>

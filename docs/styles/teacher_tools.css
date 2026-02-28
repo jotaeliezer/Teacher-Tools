@@ -2025,7 +2025,8 @@
       animation:builderOutputPulse .18s ease;
     }
     #builderReportOutput.builder-output-fade,
-    #builderRevisedOutput.builder-output-fade{
+    #builderRevisedOutput.builder-output-fade,
+    #builderAiCreatedOutput.builder-output-fade{
       animation:builderOutputFade .22s ease;
     }
     .builder-report-overlay .selection-fade-in{
@@ -2084,6 +2085,26 @@
       white-space:pre-wrap;
       font-size:14px;
       color:#111827;
+    }
+    #builderAiCreatedOutput{
+      flex:1;
+      width:100%;
+      min-height:430px;
+      background:#f8fafc;
+      border:1px solid #d7dae3;
+      border-radius:8px;
+      padding:12px;
+      line-height:1.5;
+      white-space:pre-wrap;
+      font-size:14px;
+      color:#111827;
+      resize:vertical;
+      box-sizing:border-box;
+    }
+    body.dark-mode #builderAiCreatedOutput{
+      background:#0f1522;
+      color:#f4f6ff;
+      border-color:#2c3240;
     }
     .comment-bank-card .builder-comment-bank{
       flex:1;
