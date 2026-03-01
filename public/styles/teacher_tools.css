@@ -3723,3 +3723,243 @@ td.readonly{
     width:100%;
   }
 }
+
+/* ===== Seating Plan ===== */
+.seating-plan-panel{
+  width: 100%;
+  box-shadow: none;
+}
+.seating-plan-header{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.seating-plan-layout{
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) 1fr minmax(280px, 340px);
+  gap: 14px;
+  align-items: start;
+}
+.seating-plan-controls,
+.seating-plan-grid-panel,
+.seating-plan-traits{
+  background: #f6f7fb;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.seating-plan-controls h4,
+.seating-plan-traits h4{
+  margin: 0 0 8px 0;
+}
+.seating-plan-controls label{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.seating-plan-controls input[type="number"],
+.seating-plan-controls select,
+.seating-plan-traits input,
+.seating-plan-traits select{
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--ink);
+}
+.seating-control-buttons{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0;
+}
+.seating-control-buttons .btn{
+  min-width: 0;
+}
+#seatingStatus{
+  font-size: 12px;
+  margin: 6px 0 4px 0;
+}
+#seatingStatus.status-error{
+  color: #9f2a36;
+}
+#seatingStatus.status-ok{
+  color: #2f6e3f;
+}
+.seating-notes{
+  min-height: 10px;
+}
+.seating-note-list{
+  margin: 6px 0 8px 18px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.seating-grid-toolbar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.seating-grid{
+  display: grid;
+  gap: 8px;
+}
+.seating-seat-card{
+  border: 1px solid #ccd2e2;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 8px;
+  text-align: left;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.seating-seat-card:hover{
+  border-color: #ba3d8e;
+}
+.seating-seat-card.selected{
+  border-color: #ba3d8e;
+  box-shadow: 0 0 0 2px rgba(186, 61, 142, 0.16);
+}
+.seating-seat-card.locked{
+  border-color: #8a9a3b;
+  background: #f8fbe8;
+}
+.seating-seat-card.drop-target{
+  border-color: #6f82dc;
+  box-shadow: 0 0 0 2px rgba(111, 130, 220, 0.22);
+}
+.seating-seat-header{
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.seating-seat-lock{
+  font-weight: 700;
+}
+.seating-seat-occupant{
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.seating-seat-occupant.empty{
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+.seating-unplaced-wrap{
+  margin-top: 10px;
+}
+.seating-unplaced-wrap h4{
+  margin: 0 0 8px 0;
+}
+.seating-unplaced-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 170px;
+  overflow: auto;
+}
+.seating-student-chip{
+  border: 1px solid #cad0e2;
+  border-radius: 999px;
+  background: #fff;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seating-student-chip:hover{
+  border-color: #ba3d8e;
+}
+.seating-traits-list{
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 640px;
+  overflow: auto;
+}
+.seating-trait-card{
+  border: 1px solid #d5dbe7;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+}
+.seating-trait-title{
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.seating-trait-seat{
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 600;
+}
+.seating-trait-controls{
+  display: grid;
+  gap: 6px;
+}
+.seating-trait-controls label{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.seating-trait-controls select[multiple]{
+  min-height: 64px;
+}
+body.dark-mode .seating-plan-controls,
+body.dark-mode .seating-plan-grid-panel,
+body.dark-mode .seating-plan-traits{
+  background: #151d33;
+  border-color: #2a3658;
+}
+body.dark-mode .seating-seat-card{
+  background: #111a2e;
+  border-color: #334168;
+}
+body.dark-mode .seating-seat-card.locked{
+  background: #1d2534;
+  border-color: #6f8352;
+}
+body.dark-mode .seating-seat-card.selected{
+  border-color: #d763a9;
+  box-shadow: 0 0 0 2px rgba(215, 99, 169, 0.22);
+}
+body.dark-mode .seating-student-chip,
+body.dark-mode .seating-trait-card{
+  background: #111a2e;
+  border-color: #334168;
+  color: #edf0ff;
+}
+body.dark-mode .seating-plan-controls input[type="number"],
+body.dark-mode .seating-plan-controls select,
+body.dark-mode .seating-plan-traits input,
+body.dark-mode .seating-plan-traits select{
+  background: #0e1730;
+  border-color: #334168;
+  color: #edf0ff;
+}
+@media (max-width: 1400px){
+  .seating-plan-layout{
+    grid-template-columns: 1fr;
+  }
+  .seating-traits-list{
+    max-height: 320px;
+  }
+}

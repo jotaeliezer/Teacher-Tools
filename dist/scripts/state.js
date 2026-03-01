@@ -347,6 +347,9 @@ function computePrintColumnWidths(students){
   const phoneLogsList = document.getElementById('phoneLogsList');
   const printPhoneLogsBtn = document.getElementById('printPhoneLogsBtn');
   const phoneLogsPrintContainer = document.getElementById('phoneLogsPrintContainer');
+  const phoneLogsSearch = document.getElementById('phoneLogsSearch');
+  const underperformingList = document.getElementById('underperformingList');
+  const underperformingCount = document.getElementById('underperformingCount');
   const commentsModal = document.getElementById('commentsModal');
   const commentsCloseBtn = document.getElementById('commentsCloseBtn');
   const commentsCopyAllBtn = document.getElementById('commentsCopyAll');

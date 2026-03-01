@@ -90,6 +90,7 @@
   <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
   <button class="tab-btn" id="tabPhoneLogsBtn" type="button">Phone Logs</button>
   <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
+  <button class="tab-btn" id="tabSeatingBtn" type="button">Seating Plan</button>
   </div>
   <div id="renamePrompt" class="modal-backdrop" style="display:none;">
     <div class="modal" style="max-width:360px;">
@@ -483,6 +484,62 @@
       <p class="phone-logs-hint">Log a call for each student. Date, time, and notes will appear on the printed sheet.</p>
       <div id="phoneLogsList" class="phone-logs-list">
         <!-- populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <div id="seatingPlanSection" class="tab-section" style="display:none;">
+    <div class="panel seating-plan-panel">
+      <header class="seating-plan-header">
+        <h3 style="margin:0;">Seating Plan</h3>
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="seatingCommentsBtn">Comments</button>
+        <button class="btn" type="button" id="seatingBackToDataBtn">Back to Data</button>
+      </header>
+      <div class="seating-plan-layout">
+        <aside class="seating-plan-controls">
+          <h4>Layout Settings</h4>
+          <label>Rows
+            <input id="seatingRowsInput" type="number" min="2" max="12" value="5" />
+          </label>
+          <label>Columns
+            <input id="seatingColsInput" type="number" min="2" max="12" value="6" />
+          </label>
+          <label>Objective
+            <select id="seatingObjectiveSelect">
+              <option value="reduce_disruption_first">Reduce disruption first</option>
+              <option value="balanced_support">Balance support and performance</option>
+            </select>
+          </label>
+          <label class="template-option" style="margin:0;">
+            <input type="checkbox" id="seatingRespectLocks" checked />
+            Respect locked seats
+          </label>
+          <div class="button-group seating-control-buttons">
+            <button class="btn primary" type="button" id="seatingAiGenerateBtn">Generate AI Layout</button>
+            <button class="btn" type="button" id="seatingAutoPlaceBtn">Auto-place (local)</button>
+            <button class="btn" type="button" id="seatingSaveBtn">Save</button>
+            <button class="btn warn" type="button" id="seatingResetBtn">Reset</button>
+          </div>
+          <div id="seatingStatus" class="muted">Load a class file to start planning seats.</div>
+          <div id="seatingNotes" class="seating-notes"></div>
+          <div class="seating-unplaced-wrap">
+            <h4>Unseated Students</h4>
+            <div id="seatingUnplacedList" class="seating-unplaced-list"></div>
+          </div>
+        </aside>
+        <section class="seating-plan-grid-panel">
+          <div class="seating-grid-toolbar">
+            <b>Classroom Grid</b>
+            <span id="seatingGridMeta" class="badge"></span>
+          </div>
+          <div id="seatingGrid" class="seating-grid"></div>
+        </section>
+        <aside class="seating-plan-traits">
+          <h4>Student Traits</h4>
+          <input type="text" id="seatingStudentSearch" placeholder="Search student..." />
+          <div id="seatingTraitsList" class="seating-traits-list"></div>
+        </aside>
       </div>
     </div>
   </div>

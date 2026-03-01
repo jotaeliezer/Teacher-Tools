@@ -463,6 +463,23 @@
         <span class="spacer"></span>
         <button class="btn primary" id="printPhoneLogsBtn" type="button">Print</button>
       </header>
+
+      <!-- Search + underperforming row -->
+      <div class="phone-logs-toolbar">
+        <div class="phone-logs-search-wrap">
+          <input type="text" id="phoneLogsSearch" class="phone-logs-search" placeholder="Search student…" autocomplete="off" />
+        </div>
+        <details id="underperformingPanel" class="underperforming-panel">
+          <summary class="underperforming-summary">
+            <span>⚠️ Underperforming Students</span>
+            <span id="underperformingCount" class="underperforming-count"></span>
+          </summary>
+          <div id="underperformingList" class="underperforming-list">
+            <!-- populated dynamically -->
+          </div>
+        </details>
+      </div>
+
       <p class="phone-logs-hint">Log a call for each student. Date, time, and notes will appear on the printed sheet.</p>
       <div id="phoneLogsList" class="phone-logs-list">
         <!-- populated dynamically -->

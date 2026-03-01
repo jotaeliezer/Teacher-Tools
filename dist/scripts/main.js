@@ -215,6 +215,26 @@
   if (printPhoneLogsBtn){
     printPhoneLogsBtn.addEventListener('click', printPhoneLogs);
   }
+  if (phoneLogsSearch){
+    phoneLogsSearch.addEventListener('input', () => {
+      const q = (phoneLogsSearch.value || '').trim().toLowerCase();
+      const listEl = phoneLogsList || document.getElementById('phoneLogsList');
+      if (!listEl) return;
+      const cards = Array.from(listEl.querySelectorAll('.phone-log-entry'));
+      // Remove previous highlight
+      cards.forEach(c => c.classList.remove('phone-log-highlight'));
+      if (!q) return;
+      const match = cards.find(c => {
+        const nameEl = c.querySelector('.phone-log-name');
+        return nameEl && nameEl.textContent.toLowerCase().includes(q);
+      });
+      if (match){
+        match.classList.add('phone-log-highlight');
+        match.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => match.classList.remove('phone-log-highlight'), 2000);
+      }
+    });
+  }
   if (commentsCloseBtn){
     commentsCloseBtn.addEventListener('click', () => activateTab('data'));
   }
@@ -3579,8 +3599,59 @@ function getPerformanceToneLine(coreLevel, context){
       listEl.innerHTML = '<p style="color:#6b7280;padding:12px;">No student data loaded.</p>';
       return;
     }
-    rows.forEach((row, idx) => {
-      const name = (studentNameColumn ? String(row[studentNameColumn] || '').trim() : '') || ('Student ' + (idx + 1));
+
+    // Build sorted index array (alphabetical by student name)
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const sortedIndices = rows
+      .map((row, idx) => {
+        const name = (studentNameColumn ? String(row[studentNameColumn] || '').trim() : '') || ('Student ' + (idx + 1));
+        return { idx, name };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    // Build underperforming panel
+    const upListEl = underperformingList || document.getElementById('underperformingList');
+    const upCountEl = underperformingCount || document.getElementById('underperformingCount');
+    const underperforming = sortedIndices
+      .map(({ idx, name }) => {
+        const numeric = gradeColumn ? parseMarkToNumber(rows[idx]?.[gradeColumn]) : null;
+        return numeric != null && numeric <= 60 ? { idx, name, numeric } : null;
+      })
+      .filter(Boolean);
+    if (upListEl){
+      upListEl.innerHTML = '';
+      if (!underperforming.length){
+        upListEl.innerHTML = '<p style="font-size:12px;color:#6b7280;margin:4px 0;">No students at or below 60%.</p>';
+      } else {
+        underperforming.forEach(({ idx, name, numeric }) => {
+          const item = document.createElement('div');
+          item.className = 'underperforming-item';
+          item.title = 'Click to scroll to ' + name;
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = name;
+          const markSpan = document.createElement('span');
+          markSpan.className = 'up-mark';
+          markSpan.textContent = numeric + '%';
+          item.appendChild(nameSpan);
+          item.appendChild(markSpan);
+          item.addEventListener('click', () => {
+            const card = listEl.querySelector(`.phone-log-entry[data-idx="${idx}"]`);
+            if (card){
+              card.classList.remove('phone-log-highlight');
+              void card.offsetWidth;
+              card.classList.add('phone-log-highlight');
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => card.classList.remove('phone-log-highlight'), 2000);
+            }
+          });
+          upListEl.appendChild(item);
+        });
+      }
+    }
+    if (upCountEl) upCountEl.textContent = underperforming.length ? String(underperforming.length) : '';
+
+    sortedIndices.forEach(({ idx, name }) => {
+      const row = rows[idx];
       const entry = phoneLogsData[idx] || {};
 
       const card = document.createElement('div');
