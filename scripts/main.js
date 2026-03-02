@@ -4111,6 +4111,11 @@ function getPerformanceToneLine(coreLevel, context){
       card.className = 'seating-seat-card';
       if (seat.locked) card.classList.add('locked');
       if (seat.seatId === seatingSelectedSeatId) card.classList.add('selected');
+      const trait = seat.studentId == null ? null : (plan.traits?.[seat.studentId] || null);
+      const perfLevel = trait ? normalizeSeatingPerformanceToken(trait.performance, 'mid') : '';
+      if (perfLevel){
+        card.classList.add(`seat-level-${perfLevel}`);
+      }
       const header = document.createElement('div');
       header.className = 'seating-seat-header';
       header.innerHTML = `<span>R${seat.row} C${seat.col}</span><span class=\"seating-seat-lock\">${seat.locked ? 'Locked' : 'Open'}</span>`;
@@ -4120,6 +4125,12 @@ function getPerformanceToneLine(coreLevel, context){
       if (seat.studentId == null) body.classList.add('empty');
       card.appendChild(header);
       card.appendChild(body);
+      if (trait?.isNew){
+        const badge = document.createElement('span');
+        badge.className = 'seating-seat-new-badge';
+        badge.textContent = 'N';
+        card.appendChild(badge);
+      }
       card.draggable = seat.studentId != null && !seat.locked;
       card.addEventListener('dragstart', (event) => {
         if (seat.studentId == null || seat.locked) return;

@@ -3816,17 +3816,44 @@ td.readonly{
   border: 1px solid #ccd2e2;
   background: #ffffff;
   border-radius: 10px;
-  padding: 8px;
+  padding: 10px 10px 12px 10px;
   text-align: left;
-  min-height: 78px;
+  min-height: 96px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   cursor: pointer;
   transition: border-color .18s ease, box-shadow .18s ease;
+  position: relative;
 }
 .seating-seat-card:hover{
   border-color: #ba3d8e;
+}
+.seating-seat-card.seat-level-good{
+  background: #dff2d7;
+  border-color: #95c17b;
+}
+.seating-seat-card.seat-level-good .seating-seat-header,
+.seating-seat-card.seat-level-good .seating-seat-lock{
+  color: #2f4f2d;
+}
+.seating-seat-card.seat-level-mid{
+  background: #f7efc4;
+  border-color: #d2b957;
+}
+.seating-seat-card.seat-level-mid .seating-seat-header,
+.seating-seat-card.seat-level-mid .seating-seat-lock{
+  color: #6d5612;
+}
+.seating-seat-card.seat-level-needs_support{
+  background: #c81f92;
+  border-color: #8f1669;
+  color: #ffffff;
+}
+.seating-seat-card.seat-level-needs_support .seating-seat-header,
+.seating-seat-card.seat-level-needs_support .seating-seat-lock,
+.seating-seat-card.seat-level-needs_support .seating-seat-occupant{
+  color: #ffffff;
 }
 .seating-seat-card.selected{
   border-color: #ba3d8e;
@@ -3834,7 +3861,7 @@ td.readonly{
 }
 .seating-seat-card.locked{
   border-color: #8a9a3b;
-  background: #f8fbe8;
+  box-shadow: inset 0 0 0 1px rgba(138, 154, 59, 0.25);
 }
 .seating-seat-card.drop-target{
   border-color: #6f82dc;
@@ -3857,6 +3884,15 @@ td.readonly{
 .seating-seat-occupant.empty{
   font-weight: 500;
   color: var(--ink-dim);
+}
+.seating-seat-new-badge{
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 900;
+  color: #0a0a0a;
 }
 .seating-unplaced-wrap{
   margin-top: 10px;
@@ -3933,8 +3969,30 @@ body.dark-mode .seating-seat-card{
   background: #111a2e;
   border-color: #334168;
 }
+body.dark-mode .seating-seat-card.seat-level-good{
+  background: #314c35;
+  border-color: #6f9f6e;
+  color: #eef8eb;
+}
+body.dark-mode .seating-seat-card.seat-level-good .seating-seat-header,
+body.dark-mode .seating-seat-card.seat-level-good .seating-seat-lock{
+  color: #d4f0d2;
+}
+body.dark-mode .seating-seat-card.seat-level-mid{
+  background: #5b5326;
+  border-color: #ad9852;
+  color: #fff7d8;
+}
+body.dark-mode .seating-seat-card.seat-level-mid .seating-seat-header,
+body.dark-mode .seating-seat-card.seat-level-mid .seating-seat-lock{
+  color: #fff1b6;
+}
+body.dark-mode .seating-seat-card.seat-level-needs_support{
+  background: #a31577;
+  border-color: #d25ab0;
+  color: #ffffff;
+}
 body.dark-mode .seating-seat-card.locked{
-  background: #1d2534;
   border-color: #6f8352;
 }
 body.dark-mode .seating-seat-card.selected{
