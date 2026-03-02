@@ -3920,6 +3920,23 @@ function getPerformanceToneLine(coreLevel, context){
   function createSeatId(row, col){
     return `r${row}c${col}`;
   }
+  function getSeatingPerformanceFromFinalGrade(row){
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const numeric = parseMarkToNumber(row?.[gradeColumn]);
+    if (numeric == null) return 'mid';
+    const high = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
+    const mid = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
+    if (numeric >= high) return 'good';
+    if (numeric >= mid) return 'mid';
+    return 'needs_support';
+  }
+  function normalizeSeatingPerformanceToken(value, fallback = 'mid'){
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw === 'strong') return 'good';
+    if (raw === 'struggling') return 'needs_support';
+    if (raw === 'good' || raw === 'mid' || raw === 'needs_support') return raw;
+    return fallback;
+  }
   function getSeatingStorageKey(ctx){
     if (!ctx) return '';
     const nameKey = String(ctx.name || 'class').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'class';
@@ -3947,7 +3964,8 @@ function getPerformanceToneLine(coreLevel, context){
     }
     const traits = {};
     getSeatingStudents(ctx).forEach((student) => {
-      traits[student.id] = { isNew: false, noiseLevel: 'neutral', performance: 'mid', talksWith: [] };
+      const row = ctx?.rows?.[student.id];
+      traits[student.id] = { isNew: false, noiseLevel: 'neutral', performance: getSeatingPerformanceFromFinalGrade(row), talksWith: [] };
     });
     return { rows: rowsValue, cols: colsValue, seats, traits, objective: seatingObjective, updatedAt: Date.now() };
   }
@@ -3970,10 +3988,12 @@ function getPerformanceToneLine(coreLevel, context){
     const incomingTraits = (plan?.traits && typeof plan.traits === 'object') ? plan.traits : {};
     validStudentIds.forEach((studentId) => {
       const raw = incomingTraits[studentId] || {};
+      const row = ctx?.rows?.[studentId];
+      const fallbackPerformance = getSeatingPerformanceFromFinalGrade(row);
       base.traits[studentId] = {
         isNew: !!raw.isNew,
         noiseLevel: ['quiet', 'neutral', 'loud'].includes(raw.noiseLevel) ? raw.noiseLevel : 'neutral',
-        performance: ['strong', 'mid', 'struggling'].includes(raw.performance) ? raw.performance : 'mid',
+        performance: normalizeSeatingPerformanceToken(raw.performance, fallbackPerformance),
         talksWith: Array.isArray(raw.talksWith) ? raw.talksWith.map(Number).filter((id) => validStudentIds.has(id) && id !== studentId) : []
       };
     });
@@ -4195,7 +4215,7 @@ function getPerformanceToneLine(coreLevel, context){
     students
       .filter((student) => !filter || student.name.toLowerCase().includes(filter))
       .forEach((student) => {
-        const trait = plan.traits[student.id] || { isNew: false, noiseLevel: 'neutral', performance: 'mid', talksWith: [] };
+        const trait = plan.traits[student.id] || { isNew: false, noiseLevel: 'neutral', performance: getSeatingPerformanceFromFinalGrade(activeContext?.rows?.[student.id]), talksWith: [] };
         plan.traits[student.id] = trait;
         const seat = getSeatForStudent(plan, student.id);
         const card = document.createElement('div');
@@ -4222,13 +4242,13 @@ function getPerformanceToneLine(coreLevel, context){
         noiseSelect.addEventListener('change', () => { trait.noiseLevel = noiseSelect.value; queueSeatingPlanSave(plan); });
         controls.appendChild(noiseSelect);
         const perfSelect = document.createElement('select');
-        [['strong', 'Performance: strong'], ['mid', 'Performance: mid'], ['struggling', 'Performance: struggling']].forEach(([value, label]) => {
+        [['good', 'Performance: Good'], ['mid', 'Performance: Mid'], ['needs_support', 'Performance: Needs Support']].forEach(([value, label]) => {
           const option = document.createElement('option');
           option.value = value;
           option.textContent = label;
           perfSelect.appendChild(option);
         });
-        perfSelect.value = trait.performance;
+        perfSelect.value = normalizeSeatingPerformanceToken(trait.performance, getSeatingPerformanceFromFinalGrade(activeContext?.rows?.[student.id]));
         perfSelect.addEventListener('change', () => { trait.performance = perfSelect.value; queueSeatingPlanSave(plan); });
         controls.appendChild(perfSelect);
         const talksSelect = document.createElement('select');
@@ -4300,7 +4320,7 @@ function getPerformanceToneLine(coreLevel, context){
     const trait = plan.traits[student.id] || {};
     const talkCount = Array.isArray(trait.talksWith) ? trait.talksWith.length : 0;
     const noise = trait.noiseLevel === 'loud' ? 2 : trait.noiseLevel === 'neutral' ? 1 : 0;
-    const performance = trait.performance === 'struggling' ? 2 : trait.performance === 'mid' ? 1 : 0;
+    const performance = trait.performance === 'needs_support' ? 2 : trait.performance === 'mid' ? 1 : 0;
     return (talkCount * 3) + (noise * 4) + (performance * 2) + (trait.isNew ? 1 : 0);
   }
   function computeSeatPlacementScore(candidateSeat, student, placed, plan){
@@ -4313,9 +4333,9 @@ function getPerformanceToneLine(coreLevel, context){
       const talksWithPeer = (trait.talksWith || []).includes(peer.id) || (peerTrait.talksWith || []).includes(student.id);
       if (talksWithPeer) score += distance * (objective === 'reduce_disruption_first' ? 15 : 9);
       if (trait.noiseLevel === 'loud' && peerTrait.noiseLevel === 'loud') score += distance * 8;
-      if (trait.performance === 'strong' && peerTrait.performance === 'strong') score += distance * 0.6;
-      if (trait.performance === 'struggling' && peerTrait.performance === 'strong') score += Math.max(0, 5 - distance) * 2;
-      if (trait.isNew && peerTrait.performance === 'strong' && peerTrait.noiseLevel !== 'loud') score += Math.max(0, 6 - distance) * 3;
+      if (trait.performance === 'good' && peerTrait.performance === 'good') score += distance * 0.6;
+      if (trait.performance === 'needs_support' && peerTrait.performance === 'good') score += Math.max(0, 5 - distance) * 2;
+      if (trait.isNew && peerTrait.performance === 'good' && peerTrait.noiseLevel !== 'loud') score += Math.max(0, 6 - distance) * 3;
     });
     return score;
   }
@@ -4392,7 +4412,7 @@ function getPerformanceToneLine(coreLevel, context){
           name: student.name,
           isNew: !!trait.isNew,
           noiseLevel: trait.noiseLevel || 'neutral',
-          performance: trait.performance || 'mid',
+          performance: normalizeSeatingPerformanceToken(trait.performance),
           talksWith: Array.isArray(trait.talksWith) ? trait.talksWith.filter(Number.isInteger) : []
         };
       }),
@@ -4475,7 +4495,8 @@ function getPerformanceToneLine(coreLevel, context){
       queueSeatingPlanSave(plan);
       setSeatingNotes(fallback.notes);
       renderSeatingPlan();
-      setSeatingStatus('Could not reach AI API. Applied local layout instead.', 'error');
+      const detail = String(err?.message || 'network/CORS/timeout issue');
+      setSeatingStatus(`Could not reach AI API (${detail}). Applied local layout instead.`, 'error');
     }finally{
       if (seatingAiGenerateBtn){
         seatingAiGenerateBtn.disabled = false;
