@@ -3287,16 +3287,20 @@ function getPerformanceToneLine(coreLevel, context){
     printContainer.style.display = 'block';
     document.body.classList.remove('print-preview');
     document.body.classList.add('printing-preview');
-    try {
-      window.print();
-    } finally {
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
       printContainer.style.display = 'none';
       document.body.classList.remove('printing-preview');
       if (isPrintTabActive()){
         movePrintContainerToPreview();
         document.body.classList.add('print-preview');
       }
-    }
+    };
+    window.addEventListener('afterprint', restore, { once: true });
+    setTimeout(restore, 3000);
+    window.print();
   }
 
   // ==== Undo/Redo ====

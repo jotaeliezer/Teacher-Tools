@@ -1346,16 +1346,11 @@
       }
       #printContainer{
         display: block !important;
-        position: fixed;
-        left: 0;
-        top: 0;
+        position: static;
         margin: 0;
         padding: 0;
         width: 100%;
-        --printScale: 0.98;
-        transform: scale(var(--printScale));
-        transform-origin: top left;
-        width: calc(100% / var(--printScale));
+        transform: none;
       }
       .print-preview-page{
         margin: 0;
