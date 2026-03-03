@@ -1750,6 +1750,15 @@
       gap:6px;
       background:#fff;
     }
+    .builder-mode-switch{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin:4px 0 12px;
+    }
+    .builder-mode-panel{
+      width:100%;
+    }
     .report-builder{
       margin-top:24px;
       border-top:1px solid var(--panel-border);

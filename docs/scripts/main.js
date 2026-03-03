@@ -48,6 +48,7 @@
   let builderDiffClearTimer = null;
   let builderRevisedAnimationToken = 0;
   let builderOutputCrossfadeToken = 0;
+  let builderGeneratorMode = 'advanced';
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -479,6 +480,12 @@
       const idx = Number(builderStudentSelect.value);
       if (!Number.isNaN(idx)) prefillBuilderFromRow(idx);
     });
+  }
+  if (builderModeBasicBtn){
+    builderModeBasicBtn.addEventListener('click', () => setBuilderGeneratorMode('basic'));
+  }
+  if (builderModeAdvancedBtn){
+    builderModeAdvancedBtn.addEventListener('click', () => setBuilderGeneratorMode('advanced'));
   }
   // "Use Data Values" button removed; keep display name/pronouns always synced to selection.
   if (builderCorePerformanceSelect){
@@ -4918,6 +4925,7 @@ function getPerformanceToneLine(coreLevel, context){
   };
   function initializeCommentBuilder(){
     if (!builderStudentSelect) return;
+    setBuilderGeneratorMode('advanced');
     buildBuilderStudentOptions();
     if (!builderBankRendered){
       buildBuilderCommentBank();
@@ -4934,6 +4942,24 @@ function getPerformanceToneLine(coreLevel, context){
     // Populate assignment columns list
     buildBuilderAssignmentsList();
     buildBuilderFutureAssignmentsList();
+  }
+  function setBuilderGeneratorMode(mode){
+    const next = mode === 'basic' ? 'basic' : 'advanced';
+    builderGeneratorMode = next;
+    if (builderBasicModePanel){
+      builderBasicModePanel.style.display = next === 'basic' ? '' : 'none';
+    }
+    if (builderAdvancedModePanel){
+      builderAdvancedModePanel.style.display = next === 'advanced' ? '' : 'none';
+    }
+    if (builderModeBasicBtn){
+      builderModeBasicBtn.classList.toggle('primary', next === 'basic');
+      builderModeBasicBtn.classList.toggle('active', next === 'basic');
+    }
+    if (builderModeAdvancedBtn){
+      builderModeAdvancedBtn.classList.toggle('primary', next === 'advanced');
+      builderModeAdvancedBtn.classList.toggle('active', next === 'advanced');
+    }
   }
   function shouldAutoGenerateBuilderReport(){
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
