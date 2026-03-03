@@ -625,7 +625,21 @@
           <div id="builderBasicModePanel" class="builder-mode-panel" style="display:none;">
             <div class="builder-card">
               <h4>Basic Generator</h4>
-              <div class="builder-helper">Basic Generator layout is coming next.</div>
+              <div class="basic-generator-controls">
+                <label for="builderBasicTermSelector">Term
+                  <select id="builderBasicTermSelector">
+                    <option value="">-- Select Term --</option>
+                    <option value="TERM 1">TERM 1</option>
+                    <option value="TERM 2">TERM 2</option>
+                    <option value="TERM 3">TERM 3</option>
+                  </select>
+                </label>
+                <button class="btn primary" type="button" id="builderBasicBulkGenerateBtn">Bulk Generate</button>
+                <span id="builderBasicStatus" class="basic-generator-status muted">Select a term and click Bulk Generate.</span>
+              </div>
+              <div id="builderBasicResults" class="basic-generator-list">
+                <div class="muted" style="font-size:12px;">No comments generated yet.</div>
+              </div>
             </div>
           </div>
           <div id="builderAdvancedModePanel" class="builder-mode-panel">

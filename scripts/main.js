@@ -14,6 +14,8 @@
   selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
   printAllClasses = !!initialSettings.printAllClasses;
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
+  const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
+  const basicSavedComments = initialSettings.basicGeneratedCommentsByContext;
   const savedSeatingObjective = String(initialSettings.seatingObjective || '').trim();
   if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
   saveSettings({ printTemplateId: selectedTemplateId });
@@ -49,6 +51,9 @@
   let builderRevisedAnimationToken = 0;
   let builderOutputCrossfadeToken = 0;
   let builderGeneratorMode = 'advanced';
+  let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
+  let basicBulkGenerationToken = 0;
+  const BASIC_BULK_CONCURRENCY = 2;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -487,6 +492,45 @@
   if (builderModeAdvancedBtn){
     builderModeAdvancedBtn.addEventListener('click', () => setBuilderGeneratorMode('advanced'));
   }
+  if (builderBasicTermSelector){
+    builderBasicTermSelector.addEventListener('change', () => {
+      saveSettings({ builderBasicTerm: builderBasicTermSelector.value || '' });
+      if (builderGeneratorMode === 'basic'){
+        updateBasicGeneratorStatus('Term updated. Ready for bulk generation.');
+      }
+    });
+  }
+  if (builderBasicBulkGenerateBtn){
+    builderBasicBulkGenerateBtn.addEventListener('click', runBasicBulkGenerate);
+  }
+  if (builderBasicResultsEl){
+    builderBasicResultsEl.addEventListener('input', (e) => {
+      const textarea = e.target.closest('textarea[data-basic-row-index]');
+      if (!textarea || !activeContext) return;
+      const rowIndex = Number(textarea.dataset.basicRowIndex);
+      if (Number.isNaN(rowIndex)) return;
+      const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+      const existing = contextStore[String(rowIndex)] || {};
+      contextStore[String(rowIndex)] = {
+        ...existing,
+        text: textarea.value || '',
+        updatedAt: Date.now()
+      };
+      persistBasicGeneratedComments();
+    });
+    builderBasicResultsEl.addEventListener('click', (e) => {
+      const copyBtn = e.target.closest('button[data-basic-copy]');
+      if (!copyBtn) return;
+      const rowIndex = Number(copyBtn.dataset.basicCopy);
+      if (Number.isNaN(rowIndex) || !activeContext) return;
+      const contextStore = getBasicCommentsStoreForContext(activeContext.id);
+      const entry = contextStore ? contextStore[String(rowIndex)] : null;
+      const text = String(entry?.text || '').trim();
+      if (!text) return;
+      copyTextToClipboard(text);
+      status('Basic comment copied.');
+    });
+  }
   // "Use Data Values" button removed; keep display name/pronouns always synced to selection.
   if (builderCorePerformanceSelect){
     builderCorePerformanceSelect.addEventListener('change', () => {
@@ -605,6 +649,11 @@ function setupSelectAnimations(){
   }
 
   setupSelectAnimations();
+  if (builderBasicTermSelector){
+    if (!builderBasicTermSelector.value && basicSavedTerm){
+      builderBasicTermSelector.value = basicSavedTerm;
+    }
+  }
   updateGradeGroupControls();
   if (builderCommentOrderToggle){
     builderCommentOrderToggle.addEventListener('click', toggleCommentOrderMode);
@@ -4925,7 +4974,11 @@ function getPerformanceToneLine(coreLevel, context){
   };
   function initializeCommentBuilder(){
     if (!builderStudentSelect) return;
-    setBuilderGeneratorMode('advanced');
+    if (builderBasicTermSelector && !builderBasicTermSelector.value && basicSavedTerm){
+      builderBasicTermSelector.value = basicSavedTerm;
+    }
+    renderBasicGeneratedComments(activeContext?.id || null);
+    setBuilderGeneratorMode(builderGeneratorMode || 'advanced');
     buildBuilderStudentOptions();
     if (!builderBankRendered){
       buildBuilderCommentBank();
@@ -4960,6 +5013,351 @@ function getPerformanceToneLine(coreLevel, context){
       builderModeAdvancedBtn.classList.toggle('primary', next === 'advanced');
       builderModeAdvancedBtn.classList.toggle('active', next === 'advanced');
     }
+    if (next === 'basic'){
+      renderBasicGeneratedComments(activeContext?.id || null);
+      updateBasicGeneratorStatus('Select a term and click Bulk Generate.');
+    }
+  }
+  function getVisibleCommentRowIndices(){
+    if (!rows.length) return [];
+    const activeSet = visibleRowSet instanceof Set ? visibleRowSet : new Set(Array.from(rows.keys()));
+    const source = filteredIdx.length ? filteredIdx : rows.map((_, idx) => idx);
+    return source.filter((idx) => activeSet.has(idx));
+  }
+  function getBasicCommentsStoreForContext(contextId, create = false){
+    const key = String(contextId || '');
+    if (!key) return null;
+    if (!basicGeneratedCommentsByContext || typeof basicGeneratedCommentsByContext !== 'object'){
+      basicGeneratedCommentsByContext = {};
+    }
+    if (!Object.prototype.hasOwnProperty.call(basicGeneratedCommentsByContext, key)){
+      if (!create) return null;
+      basicGeneratedCommentsByContext[key] = {};
+    }
+    return basicGeneratedCommentsByContext[key];
+  }
+  function persistBasicGeneratedComments(){
+    saveSettings({ basicGeneratedCommentsByContext });
+  }
+  function updateBasicGeneratorStatus(message){
+    if (!builderBasicStatusEl) return;
+    builderBasicStatusEl.textContent = String(message || '').trim();
+  }
+  function getStrictPronounFromRow(row){
+    if (!row) return '';
+    for (const col of allColumns){
+      const header = String(col || '').toLowerCase();
+      if (!/(gender|pronoun)/.test(header)) continue;
+      const value = String(row[col] || '').toLowerCase();
+      if (!value) continue;
+      if (value.includes('female') || value.includes('she') || value.includes('girl')) return 'she';
+      if (value.includes('male') || value.includes('he') || value.includes('boy')) return 'he';
+    }
+    return '';
+  }
+  function guessPronounFromFirstName(firstName){
+    const name = String(firstName || '').trim().toLowerCase();
+    if (!name) return 'they';
+    const femaleHints = new Set(['ana','anaya','anita','amelia','ava','emma','mia','sophia','olivia','isabella','aisha','sara','sehar','irene','annie']);
+    const maleHints = new Set(['adam','ethan','noah','liam','lucas','jacob','mikhail','aadit','zaydan','wesley','yash','kabir','kanav']);
+    if (femaleHints.has(name)) return 'she';
+    if (maleHints.has(name)) return 'he';
+    if (/[aeiy]$/.test(name) && !/(ay|ey)$/.test(name)) return 'she';
+    return 'they';
+  }
+  function getBasicPronounGuess(row, rowIndex){
+    const fromRow = getStrictPronounFromRow(row);
+    if (fromRow) return fromRow;
+    const first = getFirstNameFromRow(row, rowIndex);
+    return guessPronounFromFirstName(first);
+  }
+  function isBasicAssignmentColumn(col){
+    if (!col) return false;
+    if (col === END_OF_LINE_COL) return false;
+    if (col === studentNameColumn) return false;
+    if (col === firstNameKey) return false;
+    if (col === lastNameKey) return false;
+    return true;
+  }
+  function getMissingAssignmentColumnsForRow(row){
+    if (!row) return [];
+    return allColumns.filter((col) => {
+      if (!isBasicAssignmentColumn(col)) return false;
+      if (!columnHasData(col)) return false;
+      const value = row[col];
+      return value == null || String(value).trim() === '';
+    });
+  }
+  function getHomeworkSubmissionLevelFromWarnings(warningCount){
+    if (warningCount <= 0) return 'strong';
+    if (warningCount <= 2) return 'satisfactory';
+    return 'needs improvement';
+  }
+  function getUpcomingTestsFromMissingColumns(missingColumns){
+    const testRegex = /(test|quiz|challenge|exam|review)/i;
+    return (Array.isArray(missingColumns) ? missingColumns : [])
+      .map((col) => cleanAssignmentLabel(col))
+      .filter((label) => testRegex.test(label))
+      .slice(0, 2);
+  }
+  function getBasicFinalGrade(row){
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    if (!gradeColumn) return '';
+    const raw = row?.[gradeColumn];
+    const meta = deriveMarkMeta(raw, gradeColumn);
+    if (meta) return formatMarkText(meta, raw);
+    if (raw == null || String(raw).trim() === '') return '';
+    return String(raw).trim();
+  }
+  function getRowPerformanceLevel(row){
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    if (!gradeColumn) return 'mid';
+    const raw = row?.[gradeColumn];
+    const meta = deriveMarkMeta(raw, gradeColumn);
+    const numeric = meta?.value ?? parseMarkToNumber(raw);
+    if (numeric == null) return 'mid';
+    const high = Number(commentConfig.highThreshold ?? COMMENT_DEFAULTS.highThreshold);
+    const mid = Number(commentConfig.midThreshold ?? COMMENT_DEFAULTS.midThreshold);
+    if (numeric >= high) return 'good';
+    if (numeric >= mid) return 'mid';
+    return 'needs_support';
+  }
+  function buildBasicBulkPayload(rowIndex, termLabel){
+    const row = rows[rowIndex];
+    const studentName = getRowLabel(rowIndex);
+    const missingCols = getMissingAssignmentColumnsForRow(row);
+    const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
+    const warningCount = missingCols.length;
+    const homeworkSubmissionLevel = getHomeworkSubmissionLevelFromWarnings(warningCount);
+    return {
+      mode: 'basic_bulk',
+      reviseMode: 'basic_bulk',
+      targetStructure: 'sandwich',
+      requiredSections: ['Areas of Strength', 'Areas of Improvement'],
+      termLabel,
+      studentName,
+      pronounGuess: getBasicPronounGuess(row, rowIndex),
+      finalMark: getBasicFinalGrade(row),
+      homeworkSubmissionLevel,
+      missingAssignments: {
+        count: warningCount,
+        labels: missingLabels.slice(0, 4)
+      },
+      upcomingTests: getUpcomingTestsFromMissingColumns(missingCols),
+      performanceLevel: getRowPerformanceLevel(row)
+    };
+  }
+  async function requestBasicComment(endpoint, payload){
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok){
+      const detail = String(data?.error || data?.message || response.statusText || 'Request failed');
+      throw new Error(detail);
+    }
+    const comment = parseAiCommentResponse(data);
+    if (!comment){
+      throw new Error('No valid output returned');
+    }
+    return {
+      text: ensureSentencePunctuation(cleanFluency(comment)),
+      modelUsed: String(data?.modelUsed || '').trim()
+    };
+  }
+  async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint){
+    const payload = buildBasicBulkPayload(rowIndex, termLabel);
+    return requestBasicComment(endpoint, payload);
+  }
+  function getBasicRunStatus(completed, total, successCount){
+    return `${completed}/${total} generated • ${successCount} success`;
+  }
+  async function runBasicBulkGenerate(){
+    if (!activeContext || !rows.length){
+      updateBasicGeneratorStatus('Load class data first.');
+      return;
+    }
+    const termLabel = String(builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term first.');
+      return;
+    }
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const indices = getVisibleCommentRowIndices();
+    if (!indices.length){
+      updateBasicGeneratorStatus('No students available in the current view.');
+      return;
+    }
+    const runToken = ++basicBulkGenerationToken;
+    const contextId = activeContext.id;
+    const contextStore = getBasicCommentsStoreForContext(contextId, true);
+    let completed = 0;
+    let successCount = 0;
+    let failureCount = 0;
+    if (builderBasicBulkGenerateBtn){
+      builderBasicBulkGenerateBtn.disabled = true;
+      builderBasicBulkGenerateBtn.textContent = 'Generating...';
+    }
+    updateBasicGeneratorStatus(getBasicRunStatus(0, indices.length, 0));
+    renderBasicGeneratedComments(contextId);
+    const queue = [...indices];
+    const workerCount = Math.max(1, Math.min(BASIC_BULK_CONCURRENCY, queue.length));
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (queue.length){
+        if (runToken !== basicBulkGenerationToken) return;
+        const rowIndex = queue.shift();
+        if (rowIndex == null) return;
+        const key = String(rowIndex);
+        try{
+          const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
+          contextStore[key] = {
+            text: result.text,
+            termLabel,
+            updatedAt: Date.now(),
+            modelUsed: result.modelUsed,
+            error: ''
+          };
+          successCount += 1;
+        }catch(err){
+          failureCount += 1;
+          contextStore[key] = {
+            text: '',
+            termLabel,
+            updatedAt: Date.now(),
+            modelUsed: '',
+            error: String(err?.message || 'No valid output returned')
+          };
+        }
+        completed += 1;
+        persistBasicGeneratedComments();
+        if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
+          renderBasicGeneratedComments(contextId);
+          updateBasicGeneratorStatus(getBasicRunStatus(completed, indices.length, successCount));
+        }
+      }
+    });
+    await Promise.all(workers);
+    if (builderBasicBulkGenerateBtn){
+      builderBasicBulkGenerateBtn.disabled = false;
+      builderBasicBulkGenerateBtn.textContent = 'Bulk Generate';
+    }
+    if (runToken !== basicBulkGenerationToken) return;
+    const summary = failureCount
+      ? `Completed ${successCount}/${indices.length}. ${failureCount} failed.`
+      : `Completed ${successCount}/${indices.length}.`;
+    updateBasicGeneratorStatus(summary);
+    status(failureCount ? 'Basic bulk generation completed with some errors.' : 'Basic bulk generation completed.');
+  }
+  async function retryBasicGeneratedComment(rowIndex){
+    if (!activeContext) return;
+    const termLabel = String(builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term before retrying.');
+      return;
+    }
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+    const rowKey = String(rowIndex);
+    contextStore[rowKey] = {
+      ...(contextStore[rowKey] || {}),
+      error: '',
+      text: 'Regenerating...',
+      termLabel,
+      updatedAt: Date.now()
+    };
+    persistBasicGeneratedComments();
+    renderBasicGeneratedComments(activeContext.id);
+    try{
+      const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
+      contextStore[rowKey] = {
+        text: result.text,
+        termLabel,
+        updatedAt: Date.now(),
+        modelUsed: result.modelUsed,
+        error: ''
+      };
+      updateBasicGeneratorStatus('Retry completed.');
+    }catch(err){
+      contextStore[rowKey] = {
+        ...(contextStore[rowKey] || {}),
+        text: '',
+        termLabel,
+        updatedAt: Date.now(),
+        error: String(err?.message || 'No valid output returned')
+      };
+      updateBasicGeneratorStatus('Retry failed for one student.');
+    }
+    persistBasicGeneratedComments();
+    renderBasicGeneratedComments(activeContext.id);
+  }
+  function renderBasicGeneratedComments(contextId){
+    if (!builderBasicResultsEl) return;
+    const id = contextId != null ? contextId : activeContext?.id;
+    if (!id || !rows.length){
+      builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No class data loaded.</div>';
+      return;
+    }
+    const indices = getVisibleCommentRowIndices();
+    if (!indices.length){
+      builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No students in the current filtered view.</div>';
+      return;
+    }
+    const contextStore = getBasicCommentsStoreForContext(id, true);
+    builderBasicResultsEl.innerHTML = '';
+    indices.forEach((rowIndex) => {
+      const name = getRowLabel(rowIndex);
+      const entry = contextStore[String(rowIndex)] || {};
+      const card = document.createElement('div');
+      card.className = 'basic-comment-card';
+      const header = document.createElement('div');
+      header.className = 'basic-comment-card-header';
+      const title = document.createElement('strong');
+      title.textContent = name;
+      const actions = document.createElement('div');
+      actions.className = 'basic-comment-card-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn';
+      copyBtn.type = 'button';
+      copyBtn.dataset.basicCopy = String(rowIndex);
+      copyBtn.textContent = 'Copy';
+      copyBtn.disabled = !String(entry.text || '').trim();
+      actions.appendChild(copyBtn);
+      if (entry.error){
+        const retryBtn = document.createElement('button');
+        retryBtn.className = 'btn warn';
+        retryBtn.type = 'button';
+        retryBtn.dataset.basicRetry = String(rowIndex);
+        retryBtn.textContent = 'Retry';
+        actions.appendChild(retryBtn);
+      }
+      header.appendChild(title);
+      header.appendChild(actions);
+      card.appendChild(header);
+      const textarea = document.createElement('textarea');
+      textarea.className = 'basic-comment-textarea';
+      textarea.dataset.basicRowIndex = String(rowIndex);
+      textarea.value = String(entry.text || '');
+      textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
+      card.appendChild(textarea);
+      if (entry.error){
+        const error = document.createElement('div');
+        error.className = 'basic-comment-error';
+        error.textContent = `Error: ${entry.error}`;
+        card.appendChild(error);
+      }
+      builderBasicResultsEl.appendChild(card);
+    });
+    builderBasicResultsEl.querySelectorAll('button[data-basic-retry]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const rowIndex = Number(btn.dataset.basicRetry);
+        if (Number.isNaN(rowIndex)) return;
+        retryBasicGeneratedComment(rowIndex);
+      });
+    });
   }
   function shouldAutoGenerateBuilderReport(){
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
