@@ -32,6 +32,8 @@
   let seatingDragStudentId = null;
   let seatingStudentFilterText = '';
   let seatingObjective = SEATING_OBJECTIVES.has(savedSeatingObjective) ? savedSeatingObjective : 'reduce_disruption_first';
+  let seatingAiRevealOrder = null;
+  let seatingAiRevealTimer = null;
 
   let builderActiveCommentSection = null;
   let builderLookingAheadAutoKey = '';
@@ -363,6 +365,7 @@
     seatingAutoPlaceBtn.addEventListener('click', () => {
       const plan = getActiveSeatingPlan();
       if (!plan) return;
+      clearSeatingAiReveal();
       autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked });
       queueSeatingPlanSave(plan);
       renderSeatingPlan();
@@ -4024,6 +4027,34 @@ function getPerformanceToneLine(coreLevel, context){
     seatingPlansByContext[activeContext.id] = plan;
     saveSeatingPlanToStorage(activeContext, plan);
   }
+  function clearSeatingAiReveal(){
+    seatingAiRevealOrder = null;
+    if (seatingAiRevealTimer){
+      clearTimeout(seatingAiRevealTimer);
+      seatingAiRevealTimer = null;
+    }
+  }
+  function startSeatingAiReveal(plan, students){
+    clearSeatingAiReveal();
+    if (!plan || !Array.isArray(plan.seats) || !Array.isArray(students) || !students.length) return;
+    const nameMap = new Map(students.map((student) => [student.id, String(student.name || '').trim().toLowerCase()]));
+    const orderedSeats = plan.seats
+      .filter((seat) => seat.studentId != null)
+      .slice()
+      .sort((a, b) => {
+        const nameA = nameMap.get(a.studentId) || '';
+        const nameB = nameMap.get(b.studentId) || '';
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      });
+    if (!orderedSeats.length) return;
+    seatingAiRevealOrder = new Map();
+    orderedSeats.forEach((seat, index) => seatingAiRevealOrder.set(seat.seatId, index));
+    const totalMs = (orderedSeats.length * 120) + 900;
+    seatingAiRevealTimer = setTimeout(() => {
+      clearSeatingAiReveal();
+      if (isSeatingTabActive()) renderSeatingPlan();
+    }, totalMs);
+  }
   function initializeActiveSeatingPlan(){
     if (!activeContext) return null;
     if (seatingPlansByContext[activeContext.id]){
@@ -4091,6 +4122,7 @@ function getPerformanceToneLine(coreLevel, context){
   function handleSeatingDimensionChange(){
     const plan = getActiveSeatingPlan();
     if (!plan || !activeContext) return;
+    clearSeatingAiReveal();
     const replacement = normalizeSeatingPlan(
       {
         ...plan,
@@ -4119,6 +4151,11 @@ function getPerformanceToneLine(coreLevel, context){
       const perfLevel = trait ? normalizeSeatingPerformanceToken(trait.performance, 'mid') : '';
       if (perfLevel){
         card.classList.add(`seat-level-${perfLevel}`);
+      }
+      const revealIndex = seat.studentId == null ? null : seatingAiRevealOrder?.get(seat.seatId);
+      if (Number.isInteger(revealIndex)){
+        card.classList.add('seating-seat-reveal');
+        card.style.setProperty('--seat-reveal-delay', `${revealIndex * 120}ms`);
       }
       const header = document.createElement('div');
       header.className = 'seating-seat-header';
@@ -4322,6 +4359,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (!activeContext) return;
     const fresh = createEmptySeatingPlan(activeContext, seatingRowsInput?.value, seatingColsInput?.value);
     fresh.objective = seatingObjective;
+    clearSeatingAiReveal();
     seatingSelectedSeatId = '';
     seatingDragSeatId = '';
     seatingDragStudentId = null;
@@ -4501,6 +4539,7 @@ function getPerformanceToneLine(coreLevel, context){
       }
       queueSeatingPlanSave(plan);
       setSeatingNotes(Array.isArray(data?.notes) ? data.notes : []);
+      startSeatingAiReveal(plan, getSeatingStudents(activeContext));
       renderSeatingPlan();
       const modelUsed = String(data?.modelUsed || '').trim();
       setSeatingStatus(modelUsed ? `AI seating plan generated (${modelUsed}).` : 'AI seating plan generated.', 'ok');
