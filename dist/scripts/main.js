@@ -27,6 +27,8 @@
   const SEATING_DEFAULT_COLS = 6;
   const SEATING_OBJECTIVES = new Set(['reduce_disruption_first', 'balanced_support']);
   let seatingPlansByContext = {};
+  let seatingGenerationRunByContext = {};
+  let seatingRecentLayoutsByContext = {};
   let seatingSelectedSeatId = '';
   let seatingDragSeatId = '';
   let seatingDragStudentId = null;
@@ -3930,8 +3932,91 @@ function getPerformanceToneLine(coreLevel, context){
     }
     return Math.abs(hash).toString(36);
   }
+  function createSeededRng(seedInput){
+    const text = String(seedInput || 'seed');
+    let seed = 2166136261;
+    for (let i = 0; i < text.length; i++){
+      seed ^= text.charCodeAt(i);
+      seed = Math.imul(seed, 16777619);
+    }
+    seed >>>= 0;
+    return function rng(){
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+  }
+  function shuffleWithRng(list, rng){
+    for (let i = list.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+    return list;
+  }
   function createSeatId(row, col){
     return `r${row}c${col}`;
+  }
+  function buildSeatingLayoutSignature(plan){
+    if (!plan || !Array.isArray(plan.seats)) return '';
+    return plan.seats
+      .filter((seat) => seat.studentId != null)
+      .slice()
+      .sort((a, b) => String(a.seatId).localeCompare(String(b.seatId)))
+      .map((seat) => `${seat.seatId}:${seat.studentId}`)
+      .join('|');
+  }
+  function parseSeatingLayoutSignature(signature){
+    const map = new Map();
+    String(signature || '')
+      .split('|')
+      .map((token) => token.trim())
+      .filter(Boolean)
+      .forEach((token) => {
+        const parts = token.split(':');
+        if (parts.length !== 2) return;
+        const seatId = String(parts[0] || '').trim();
+        const studentId = Number(parts[1]);
+        if (!seatId || !Number.isInteger(studentId)) return;
+        map.set(seatId, studentId);
+      });
+    return map;
+  }
+  function computeSeatingLayoutSimilarity(aSignature, bSignature){
+    const mapA = parseSeatingLayoutSignature(aSignature);
+    const mapB = parseSeatingLayoutSignature(bSignature);
+    const denominator = Math.max(mapA.size, mapB.size, 1);
+    let matches = 0;
+    mapA.forEach((studentId, seatId) => {
+      if (mapB.get(seatId) === studentId) matches += 1;
+    });
+    return matches / denominator;
+  }
+  function getSeatingRecentLayouts(contextId){
+    const key = String(contextId ?? '');
+    return Array.isArray(seatingRecentLayoutsByContext[key]) ? [...seatingRecentLayoutsByContext[key]] : [];
+  }
+  function getNextSeatingGenerationRun(contextId){
+    const key = String(contextId ?? '');
+    const next = (Number(seatingGenerationRunByContext[key]) || 0) + 1;
+    seatingGenerationRunByContext[key] = next;
+    return next;
+  }
+  function pushSeatingRecentLayout(contextId, signature){
+    const key = String(contextId ?? '');
+    if (!signature) return;
+    const current = getSeatingRecentLayouts(key).filter((item) => item !== signature);
+    current.unshift(signature);
+    seatingRecentLayoutsByContext[key] = current.slice(0, 3);
+  }
+  function bestSeatingSimilarityAgainstHistory(signature, historySignatures){
+    const list = Array.isArray(historySignatures) ? historySignatures : [];
+    if (!signature || !list.length) return 0;
+    let best = 0;
+    list.forEach((prev) => {
+      best = Math.max(best, computeSeatingLayoutSimilarity(signature, prev));
+    });
+    return best;
   }
   function getSeatingPerformanceFromFinalGrade(row){
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
@@ -4151,6 +4236,11 @@ function getPerformanceToneLine(coreLevel, context){
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'seating-seat-card';
+      if (seat.col % 2 === 1 && seat.col < plan.cols){
+        card.classList.add('seating-pair-left');
+      }else if (seat.col % 2 === 0){
+        card.classList.add('seating-pair-right');
+      }
       if (seat.locked) card.classList.add('locked');
       if (seat.seatId === seatingSelectedSeatId) card.classList.add('selected');
       const trait = seat.studentId == null ? null : (plan.traits?.[seat.studentId] || null);
@@ -4401,6 +4491,8 @@ function getPerformanceToneLine(coreLevel, context){
   function autoPlaceSeatingPlan(plan, options = {}){
     if (!plan) return { notes: [] };
     const students = getSeatingStudents(activeContext);
+    const generationRun = Number(options.generationRun) || 0;
+    const rng = createSeededRng(`${activeContext?.id ?? 'ctx'}:${generationRun}:${students.length}:${plan.rows}x${plan.cols}`);
     const validIds = new Set(students.map((student) => student.id));
     const keepLocks = options.useLocks !== false;
     const lockedStudents = new Set();
@@ -4427,14 +4519,18 @@ function getPerformanceToneLine(coreLevel, context){
       .filter((seat) => seat.studentId != null)
       .map((seat) => ({ seat, student: students.find((item) => item.id === seat.studentId) }))
       .filter((entry) => !!entry.student);
-    const unplaced = students.filter((student) => !lockedStudents.has(student.id));
-    unplaced.sort((a, b) => computeSeatingPriority(b, plan) - computeSeatingPriority(a, plan) || a.id - b.id);
+    const unplaced = students
+      .filter((student) => !lockedStudents.has(student.id))
+      .map((student) => ({ student, priority: computeSeatingPriority(student, plan), tie: rng() }))
+      .sort((a, b) => b.priority - a.priority || a.tie - b.tie)
+      .map((entry) => entry.student);
     unplaced.forEach((student) => {
       if (!emptySeats.length) return;
-      let bestSeat = emptySeats[0];
+      const candidates = shuffleWithRng(emptySeats.slice(), rng);
+      let bestSeat = candidates[0];
       let bestScore = Number.NEGATIVE_INFINITY;
-      emptySeats.forEach((seat) => {
-        const score = computeSeatPlacementScore(seat, student, placed, plan);
+      candidates.forEach((seat) => {
+        const score = computeSeatPlacementScore(seat, student, placed, plan) + ((rng() - 0.5) * 0.0009);
         if (score > bestScore){
           bestScore = score;
           bestSeat = seat;
@@ -4449,6 +4545,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (lockedStudents.size){
       notes.push(`Kept ${lockedStudents.size} locked seat assignment${lockedStudents.size === 1 ? '' : 's'} in place.`);
     }
+    notes.push(`Varied local placement seed run ${generationRun || 1}.`);
     notes.push('Separated high-talk and loud pairings where possible.');
     notes.push('Balanced performance bands across the room.');
     return { notes };
@@ -4458,12 +4555,18 @@ function getPerformanceToneLine(coreLevel, context){
     if (!commentEndpoint) return '';
     return commentEndpoint.replace(/\/api\/generate-comment$/i, '/api/generate-seating-plan');
   }
-  function buildSeatingAiPayload(plan){
+  function buildSeatingAiPayload(plan, options = {}){
     const students = getSeatingStudents(activeContext);
+    const generationRun = Number(options.generationRun) || 1;
+    const avoidLayouts = Array.isArray(options.avoidLayouts) ? options.avoidLayouts.filter(Boolean).slice(0, 3) : [];
     return {
       className: activeContext?.name || 'Class',
       layout: { rows: plan.rows, cols: plan.cols },
       objective: plan.objective || seatingObjective,
+      diversityMode: 'moderate',
+      generationRun,
+      avoidLayouts,
+      similarityCap: 0.82,
       students: students.map((student) => {
         const trait = plan.traits[student.id] || {};
         return {
@@ -4511,6 +4614,9 @@ function getPerformanceToneLine(coreLevel, context){
       setSeatingStatus('Load a class file before generating a seating plan.', 'error');
       return;
     }
+    const contextId = String(activeContext.id ?? '');
+    const generationRun = getNextSeatingGenerationRun(contextId);
+    const recentLayouts = getSeatingRecentLayouts(contextId);
     const plan = getActiveSeatingPlan();
     if (!plan) return;
     const endpoint = getSeatingApiEndpoint();
@@ -4520,43 +4626,58 @@ function getPerformanceToneLine(coreLevel, context){
         seatingAiGenerateBtn.disabled = true;
         seatingAiGenerateBtn.textContent = 'Generating...';
       }
-      setSeatingStatus('Generating AI seating suggestion...');
+      setSeatingStatus(`Generating AI seating suggestion (run ${generationRun})...`);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildSeatingAiPayload(plan))
+        body: JSON.stringify(buildSeatingAiPayload(plan, { generationRun, avoidLayouts: recentLayouts }))
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok){
-        const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked });
+        const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked, generationRun });
+        const signature = buildSeatingLayoutSignature(plan);
+        const bestSimilarity = bestSeatingSimilarityAgainstHistory(signature, recentLayouts);
+        pushSeatingRecentLayout(contextId, signature);
         queueSeatingPlanSave(plan);
         setSeatingNotes(fallback.notes);
         renderSeatingPlan();
-        setSeatingStatus(`AI unavailable (${String(data?.error || response.statusText || 'request failed')}). Applied local layout.`, 'error');
+        setSeatingStatus(`AI unavailable (${String(data?.error || response.statusText || 'request failed')}). Applied local varied layout (run ${generationRun}, novelty ${Math.max(0, Math.round((1 - bestSimilarity) * 100))}%).`, 'error');
         return;
       }
       if (!applySeatingPlacements(plan, data?.placements || [])){
-        const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked });
+        const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked, generationRun });
+        const signature = buildSeatingLayoutSignature(plan);
+        const bestSimilarity = bestSeatingSimilarityAgainstHistory(signature, recentLayouts);
+        pushSeatingRecentLayout(contextId, signature);
         queueSeatingPlanSave(plan);
         setSeatingNotes(fallback.notes);
         renderSeatingPlan();
-        setSeatingStatus('AI output was invalid. Applied local layout.', 'error');
+        setSeatingStatus(`AI output was invalid. Applied local varied layout (run ${generationRun}, novelty ${Math.max(0, Math.round((1 - bestSimilarity) * 100))}%).`, 'error');
         return;
       }
+      const signature = buildSeatingLayoutSignature(plan);
+      const priorSimilarity = bestSeatingSimilarityAgainstHistory(signature, recentLayouts);
+      pushSeatingRecentLayout(contextId, signature);
       queueSeatingPlanSave(plan);
       setSeatingNotes(Array.isArray(data?.notes) ? data.notes : []);
       startSeatingAiReveal(plan, getSeatingStudents(activeContext));
       renderSeatingPlan();
       const modelUsed = String(data?.modelUsed || '').trim();
-      setSeatingStatus(modelUsed ? `AI seating plan generated (${modelUsed}).` : 'AI seating plan generated.', 'ok');
+      const noveltyScore = Number.isFinite(Number(data?.noveltyScore)) ? Number(data.noveltyScore) : (1 - priorSimilarity);
+      const noveltyPct = Math.max(0, Math.min(100, Math.round(noveltyScore * 100)));
+      const diversifiedTag = data?.diversified ? ' diversified' : '';
+      setSeatingStatus(modelUsed ? `AI seating plan generated (${modelUsed}${diversifiedTag}) run ${generationRun}, novelty ${noveltyPct}%.` : `AI seating plan generated run ${generationRun}, novelty ${noveltyPct}%.`, 'ok');
     }catch(err){
       console.error(err);
-      const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked });
+      const fallback = autoPlaceSeatingPlan(plan, { useLocks: !!seatingRespectLocksInput?.checked, generationRun });
+      const signature = buildSeatingLayoutSignature(plan);
+      const bestSimilarity = bestSeatingSimilarityAgainstHistory(signature, recentLayouts);
+      pushSeatingRecentLayout(contextId, signature);
       queueSeatingPlanSave(plan);
       setSeatingNotes(fallback.notes);
       renderSeatingPlan();
       const detail = String(err?.message || 'network/CORS/timeout issue');
-      setSeatingStatus(`Could not reach AI API (${detail}). Applied local layout instead.`, 'error');
+      setSeatingStatus(`Could not reach AI API (${detail}). Applied local varied layout (run ${generationRun}, novelty ${Math.max(0, Math.round((1 - bestSimilarity) * 100))}%).`, 'error');
     }finally{
       if (seatingAiGenerateBtn){
         seatingAiGenerateBtn.disabled = false;

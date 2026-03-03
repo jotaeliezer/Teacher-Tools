@@ -3824,8 +3824,11 @@ td.readonly{
   gap: 8px;
 }
 .seating-seat-card{
+  --seat-bg: #ffffff;
+  --seat-border: #ccd2e2;
   border: 1px solid #ccd2e2;
-  background: #ffffff;
+  border-color: var(--seat-border);
+  background: var(--seat-bg);
   border-radius: 10px;
   padding: 10px 10px 12px 10px;
   text-align: left;
@@ -3841,25 +3844,51 @@ td.readonly{
   border-color: #ba3d8e;
 }
 .seating-seat-card.seat-level-good{
-  background: #dff2d7;
-  border-color: #95c17b;
+  --seat-bg: #dff2d7;
+  --seat-border: #95c17b;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
 }
 .seating-seat-card.seat-level-good .seating-seat-header,
 .seating-seat-card.seat-level-good .seating-seat-lock{
   color: #2f4f2d;
 }
 .seating-seat-card.seat-level-mid{
-  background: #f7efc4;
-  border-color: #d2b957;
+  --seat-bg: #f7efc4;
+  --seat-border: #d2b957;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
 }
 .seating-seat-card.seat-level-mid .seating-seat-header,
 .seating-seat-card.seat-level-mid .seating-seat-lock{
   color: #6d5612;
 }
 .seating-seat-card.seat-level-needs_support{
-  background: #c81f92;
-  border-color: #8f1669;
+  --seat-bg: #c81f92;
+  --seat-border: #8f1669;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
   color: #ffffff;
+}
+.seating-seat-card.seating-pair-left::after{
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 10px;
+  bottom: 10px;
+  width: 9px;
+  background: var(--seat-bg);
+  border-top: 1px solid var(--seat-border);
+  border-bottom: 1px solid var(--seat-border);
+  pointer-events: none;
+}
+.seating-seat-card.seating-pair-left{
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.seating-seat-card.seating-pair-right{
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
 }
 .seating-seat-card.seat-level-needs_support .seating-seat-header,
 .seating-seat-card.seat-level-needs_support .seating-seat-lock,
@@ -4013,12 +4042,16 @@ body.dark-mode .seating-plan-traits{
   border-color: #2a3658;
 }
 body.dark-mode .seating-seat-card{
-  background: #111a2e;
-  border-color: #334168;
+  --seat-bg: #111a2e;
+  --seat-border: #334168;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
 }
 body.dark-mode .seating-seat-card.seat-level-good{
-  background: #314c35;
-  border-color: #6f9f6e;
+  --seat-bg: #314c35;
+  --seat-border: #6f9f6e;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
   color: #eef8eb;
 }
 body.dark-mode .seating-seat-card.seat-level-good .seating-seat-header,
@@ -4026,8 +4059,10 @@ body.dark-mode .seating-seat-card.seat-level-good .seating-seat-lock{
   color: #d4f0d2;
 }
 body.dark-mode .seating-seat-card.seat-level-mid{
-  background: #5b5326;
-  border-color: #ad9852;
+  --seat-bg: #5b5326;
+  --seat-border: #ad9852;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
   color: #fff7d8;
 }
 body.dark-mode .seating-seat-card.seat-level-mid .seating-seat-header,
@@ -4035,8 +4070,10 @@ body.dark-mode .seating-seat-card.seat-level-mid .seating-seat-lock{
   color: #fff1b6;
 }
 body.dark-mode .seating-seat-card.seat-level-needs_support{
-  background: #a31577;
-  border-color: #d25ab0;
+  --seat-bg: #a31577;
+  --seat-border: #d25ab0;
+  background: var(--seat-bg);
+  border-color: var(--seat-border);
   color: #ffffff;
 }
 body.dark-mode .seating-seat-card.locked{
