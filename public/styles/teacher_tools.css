@@ -3878,6 +3878,11 @@ td.readonly{
   border-color: #6f82dc;
   box-shadow: 0 0 0 2px rgba(111, 130, 220, 0.22);
 }
+.seating-seat-card.seating-seat-reveal{
+  opacity: 0;
+  animation: seatingSeatCardReveal 620ms ease forwards;
+  animation-delay: var(--seat-reveal-delay, 0ms);
+}
 .seating-seat-header{
   display: flex;
   justify-content: space-between;
@@ -3913,6 +3918,18 @@ td.readonly{
   to{
     opacity: 1;
     transform: translateY(0);
+  }
+}
+@keyframes seatingSeatCardReveal{
+  from{
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+    filter: saturate(0.65);
+  }
+  to{
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
   }
 }
 .seating-seat-new-badge{

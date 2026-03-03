@@ -1849,6 +1849,9 @@ function getPerformanceToneLine(coreLevel, context){
       renderPrintPreview();
       renderPrintMarkingColumnPanel();
     }
+    if (isPhoneLogsTabActive()){
+      renderPhoneLogsList();
+    }
     if (isCommentsTabActive()){
       openCommentsModalInternal();
     }
@@ -3695,6 +3698,9 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function isPrintTabActive(){
     return !!(printTabSection && printTabSection.classList.contains('active'));
+  }
+  function isPhoneLogsTabActive(){
+    return !!(phoneLogsSection && phoneLogsSection.classList.contains('active'));
   }
   function isSeatingTabActive(){
     return !!(seatingTabSection && seatingTabSection.classList.contains('active'));
