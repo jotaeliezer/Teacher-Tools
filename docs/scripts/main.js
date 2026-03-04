@@ -5164,6 +5164,16 @@ function getPerformanceToneLine(coreLevel, context){
     const warningCount = missingCols.length;
     const homeworkSubmissionLevel = getHomeworkSubmissionLevelFromWarnings(warningCount);
     const performanceCode = getRowPerformanceLevel(row);
+    const classFirstNames = getVisibleCommentRowIndices()
+      .map((idx) => getFirstNameFromRow(rows[idx], idx))
+      .filter(Boolean)
+      .slice(0, 120);
+    const assignmentFacts = getBasicAssignmentFactsForRow(row);
+    const allowedAssignmentLabels = [
+      ...assignmentFacts.map((item) => item.label),
+      ...missingLabels.slice(0, 4),
+      ...getUpcomingTestsFromMissingColumns(missingCols)
+    ].filter(Boolean);
     return {
       mode: 'basic_bulk',
       reviseMode: 'basic_bulk',
@@ -5182,7 +5192,9 @@ function getPerformanceToneLine(coreLevel, context){
       upcomingTests: getUpcomingTestsFromMissingColumns(missingCols),
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
-      assignmentFacts: getBasicAssignmentFactsForRow(row)
+      assignmentFacts,
+      allowedAssignmentLabels,
+      classFirstNames
     };
   }
   async function requestBasicComment(endpoint, payload){
