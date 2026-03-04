@@ -205,6 +205,9 @@
   if (tabDataBtn){
     tabDataBtn.addEventListener('click', () => activateTab('data'));
   }
+  if (tabMarkingAssistantBtn){
+    tabMarkingAssistantBtn.addEventListener('click', () => activateTab('markingassistant'));
+  }
   if (tabPrintBtn){
     tabPrintBtn.addEventListener('click', () => {
       if (!rows.length){
@@ -3788,6 +3791,7 @@ function getPerformanceToneLine(coreLevel, context){
   function activateTab(kind){
     const sections = {
       data: dataTabSection,
+      markingassistant: markingAssistantSection,
       print: printTabSection,
       phonelogs: phoneLogsSection,
       comments: commentsTabSection,
@@ -3795,6 +3799,7 @@ function getPerformanceToneLine(coreLevel, context){
     };
     const buttons = {
       data: tabDataBtn,
+      markingassistant: tabMarkingAssistantBtn,
       print: tabPrintBtn,
       phonelogs: tabPhoneLogsBtn,
       comments: tabCommentsBtn,
@@ -4841,6 +4846,221 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function closePrintPreviewModal(){
     activateTab('data');
+  }
+
+  // ── Marking Assistant ────────────────────────────────────────────────────
+  let markingImageData = null;   // { dataUrl, mimeType }
+  let markingTableData = null;   // { columns: [], rows: [{...}] }
+
+  function getMarkingAssistantApiEndpoint(){
+    const base = (builderAiEndpoint || '').replace(/\/+$/, '').replace(/\/generate-comment$/, '');
+    if (!base) return null;
+    return base + '/scan-marks';
+  }
+
+  function setMarkingStatus(msg, tone){
+    if (!markingStatusEl) return;
+    markingStatusEl.textContent = String(msg || '');
+    markingStatusEl.classList.remove('status-error', 'status-ok');
+    if (tone === 'error') markingStatusEl.classList.add('status-error');
+    if (tone === 'ok') markingStatusEl.classList.add('status-ok');
+  }
+
+  function setMarkingImage(dataUrl, mimeType){
+    markingImageData = dataUrl ? { dataUrl, mimeType: mimeType || 'image/jpeg' } : null;
+    if (markingImagePreview) markingImagePreview.src = dataUrl || '';
+    if (markingImagePreviewWrap) markingImagePreviewWrap.style.display = dataUrl ? '' : 'none';
+    if (markingUploadArea) markingUploadArea.style.display = dataUrl ? 'none' : '';
+    if (markingScanBtn) markingScanBtn.disabled = !dataUrl;
+    setMarkingStatus('');
+  }
+
+  function clearMarkingImage(){
+    setMarkingImage(null);
+    if (markingCameraInput) markingCameraInput.value = '';
+    if (markingFileInput) markingFileInput.value = '';
+  }
+
+  function handleMarkingFileSelect(file){
+    if (!file) return;
+    const mimeType = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = (e) => setMarkingImage(e.target.result, mimeType);
+    reader.readAsDataURL(file);
+  }
+
+  function renderMarkingTable(columns, rows){
+    markingTableData = { columns: [...columns], rows: rows.map(r => ({ ...r })) };
+    if (!markingResultsTable) return;
+    markingResultsTable.innerHTML = '';
+
+    // Header row
+    const thead = markingResultsTable.createTHead();
+    const hRow = thead.insertRow();
+    columns.forEach((col, ci) => {
+      const th = document.createElement('th');
+      th.contentEditable = 'true';
+      th.className = 'marking-th';
+      th.textContent = col;
+      th.addEventListener('blur', () => {
+        markingTableData.columns[ci] = th.textContent.trim() || col;
+      });
+      hRow.appendChild(th);
+    });
+    // Delete-row control column header
+    const thDel = document.createElement('th');
+    thDel.style.width = '28px';
+    hRow.appendChild(thDel);
+
+    // Data rows
+    const tbody = markingResultsTable.createTBody();
+    rows.forEach((row, ri) => {
+      const tr = addMarkingTableRow(tbody, columns, row, ri);
+      tbody.appendChild(tr);
+    });
+
+    if (markingResultsEmpty) markingResultsEmpty.style.display = 'none';
+    if (markingResultsWrap) markingResultsWrap.style.display = '';
+    if (markingResultsMeta) markingResultsMeta.textContent = `${rows.length} student${rows.length !== 1 ? 's' : ''}, ${columns.length} column${columns.length !== 1 ? 's' : ''}`;
+  }
+
+  function addMarkingTableRow(tbody, columns, row, ri){
+    const tr = document.createElement('tr');
+    columns.forEach((col, ci) => {
+      const td = tr.insertCell();
+      td.contentEditable = 'true';
+      td.className = 'marking-td';
+      td.textContent = row?.[col] ?? '';
+      td.addEventListener('blur', () => {
+        if (markingTableData?.rows[ri]) markingTableData.rows[ri][markingTableData.columns[ci]] = td.textContent.trim();
+      });
+    });
+    // Delete row button
+    const tdDel = tr.insertCell();
+    tdDel.style.padding = '2px 4px';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn';
+    delBtn.style.cssText = 'padding:2px 7px; font-size:11px; color:#b91c1c;';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove row';
+    delBtn.addEventListener('click', () => {
+      markingTableData?.rows.splice(ri, 1);
+      tr.remove();
+      if (markingResultsMeta && markingTableData){
+        markingResultsMeta.textContent = `${markingTableData.rows.length} student${markingTableData.rows.length !== 1 ? 's' : ''}, ${markingTableData.columns.length} column${markingTableData.columns.length !== 1 ? 's' : ''}`;
+      }
+    });
+    tdDel.appendChild(delBtn);
+    return tr;
+  }
+
+  async function scanMarksWithAI(){
+    if (!markingImageData) return;
+    const endpoint = getMarkingAssistantApiEndpoint();
+    if (!endpoint){
+      setMarkingStatus('No AI endpoint configured. Set it in Report Comments settings first.', 'error');
+      return;
+    }
+    if (markingSpinner) markingSpinner.style.display = 'flex';
+    if (markingScanBtn) { markingScanBtn.disabled = true; markingScanBtn.textContent = 'Scanning…'; }
+    setMarkingStatus('');
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: markingImageData.dataUrl, mimeType: markingImageData.mimeType })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){
+        setMarkingStatus(data.error || `API error (${res.status})`, 'error');
+        return;
+      }
+      if (!data.columns?.length || !data.rows?.length){
+        setMarkingStatus('No marks could be detected in this image. Try a clearer photo.', 'error');
+        return;
+      }
+      renderMarkingTable(data.columns, data.rows);
+      setMarkingStatus(`Found ${data.rows.length} student${data.rows.length !== 1 ? 's' : ''}.`, 'ok');
+    } catch(err){
+      setMarkingStatus(`Failed to reach scan API: ${err.message || err}`, 'error');
+    } finally {
+      if (markingSpinner) markingSpinner.style.display = 'none';
+      if (markingScanBtn) { markingScanBtn.disabled = false; markingScanBtn.textContent = 'Scan Marks'; }
+    }
+  }
+
+  function downloadMarkingCsv(){
+    if (!markingTableData?.columns?.length) return;
+    // Collect current cell values from the DOM (user may have edited them)
+    const table = markingResultsTable;
+    const tbody = table?.tBodies[0];
+    const rows = [];
+    if (tbody){
+      Array.from(tbody.rows).forEach(tr => {
+        const obj = {};
+        markingTableData.columns.forEach((col, ci) => {
+          obj[col] = tr.cells[ci]?.textContent?.trim() ?? '';
+        });
+        rows.push(obj);
+      });
+    }
+    const headerRow = [...markingTableData.columns];
+    const dataRows = rows.map(r => headerRow.map(col => r[col] ?? ''));
+    const matrix = [headerRow, ...dataRows];
+    const csv = Papa.unparse(matrix);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'scanned_marks.csv';
+    a.click();
+  }
+
+  // Marking Assistant event wiring
+  if (markingCameraInput){
+    markingCameraInput.addEventListener('change', (e) => handleMarkingFileSelect(e.target.files?.[0]));
+  }
+  if (markingFileInput){
+    markingFileInput.addEventListener('change', (e) => handleMarkingFileSelect(e.target.files?.[0]));
+  }
+  if (markingClearImageBtn){
+    markingClearImageBtn.addEventListener('click', clearMarkingImage);
+  }
+  if (markingScanBtn){
+    markingScanBtn.addEventListener('click', scanMarksWithAI);
+  }
+  if (markingDownloadCsvBtn){
+    markingDownloadCsvBtn.addEventListener('click', downloadMarkingCsv);
+  }
+  if (markingAddRowBtn){
+    markingAddRowBtn.addEventListener('click', () => {
+      if (!markingTableData) return;
+      const newRow = {};
+      markingTableData.columns.forEach(col => { newRow[col] = ''; });
+      const ri = markingTableData.rows.length;
+      markingTableData.rows.push(newRow);
+      const tbody = markingResultsTable?.tBodies[0];
+      if (tbody) addMarkingTableRow(tbody, markingTableData.columns, newRow, ri);
+    });
+  }
+  if (markingAddColBtn){
+    markingAddColBtn.addEventListener('click', () => {
+      if (!markingTableData) return;
+      const colName = `Score ${markingTableData.columns.length}`;
+      markingTableData.columns.push(colName);
+      markingTableData.rows.forEach(r => { r[colName] = ''; });
+      renderMarkingTable(markingTableData.columns, markingTableData.rows);
+    });
+  }
+  // Drag-and-drop onto the upload area
+  if (markingUploadArea){
+    markingUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); markingUploadArea.classList.add('drag-over'); });
+    markingUploadArea.addEventListener('dragleave', () => markingUploadArea.classList.remove('drag-over'));
+    markingUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      markingUploadArea.classList.remove('drag-over');
+      handleMarkingFileSelect(e.dataTransfer?.files?.[0]);
+    });
   }
   function syncPrintMetaInputs(){
     if (printTeacherInput) printTeacherInput.value = printMeta.teacher || '';

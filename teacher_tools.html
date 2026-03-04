@@ -87,6 +87,7 @@
   <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
   <div class="tab-bar">
     <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
+  <button class="tab-btn" id="tabMarkingAssistantBtn" type="button">Marking Assistant</button>
   <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
   <button class="tab-btn" id="tabPhoneLogsBtn" type="button">Phone Logs</button>
   <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
@@ -212,6 +213,73 @@
       </footer>
     </div>
   </div>
+<div id="markingAssistantSection" class="tab-section" style="display:none;">
+  <div class="panel marking-assistant-panel">
+    <header class="marking-assistant-header">
+      <div>
+        <h3 style="margin:0;">Marking Assistant</h3>
+        <p class="muted" style="margin:4px 0 0 0; font-size:13px;">Scan a handwritten or printed mark sheet using your camera or a photo file. The AI will transcribe the scores into a downloadable CSV.</p>
+      </div>
+    </header>
+    <div class="marking-assistant-layout">
+
+      <!-- Left: upload + controls -->
+      <aside class="marking-assistant-controls">
+        <div class="marking-upload-area" id="markingUploadArea">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#9ca3af;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <p style="margin:8px 0 4px 0; font-weight:600; font-size:14px;">Upload a photo</p>
+          <p class="muted" style="margin:0; font-size:12px;">Take a photo or choose a file</p>
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:center;">
+            <label class="btn primary" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingCameraInput" accept="image/*" capture="environment" style="display:none;" />
+              Camera
+            </label>
+            <label class="btn" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingFileInput" accept="image/*" style="display:none;" />
+              Choose File
+            </label>
+          </div>
+        </div>
+
+        <!-- Image preview -->
+        <div id="markingImagePreviewWrap" style="display:none;">
+          <img id="markingImagePreview" src="" alt="Preview" class="marking-image-preview" />
+          <button class="btn" type="button" id="markingClearImageBtn" style="margin-top:8px; width:100%;">Remove Image</button>
+        </div>
+
+        <button class="btn primary" type="button" id="markingScanBtn" disabled style="width:100%; margin-top:12px;">
+          Scan Marks
+        </button>
+        <div id="markingStatus" class="marking-status muted" style="font-size:12px; margin-top:8px;"></div>
+      </aside>
+
+      <!-- Right: results -->
+      <section class="marking-assistant-results">
+        <div id="markingResultsEmpty" class="marking-results-empty">
+          <p class="muted" style="font-size:13px;">Scanned marks will appear here. You can edit any cell before downloading.</p>
+        </div>
+        <div id="markingResultsWrap" style="display:none;">
+          <div class="marking-results-toolbar">
+            <span id="markingResultsMeta" class="badge"></span>
+            <span class="spacer"></span>
+            <button class="btn" type="button" id="markingAddRowBtn">+ Row</button>
+            <button class="btn" type="button" id="markingAddColBtn">+ Column</button>
+            <button class="btn primary" type="button" id="markingDownloadCsvBtn">Download CSV</button>
+          </div>
+          <div id="markingResultsTableWrap" class="marking-table-wrap">
+            <table id="markingResultsTable" class="marking-results-table"></table>
+          </div>
+        </div>
+        <!-- Spinner overlay -->
+        <div id="markingSpinner" class="marking-spinner" style="display:none;">
+          <div class="spinner-ring"></div>
+          <span class="spinner-label">Scanning marks&hellip;</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
 <div id="printPreviewModal" class="tab-section" style="display:none;">
   <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
     <header style="display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">

@@ -3988,6 +3988,162 @@ td.readonly{
 }
 
 /* ===== Seating Plan ===== */
+/* ── Marking Assistant ─────────────────────────────────────────────────── */
+.marking-assistant-panel{
+  width: 100%;
+  box-shadow: none;
+}
+.marking-assistant-header{
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+.marking-assistant-layout{
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.marking-assistant-controls{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.marking-upload-area{
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  background: #fafbfc;
+  transition: border-color .2s, background .2s;
+}
+.marking-upload-area.drag-over{
+  border-color: #6e7dff;
+  background: rgba(110,125,255,.06);
+}
+.marking-image-preview{
+  width: 100%;
+  border-radius: 10px;
+  object-fit: contain;
+  max-height: 280px;
+  border: 1px solid #e2e6ef;
+}
+.marking-assistant-results{
+  position: relative;
+  min-height: 200px;
+}
+.marking-results-empty{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fafbfc;
+  text-align: center;
+}
+.marking-results-toolbar{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.marking-table-wrap{
+  overflow: auto;
+  border: 1px solid #e2e6ef;
+  border-radius: 10px;
+  max-height: calc(100vh - 280px);
+}
+.marking-results-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.marking-results-table th,
+.marking-results-table td{
+  border: 1px solid #e2e6ef;
+  padding: 6px 10px;
+  min-width: 100px;
+  vertical-align: middle;
+}
+.marking-th{
+  background: #f3f4f6;
+  font-weight: 700;
+  color: var(--ink);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.marking-td{
+  background: #fff;
+  color: var(--ink);
+}
+.marking-td:focus, .marking-th:focus{
+  outline: 2px solid #6e7dff;
+  outline-offset: -2px;
+  background: #f0f2ff;
+}
+.marking-status.status-error{ color: #b91c1c; }
+.marking-status.status-ok{ color: #15803d; }
+.marking-spinner{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255,255,255,.75);
+  border-radius: 10px;
+  z-index: 4;
+  pointer-events: none;
+}
+/* Dark mode */
+body.dark-mode .marking-assistant-panel,
+body.dark-mode .marking-upload-area,
+body.dark-mode .marking-results-empty{
+  background: #181d29;
+  border-color: #2c3240;
+}
+body.dark-mode .marking-upload-area.drag-over{
+  border-color: #8892ff;
+  background: rgba(110,125,255,.1);
+}
+body.dark-mode .marking-image-preview{
+  border-color: #2c3240;
+}
+body.dark-mode .marking-table-wrap,
+body.dark-mode .marking-results-table th,
+body.dark-mode .marking-results-table td{
+  border-color: #2c3240;
+}
+body.dark-mode .marking-th{
+  background: #1f2637;
+  color: #f3f6ff;
+}
+body.dark-mode .marking-td{
+  background: #151c2a;
+  color: #f3f6ff;
+}
+body.dark-mode .marking-td:focus,
+body.dark-mode .marking-th:focus{
+  background: #1e2547;
+}
+body.dark-mode .marking-spinner{
+  background: rgba(15,21,34,.75);
+}
+body.dark-mode .marking-status.status-error{ color: #fca5a5; }
+body.dark-mode .marking-status.status-ok{ color: #86efac; }
+@media (max-width: 900px){
+  .marking-assistant-layout{
+    grid-template-columns: 1fr;
+  }
+}
+/* ── Seating Plan ─────────────────────────────────────────────────────── */
 .seating-plan-panel{
   width: 100%;
   box-shadow: none;
