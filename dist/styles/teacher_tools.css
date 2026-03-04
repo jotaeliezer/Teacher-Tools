@@ -1181,6 +1181,12 @@
       color:#111827;
       margin-bottom:10px;
     }
+    .phone-log-name.mark-high,
+    .phone-log-name.mark-mid,
+    .phone-log-name.mark-low{
+      margin-bottom:10px;
+      font-weight:700;
+    }
     .phone-log-fields{
       display:flex;
       gap:12px;
@@ -1248,7 +1254,7 @@
       background:#181d29;
       border-color:#2c3240;
     }
-    body.dark-mode .phone-log-name{ color:#f3f6ff; }
+    body.dark-mode .phone-log-name:not(.mark-high):not(.mark-mid):not(.mark-low){ color:#f3f6ff; }
     body.dark-mode .phone-logs-hint{ color:#8b95b0; }
     body.dark-mode .phone-log-fields label{ color:#c5cde8; }
     body.dark-mode .phone-log-fields input,
@@ -1817,29 +1823,38 @@
       gap:6px;
       flex-wrap:wrap;
     }
-    .basic-comment-name{
+    .basic-comment-name,
+    .phone-log-name.mark-high,
+    .phone-log-name.mark-mid,
+    .phone-log-name.mark-low{
       display:inline-flex;
       align-items:center;
-      padding:4px 8px;
+      padding:4px 10px;
       border-radius:999px;
       border:1px solid transparent;
       font-size:14px;
       line-height:1.1;
     }
-    .basic-comment-name.perf-good{
+    .basic-comment-name.perf-good,
+    .basic-comment-name.mark-high,
+    .phone-log-name.mark-high{
       background:#cbe592;
-      border-color:#98b86a;
-      color:#243000;
+      border-color:#8db35a;
+      color:#1f3a07;
     }
-    .basic-comment-name.perf-mid{
+    .basic-comment-name.perf-mid,
+    .basic-comment-name.mark-mid,
+    .phone-log-name.mark-mid{
       background:#ffe58d;
       border-color:#d9b84c;
       color:#5c4d00;
     }
-    .basic-comment-name.perf-needs{
-      background:#af006f;
-      border-color:#8b095b;
-      color:#fff;
+    .basic-comment-name.perf-needs,
+    .basic-comment-name.mark-low,
+    .phone-log-name.mark-low{
+      background:#ffc8c8;
+      border-color:#e89090;
+      color:#5a0e0e;
     }
     .basic-comment-textarea{
       width:100%;
@@ -1857,6 +1872,58 @@
       color:#b42318;
       font-weight:600;
     }
+    /* ── Spinner shared keyframe ────────────────────────────── */
+    @keyframes spin-ring{
+      to{ transform:rotate(360deg); }
+    }
+    .spinner-ring{
+      width:28px;
+      height:28px;
+      border:3px solid rgba(110,125,255,.2);
+      border-top-color:#6e7dff;
+      border-radius:50%;
+      animation:spin-ring .75s linear infinite;
+      flex-shrink:0;
+    }
+    .spinner-label{
+      font-size:12px;
+      color:#6b7280;
+      font-style:italic;
+    }
+    /* ── Basic-card per-student spinner ─────────────────────── */
+    .basic-card-spinner{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      flex:1;
+      min-height:80px;
+      padding:12px 0;
+    }
+    /* ── Advanced-mode AI output spinner ────────────────────── */
+    .builder-ai-output-wrap{
+      position:relative;
+    }
+    .builder-ai-spinner{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      border-radius:8px;
+      background:rgba(255,255,255,.55);
+      z-index:4;
+      pointer-events:none;
+    }
+    body.dark-mode .builder-ai-spinner{
+      background:rgba(15,21,34,.55);
+    }
+    body.dark-mode .spinner-ring{
+      border-color:rgba(110,125,255,.2);
+      border-top-color:#8892ff;
+    }
+    body.dark-mode .spinner-label{ color:#a0a8c0; }
     @media (max-width: 1800px){
       .basic-generator-list{
         grid-template-columns:repeat(3, minmax(0, 1fr));
@@ -2236,20 +2303,26 @@
       background:#171b27;
       border-color:#2c3240;
     }
-    body.dark-mode .basic-comment-name.perf-good{
-      background:#3f5d21;
-      border-color:#6d933d;
-      color:#e7f8c8;
+    body.dark-mode .basic-comment-name.perf-good,
+    body.dark-mode .basic-comment-name.mark-high,
+    body.dark-mode .phone-log-name.mark-high{
+      background:#2d3a1f;
+      border-color:#4a6030;
+      color:#e8ffb5;
     }
-    body.dark-mode .basic-comment-name.perf-mid{
+    body.dark-mode .basic-comment-name.perf-mid,
+    body.dark-mode .basic-comment-name.mark-mid,
+    body.dark-mode .phone-log-name.mark-mid{
       background:#6e5a14;
       border-color:#9c8130;
       color:#fff2be;
     }
-    body.dark-mode .basic-comment-name.perf-needs{
-      background:#af006f;
-      border-color:#d44a9c;
-      color:#fff;
+    body.dark-mode .basic-comment-name.perf-needs,
+    body.dark-mode .basic-comment-name.mark-low,
+    body.dark-mode .phone-log-name.mark-low{
+      background:#3c1c1c;
+      border-color:#6a2e2e;
+      color:#ffc2c2;
     }
     body.dark-mode .basic-comment-textarea{
       background:#0f1522;
@@ -2556,6 +2629,11 @@
       white-space:pre-wrap;
       font-size:14px;
       color:#111827;
+    }
+    .builder-ai-output-wrap{
+      flex:1;
+      display:flex;
+      flex-direction:column;
     }
     #builderAiCreatedOutput{
       flex:1;
@@ -3991,9 +4069,28 @@ td.readonly{
   gap: 8px;
   margin-bottom: 10px;
 }
+.seating-grid-wrap{
+  position: relative;
+}
 .seating-grid{
   display: grid;
   gap: 8px;
+}
+.seating-ai-spinner{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(246,247,251,.75);
+  border-radius: 8px;
+  z-index: 4;
+  pointer-events: none;
+  min-height: 120px;
+}
+body.dark-mode .seating-ai-spinner{
+  background: rgba(21,29,51,.75);
 }
 .seating-seat-card{
   --seat-bg: #ffffff;

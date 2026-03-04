@@ -533,7 +533,13 @@
             <b>Classroom Grid</b>
             <span id="seatingGridMeta" class="badge"></span>
           </div>
-          <div id="seatingGrid" class="seating-grid"></div>
+          <div class="seating-grid-wrap">
+            <div id="seatingGrid" class="seating-grid"></div>
+            <div id="seatingAiSpinner" class="seating-ai-spinner" style="display:none;">
+              <div class="spinner-ring"></div>
+              <span class="spinner-label">Generating seating plan&hellip;</span>
+            </div>
+          </div>
         </section>
         <aside class="seating-plan-traits">
           <h4>Student Traits</h4>

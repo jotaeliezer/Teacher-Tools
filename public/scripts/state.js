@@ -484,6 +484,7 @@ const seatingNotesEl = document.getElementById('seatingNotes');
 const seatingUnplacedList = document.getElementById('seatingUnplacedList');
 const seatingGridMeta = document.getElementById('seatingGridMeta');
 const seatingGridEl = document.getElementById('seatingGrid');
+const seatingAiSpinner = document.getElementById('seatingAiSpinner');
 const seatingStudentSearch = document.getElementById('seatingStudentSearch');
 const seatingTraitsList = document.getElementById('seatingTraitsList');
   const printMarkingSelections = {};

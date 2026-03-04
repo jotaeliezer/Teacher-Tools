@@ -3854,7 +3854,8 @@ function getPerformanceToneLine(coreLevel, context){
       card.dataset.idx = idx;
 
       const nameEl = document.createElement('div');
-      nameEl.className = 'phone-log-name';
+      const markMeta = gradeColumn ? deriveMarkMeta(row?.[gradeColumn], gradeColumn) : null;
+      nameEl.className = 'phone-log-name' + (markMeta ? ' ' + markMeta.className : '');
       nameEl.textContent = name || `Student ${idx + 1}`;
       card.appendChild(nameEl);
 
@@ -4700,6 +4701,7 @@ function getPerformanceToneLine(coreLevel, context){
         seatingAiGenerateBtn.disabled = true;
         seatingAiGenerateBtn.textContent = 'Generating...';
       }
+      if (seatingAiSpinner) seatingAiSpinner.style.display = 'flex';
       setSeatingStatus(`Generating AI seating suggestion (run ${generationRun})...`);
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -4757,6 +4759,7 @@ function getPerformanceToneLine(coreLevel, context){
         seatingAiGenerateBtn.disabled = false;
         seatingAiGenerateBtn.textContent = 'Generate AI Layout';
       }
+      if (seatingAiSpinner) seatingAiSpinner.style.display = 'none';
     }
   }
 
@@ -5384,9 +5387,12 @@ function getPerformanceToneLine(coreLevel, context){
     }
     const contextStore = getBasicCommentsStoreForContext(id, true);
     builderBasicResultsEl.innerHTML = '';
+    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     indices.forEach((rowIndex) => {
       const name = getRowLabel(rowIndex);
-      const perf = getRowPerformanceLevel(rows[rowIndex] || {});
+      // Use the same mark-high/mid/low classification as the student dropdown
+      const markMeta = gradeCol ? deriveMarkMeta(rows[rowIndex]?.[gradeCol], gradeCol) : null;
+      const markClass = markMeta ? markMeta.className : 'mark-low';
       const entry = contextStore[String(rowIndex)] || {};
       const card = document.createElement('div');
       card.className = 'basic-comment-card';
@@ -5394,7 +5400,7 @@ function getPerformanceToneLine(coreLevel, context){
       header.className = 'basic-comment-card-header';
       const title = document.createElement('strong');
       title.className = 'basic-comment-name';
-      title.classList.add(perf === 'good' ? 'perf-good' : (perf === 'needs_support' ? 'perf-needs' : 'perf-mid'));
+      title.classList.add(markClass);
       title.textContent = name;
       const actions = document.createElement('div');
       actions.className = 'basic-comment-card-actions';
@@ -5563,6 +5569,8 @@ function getPerformanceToneLine(coreLevel, context){
       return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
     }).filter(Boolean);
     const isFemale = builderPronounFemaleInput?.checked;
+    const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'refine_basic',
       draft,
@@ -5570,7 +5578,10 @@ function getPerformanceToneLine(coreLevel, context){
       studentFirstName: firstName,
       pronoun: isFemale ? 'she' : 'he',
       finalGrade,
+      performanceLevel: builderCorePerformanceSelect?.value || '',
       assignmentFacts,
+      futureAssignments,
+      lateAssignments,
       termLabel: builderTermSelector?.value || ''
     };
   }
@@ -7774,6 +7785,8 @@ function varySentenceOpenings(text, studentName){
       return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
     }).filter(Boolean);
     const selectedComments = getBuilderSelectedComments();
+    const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'create',
       studentName: builderStudentNameInput?.value.trim() || '',
@@ -7783,6 +7796,8 @@ function varySentenceOpenings(text, studentName){
       termLabel: builderTermSelector?.value || '',
       finalGrade,
       assignmentFacts,
+      futureAssignments,
+      lateAssignments,
       selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
       customComment: builderCustomCommentInput?.value.trim() || ''
     };

@@ -533,7 +533,13 @@
             <b>Classroom Grid</b>
             <span id="seatingGridMeta" class="badge"></span>
           </div>
-          <div id="seatingGrid" class="seating-grid"></div>
+          <div class="seating-grid-wrap">
+            <div id="seatingGrid" class="seating-grid"></div>
+            <div id="seatingAiSpinner" class="seating-ai-spinner" style="display:none;">
+              <div class="spinner-ring"></div>
+              <span class="spinner-label">Generating seating plan&hellip;</span>
+            </div>
+          </div>
         </section>
         <aside class="seating-plan-traits">
           <h4>Student Traits</h4>
@@ -751,7 +757,13 @@
               </div>
               <label class="builder-revised-label" for="builderRevisedOutput" style="display:none;">Revised Comment</label>
               <textarea id="builderRevisedOutput" placeholder="AI revised comment will appear here." readonly style="display:none;"></textarea>
-              <textarea id="builderAiCreatedOutput" placeholder="Click Create Comment to generate a new AI comment."></textarea>
+              <div class="builder-ai-output-wrap" id="builderAiOutputWrap">
+                <div class="builder-ai-spinner" id="builderAiSpinner" style="display:none;" aria-hidden="true">
+                  <div class="spinner-ring"></div>
+                  <span class="spinner-label">Generating…</span>
+                </div>
+                <textarea id="builderAiCreatedOutput" placeholder="Click Create Comment to generate a new AI comment."></textarea>
+              </div>
             </div>
             <div class="builder-card comment-bank-card">
               <h4>Comment Bank</h4>

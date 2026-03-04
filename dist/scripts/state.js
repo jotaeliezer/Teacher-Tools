@@ -385,6 +385,7 @@ function computePrintColumnWidths(students){
   const builderBasicClearAllBtn = document.getElementById('builderBasicClearAllBtn');
   const builderRefineBanner = document.getElementById('builderRefineBanner');
   const builderRefineCancelBtn = document.getElementById('builderRefineCancelBtn');
+  const builderAiSpinner = document.getElementById('builderAiSpinner');
   const builderStudentNameInput = document.getElementById('builderStudentName');
   const builderGradeGroupSelect = document.getElementById('builderGradeGroup');
   const builderIncludeFinalGradeInput = document.getElementById('builderIncludeFinalGrade');
@@ -483,6 +484,7 @@ const seatingNotesEl = document.getElementById('seatingNotes');
 const seatingUnplacedList = document.getElementById('seatingUnplacedList');
 const seatingGridMeta = document.getElementById('seatingGridMeta');
 const seatingGridEl = document.getElementById('seatingGrid');
+const seatingAiSpinner = document.getElementById('seatingAiSpinner');
 const seatingStudentSearch = document.getElementById('seatingStudentSearch');
 const seatingTraitsList = document.getElementById('seatingTraitsList');
   const printMarkingSelections = {};

@@ -3854,7 +3854,8 @@ function getPerformanceToneLine(coreLevel, context){
       card.dataset.idx = idx;
 
       const nameEl = document.createElement('div');
-      nameEl.className = 'phone-log-name';
+      const markMeta = gradeColumn ? deriveMarkMeta(row?.[gradeColumn], gradeColumn) : null;
+      nameEl.className = 'phone-log-name' + (markMeta ? ' ' + markMeta.className : '');
       nameEl.textContent = name || `Student ${idx + 1}`;
       card.appendChild(nameEl);
 
@@ -4700,6 +4701,7 @@ function getPerformanceToneLine(coreLevel, context){
         seatingAiGenerateBtn.disabled = true;
         seatingAiGenerateBtn.textContent = 'Generating...';
       }
+      if (seatingAiSpinner) seatingAiSpinner.style.display = 'flex';
       setSeatingStatus(`Generating AI seating suggestion (run ${generationRun})...`);
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -4757,6 +4759,7 @@ function getPerformanceToneLine(coreLevel, context){
         seatingAiGenerateBtn.disabled = false;
         seatingAiGenerateBtn.textContent = 'Generate AI Layout';
       }
+      if (seatingAiSpinner) seatingAiSpinner.style.display = 'none';
     }
   }
 
@@ -5288,6 +5291,11 @@ function getPerformanceToneLine(coreLevel, context){
         const rowIndex = queue.shift();
         if (rowIndex == null) return;
         const key = String(rowIndex);
+        // Mark this student as generating and show spinner in their card
+        contextStore[key] = { generating: true, text: '', termLabel };
+        if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
+          renderBasicGeneratedComments(contextId);
+        }
         try{
           const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
           contextStore[key] = {
@@ -5339,13 +5347,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (!endpoint) return;
     const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
     const rowKey = String(rowIndex);
-    contextStore[rowKey] = {
-      ...(contextStore[rowKey] || {}),
-      error: '',
-      text: 'Regenerating...',
-      termLabel,
-      updatedAt: Date.now()
-    };
+    contextStore[rowKey] = { generating: true, text: '', error: '', termLabel };
     persistBasicGeneratedComments();
     renderBasicGeneratedComments(activeContext.id);
     try{
@@ -5385,9 +5387,12 @@ function getPerformanceToneLine(coreLevel, context){
     }
     const contextStore = getBasicCommentsStoreForContext(id, true);
     builderBasicResultsEl.innerHTML = '';
+    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     indices.forEach((rowIndex) => {
       const name = getRowLabel(rowIndex);
-      const perf = getRowPerformanceLevel(rows[rowIndex] || {});
+      // Use the same mark-high/mid/low classification as the student dropdown
+      const markMeta = gradeCol ? deriveMarkMeta(rows[rowIndex]?.[gradeCol], gradeCol) : null;
+      const markClass = markMeta ? markMeta.className : 'mark-low';
       const entry = contextStore[String(rowIndex)] || {};
       const card = document.createElement('div');
       card.className = 'basic-comment-card';
@@ -5395,7 +5400,7 @@ function getPerformanceToneLine(coreLevel, context){
       header.className = 'basic-comment-card-header';
       const title = document.createElement('strong');
       title.className = 'basic-comment-name';
-      title.classList.add(perf === 'good' ? 'perf-good' : (perf === 'needs_support' ? 'perf-needs' : 'perf-mid'));
+      title.classList.add(markClass);
       title.textContent = name;
       const actions = document.createElement('div');
       actions.className = 'basic-comment-card-actions';
@@ -5404,14 +5409,14 @@ function getPerformanceToneLine(coreLevel, context){
       copyBtn.type = 'button';
       copyBtn.dataset.basicCopy = String(rowIndex);
       copyBtn.textContent = 'Copy';
-      copyBtn.disabled = !String(entry.text || '').trim();
+      copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
       actions.appendChild(copyBtn);
       // Edit button — opens the comment in the advanced panel for refinement
       const editBtn = document.createElement('button');
       editBtn.className = 'btn';
       editBtn.type = 'button';
       editBtn.textContent = 'Edit';
-      editBtn.disabled = !String(entry.text || '').trim();
+      editBtn.disabled = entry.generating || !String(entry.text || '').trim();
       editBtn.title = 'Open in Advanced Generator to refine pronouns and assignments';
       editBtn.addEventListener('click', () => {
         const currentText = card.querySelector('textarea[data-basic-row-index]')?.value || String(entry.text || '');
@@ -5430,17 +5435,31 @@ function getPerformanceToneLine(coreLevel, context){
       header.appendChild(title);
       header.appendChild(actions);
       card.appendChild(header);
-      const textarea = document.createElement('textarea');
-      textarea.className = 'basic-comment-textarea';
-      textarea.dataset.basicRowIndex = String(rowIndex);
-      textarea.value = String(entry.text || '');
-      textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
-      card.appendChild(textarea);
-      if (entry.error){
-        const error = document.createElement('div');
-        error.className = 'basic-comment-error';
-        error.textContent = `Error: ${entry.error}`;
-        card.appendChild(error);
+      if (entry.generating){
+        // Show a spinner while the comment is being generated
+        const spinnerWrap = document.createElement('div');
+        spinnerWrap.className = 'basic-card-spinner';
+        const ring = document.createElement('div');
+        ring.className = 'spinner-ring';
+        spinnerWrap.appendChild(ring);
+        const label = document.createElement('span');
+        label.className = 'spinner-label';
+        label.textContent = 'Generating…';
+        spinnerWrap.appendChild(label);
+        card.appendChild(spinnerWrap);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.className = 'basic-comment-textarea';
+        textarea.dataset.basicRowIndex = String(rowIndex);
+        textarea.value = String(entry.text || '');
+        textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
+        card.appendChild(textarea);
+        if (entry.error){
+          const error = document.createElement('div');
+          error.className = 'basic-comment-error';
+          error.textContent = `Error: ${entry.error}`;
+          card.appendChild(error);
+        }
       }
       builderBasicResultsEl.appendChild(card);
     });
@@ -5550,6 +5569,8 @@ function getPerformanceToneLine(coreLevel, context){
       return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
     }).filter(Boolean);
     const isFemale = builderPronounFemaleInput?.checked;
+    const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'refine_basic',
       draft,
@@ -5557,7 +5578,10 @@ function getPerformanceToneLine(coreLevel, context){
       studentFirstName: firstName,
       pronoun: isFemale ? 'she' : 'he',
       finalGrade,
+      performanceLevel: builderCorePerformanceSelect?.value || '',
       assignmentFacts,
+      futureAssignments,
+      lateAssignments,
       termLabel: builderTermSelector?.value || ''
     };
   }
@@ -7761,6 +7785,8 @@ function varySentenceOpenings(text, studentName){
       return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
     }).filter(Boolean);
     const selectedComments = getBuilderSelectedComments();
+    const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'create',
       studentName: builderStudentNameInput?.value.trim() || '',
@@ -7770,6 +7796,8 @@ function varySentenceOpenings(text, studentName){
       termLabel: builderTermSelector?.value || '',
       finalGrade,
       assignmentFacts,
+      futureAssignments,
+      lateAssignments,
       selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
       customComment: builderCustomCommentInput?.value.trim() || ''
     };
@@ -7809,6 +7837,9 @@ function varySentenceOpenings(text, studentName){
         builderCreateAiBtn.disabled = true;
         builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Creating...';
       }
+      // Show spinner over the output box and clear it while waiting
+      if (builderAiSpinner) builderAiSpinner.style.display = 'flex';
+      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '0.25';
       status(isRefineMode ? 'Refining comment with AI...' : 'Creating new comment with AI...');
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -7850,6 +7881,8 @@ function varySentenceOpenings(text, studentName){
       console.error(err);
       status('Could not reach AI API.');
     } finally {
+      if (builderAiSpinner) builderAiSpinner.style.display = 'none';
+      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '';
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = false;
         builderCreateAiBtn.textContent = originalLabel;
