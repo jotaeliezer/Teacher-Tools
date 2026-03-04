@@ -5105,6 +5105,34 @@ function getPerformanceToneLine(coreLevel, context){
       .filter((label) => testRegex.test(label))
       .slice(0, 2);
   }
+  function getBasicAssignmentFactsForRow(row){
+    if (!row) return [];
+    const facts = [];
+    allColumns.forEach((col) => {
+      if (!isBasicAssignmentColumn(col)) return;
+      const rawValue = row[col];
+      const meta = deriveMarkMeta(rawValue, col);
+      if (!meta) return;
+      facts.push({
+        label: cleanAssignmentLabel(col),
+        scoreText: formatMarkText(meta, rawValue),
+        scoreValue: meta.value
+      });
+    });
+    return facts
+      .sort((a, b) => {
+        const aVal = Number.isFinite(a.scoreValue) ? a.scoreValue : -Infinity;
+        const bVal = Number.isFinite(b.scoreValue) ? b.scoreValue : -Infinity;
+        return bVal - aVal;
+      })
+      .slice(0, 4)
+      .map(({ label, scoreText }) => ({ label, scoreText }));
+  }
+  function getPerformanceLabelFromCode(code){
+    if (code === 'good') return 'Good';
+    if (code === 'needs_support') return 'Needs Support';
+    return 'Mid';
+  }
   function getBasicFinalGrade(row){
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     if (!gradeColumn) return '';
@@ -5135,6 +5163,7 @@ function getPerformanceToneLine(coreLevel, context){
     const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
     const warningCount = missingCols.length;
     const homeworkSubmissionLevel = getHomeworkSubmissionLevelFromWarnings(warningCount);
+    const performanceCode = getRowPerformanceLevel(row);
     return {
       mode: 'basic_bulk',
       reviseMode: 'basic_bulk',
@@ -5151,7 +5180,9 @@ function getPerformanceToneLine(coreLevel, context){
         labels: missingLabels.slice(0, 4)
       },
       upcomingTests: getUpcomingTestsFromMissingColumns(missingCols),
-      performanceLevel: getRowPerformanceLevel(row)
+      performanceLevel: performanceCode,
+      performanceLabel: getPerformanceLabelFromCode(performanceCode),
+      assignmentFacts: getBasicAssignmentFactsForRow(row)
     };
   }
   async function requestBasicComment(endpoint, payload){
