@@ -1759,6 +1759,107 @@
     .builder-mode-panel{
       width:100%;
     }
+    .basic-generator-controls{
+      display:flex;
+      align-items:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .basic-generator-controls label{
+      min-width:180px;
+      max-width:240px;
+      margin:0;
+    }
+    .basic-generator-status{
+      font-size:12px;
+      font-weight:600;
+      min-height:18px;
+    }
+    .basic-generator-list{
+      margin-top:8px;
+      max-height:66vh;
+      overflow:auto;
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
+      gap:10px;
+      padding-right:4px;
+    }
+    .basic-comment-card{
+      border:1px solid #e3e6ed;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .basic-comment-card-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .basic-comment-card-actions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .basic-comment-name{
+      display:inline-flex;
+      align-items:center;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid transparent;
+      font-size:14px;
+      line-height:1.1;
+    }
+    .basic-comment-name.perf-good{
+      background:#cbe592;
+      border-color:#98b86a;
+      color:#243000;
+    }
+    .basic-comment-name.perf-mid{
+      background:#ffe58d;
+      border-color:#d9b84c;
+      color:#5c4d00;
+    }
+    .basic-comment-name.perf-needs{
+      background:#af006f;
+      border-color:#8b095b;
+      color:#fff;
+    }
+    .basic-comment-textarea{
+      width:100%;
+      min-height:150px;
+      resize:vertical;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      line-height:1.45;
+      padding:10px;
+      border:1px solid #d7dae3;
+      border-radius:8px;
+      box-sizing:border-box;
+    }
+    .basic-comment-error{
+      font-size:12px;
+      color:#b42318;
+      font-weight:600;
+    }
+    @media (max-width: 1800px){
+      .basic-generator-list{
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 1400px){
+      .basic-generator-list{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 960px){
+      .basic-generator-list{
+        grid-template-columns:1fr;
+      }
+    }
     .report-builder{
       margin-top:24px;
       border-top:1px solid var(--panel-border);
@@ -2095,6 +2196,33 @@
       background:#1b1f28;
       color:#f3f6ff;
       border-color:#2c3240;
+    }
+    body.dark-mode .basic-comment-card{
+      background:#171b27;
+      border-color:#2c3240;
+    }
+    body.dark-mode .basic-comment-name.perf-good{
+      background:#3f5d21;
+      border-color:#6d933d;
+      color:#e7f8c8;
+    }
+    body.dark-mode .basic-comment-name.perf-mid{
+      background:#6e5a14;
+      border-color:#9c8130;
+      color:#fff2be;
+    }
+    body.dark-mode .basic-comment-name.perf-needs{
+      background:#af006f;
+      border-color:#d44a9c;
+      color:#fff;
+    }
+    body.dark-mode .basic-comment-textarea{
+      background:#0f1522;
+      color:#f4f6ff;
+      border-color:#2c3240;
+    }
+    body.dark-mode .basic-comment-error{
+      color:#ff8a80;
     }
     /* Apply click animation helper to any element with .btn-anim */
     .btn-anim{

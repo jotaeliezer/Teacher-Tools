@@ -5080,10 +5080,19 @@ function getPerformanceToneLine(coreLevel, context){
     if (col === firstNameKey) return false;
     if (col === lastNameKey) return false;
     if (!columnHasData(col)) return false;
-    if (/^(orgdefinedid|username|email|section|class|course|term|enrol|attendance|calculated final grade)$/i.test(raw)) return false;
+    // Exclude admin/identity columns
+    if (/^(orgdefinedid|username|email|section|class|course|term|enrol|attendance)$/i.test(raw)) return false;
+    // Exclude grade-summary, scheme-symbol, and weight columns
     if (/(symbol|weight|maxpoints|category|grade scheme|final grade|overall|average|result)/i.test(lower)) return false;
-    if (!/(test|quiz|challenge|review|assignment|project|lab|homework|unit|chapter|topic|drill|exam)/i.test(lower)) return false;
-    return true;
+    // Exclude the configured final grade column
+    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    if (gradeCol && lower === String(gradeCol).trim().toLowerCase()) return false;
+    if (/^calculated final /i.test(lower)) return false;
+    // Accept immediately if the column name contains a well-known assignment keyword
+    if (/(test|quiz|challenge|review|assignment|project|lab|homework|unit|chapter|topic|drill|exam|lesson|task|practice)/i.test(lower)) return true;
+    // For other column names (e.g. "L1 - Integers", "Signed Numbers"), accept only
+    // if the column's actual values look like marks (parseable by deriveMarkMeta)
+    return rows.some((row) => deriveMarkMeta(row?.[col], col) != null);
   }
   function getMissingAssignmentColumnsForRow(row){
     if (!row) return [];
