@@ -1779,8 +1779,8 @@
       margin-top:8px;
       max-height:66vh;
       overflow:auto;
-      display:flex;
-      flex-direction:column;
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:10px;
       padding-right:4px;
     }
@@ -1805,6 +1805,30 @@
       gap:6px;
       flex-wrap:wrap;
     }
+    .basic-comment-name{
+      display:inline-flex;
+      align-items:center;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid transparent;
+      font-size:14px;
+      line-height:1.1;
+    }
+    .basic-comment-name.perf-good{
+      background:#cbe592;
+      border-color:#98b86a;
+      color:#243000;
+    }
+    .basic-comment-name.perf-mid{
+      background:#ffe58d;
+      border-color:#d9b84c;
+      color:#5c4d00;
+    }
+    .basic-comment-name.perf-needs{
+      background:#af006f;
+      border-color:#8b095b;
+      color:#fff;
+    }
     .basic-comment-textarea{
       width:100%;
       min-height:150px;
@@ -1820,6 +1844,21 @@
       font-size:12px;
       color:#b42318;
       font-weight:600;
+    }
+    @media (max-width: 1800px){
+      .basic-generator-list{
+        grid-template-columns:repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 1400px){
+      .basic-generator-list{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 960px){
+      .basic-generator-list{
+        grid-template-columns:1fr;
+      }
     }
     .report-builder{
       margin-top:24px;
@@ -2161,6 +2200,21 @@
     body.dark-mode .basic-comment-card{
       background:#171b27;
       border-color:#2c3240;
+    }
+    body.dark-mode .basic-comment-name.perf-good{
+      background:#3f5d21;
+      border-color:#6d933d;
+      color:#e7f8c8;
+    }
+    body.dark-mode .basic-comment-name.perf-mid{
+      background:#6e5a14;
+      border-color:#9c8130;
+      color:#fff2be;
+    }
+    body.dark-mode .basic-comment-name.perf-needs{
+      background:#af006f;
+      border-color:#d44a9c;
+      color:#fff;
     }
     body.dark-mode .basic-comment-textarea{
       background:#0f1522;

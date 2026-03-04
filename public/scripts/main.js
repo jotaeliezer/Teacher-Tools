@@ -5073,17 +5073,22 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function isBasicAssignmentColumn(col){
     if (!col) return false;
+    const raw = String(col || '').trim();
+    const lower = raw.toLowerCase();
     if (col === END_OF_LINE_COL) return false;
     if (col === studentNameColumn) return false;
     if (col === firstNameKey) return false;
     if (col === lastNameKey) return false;
+    if (!columnHasData(col)) return false;
+    if (/^(orgdefinedid|username|email|section|class|course|term|enrol|attendance|calculated final grade)$/i.test(raw)) return false;
+    if (/(symbol|weight|maxpoints|category|grade scheme|final grade|overall|average|result)/i.test(lower)) return false;
+    if (!/(test|quiz|challenge|review|assignment|project|lab|homework|unit|chapter|topic|drill|exam)/i.test(lower)) return false;
     return true;
   }
   function getMissingAssignmentColumnsForRow(row){
     if (!row) return [];
     return allColumns.filter((col) => {
       if (!isBasicAssignmentColumn(col)) return false;
-      if (!columnHasData(col)) return false;
       const value = row[col];
       return value == null || String(value).trim() === '';
     });
@@ -5124,7 +5129,8 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function buildBasicBulkPayload(rowIndex, termLabel){
     const row = rows[rowIndex];
-    const studentName = getRowLabel(rowIndex);
+    const firstName = getFirstNameFromRow(row, rowIndex);
+    const studentName = firstName || getRowLabel(rowIndex);
     const missingCols = getMissingAssignmentColumnsForRow(row);
     const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
     const warningCount = missingCols.length;
@@ -5136,6 +5142,7 @@ function getPerformanceToneLine(coreLevel, context){
       requiredSections: ['Areas of Strength', 'Areas of Improvement'],
       termLabel,
       studentName,
+      studentFirstName: studentName,
       pronounGuess: getBasicPronounGuess(row, rowIndex),
       finalMark: getBasicFinalGrade(row),
       homeworkSubmissionLevel,
@@ -5310,12 +5317,15 @@ function getPerformanceToneLine(coreLevel, context){
     builderBasicResultsEl.innerHTML = '';
     indices.forEach((rowIndex) => {
       const name = getRowLabel(rowIndex);
+      const perf = getRowPerformanceLevel(rows[rowIndex] || {});
       const entry = contextStore[String(rowIndex)] || {};
       const card = document.createElement('div');
       card.className = 'basic-comment-card';
       const header = document.createElement('div');
       header.className = 'basic-comment-card-header';
       const title = document.createElement('strong');
+      title.className = 'basic-comment-name';
+      title.classList.add(perf === 'good' ? 'perf-good' : (perf === 'needs_support' ? 'perf-needs' : 'perf-mid'));
       title.textContent = name;
       const actions = document.createElement('div');
       actions.className = 'basic-comment-card-actions';
