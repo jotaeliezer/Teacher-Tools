@@ -420,6 +420,23 @@ function computePrintColumnWidths(students){
   const builderRevisedOutput = document.getElementById('builderRevisedOutput');
   const savedReportsListEl = document.getElementById('savedReportsList');
   const savedReportsClearBtn = document.getElementById('savedReportsClearBtn');
+  const requiredBuilderBindings = {
+    builderStudentSelect,
+    builderModeBasicBtn,
+    builderModeAdvancedBtn,
+    builderBasicModePanel,
+    builderAdvancedModePanel,
+    builderBasicTermSelector,
+    builderBasicBulkGenerateBtn,
+    builderBasicStatusEl,
+    builderBasicResultsEl
+  };
+  const missingRequiredBuilderBindings = Object.entries(requiredBuilderBindings)
+    .filter(([, el]) => !el)
+    .map(([name]) => name);
+  if (missingRequiredBuilderBindings.length){
+    console.error('[Builder Init] Missing required DOM bindings:', missingRequiredBuilderBindings.join(', '));
+  }
   const printContainer = document.getElementById('printContainer');
   const printTeacherInput = document.getElementById('printTeacherInput');
   const printClassInput = document.getElementById('printClassInput');
