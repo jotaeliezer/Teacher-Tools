@@ -6734,7 +6734,15 @@ function splitIntoSentences(text){
     if (requirements.overallMark && !hasText(requirements.overallMark)){
       appendFromSource(sentence => sentence.includes(requirements.overallMark));
     }
-    if (requirements.requireFutureSentence){
+    const requiredFutureSentences = Array.isArray(requirements.requiredFutureSentences)
+      ? requirements.requiredFutureSentences.map((s) => String(s || '').trim()).filter(Boolean)
+      : [];
+    if (requiredFutureSentences.length){
+      requiredFutureSentences.forEach((futureLine) => {
+        if (hasText(futureLine)) return;
+        outputSentences.push(futureLine);
+      });
+    } else if (requirements.requireFutureSentence){
       const hasFuture = outputSentences.some(s => detectSentenceIntentBucket(s) === 'future');
       if (!hasFuture && requirements.futureSentence){
         outputSentences.push(String(requirements.futureSentence).trim());
@@ -6747,16 +6755,21 @@ function splitIntoSentences(text){
     selectedAssignments,
     studentRow,
     overallMeta,
-    lookingAheadText
+    lookingAheadText,
+    futureParagraph
   }){
     const assignmentFacts = collectAssignmentFacts(selectedAssignments, studentRow);
+    const requiredFutureSentences = [futureParagraph, lookingAheadText]
+      .map((s) => String(s || '').trim())
+      .filter(Boolean);
     return {
       sourceText: String(sourceText || ''),
       assignmentLabels: assignmentFacts.map(item => item.label).filter(Boolean),
       assignmentScores: assignmentFacts.map(item => item.scoreText).filter(Boolean),
       overallMark: overallMeta?.raw ? formatPercentValue(overallMeta.raw) : '',
-      requireFutureSentence: Boolean(String(lookingAheadText || '').trim()),
-      futureSentence: String(lookingAheadText || '').trim()
+      requireFutureSentence: requiredFutureSentences.length > 0,
+      futureSentence: requiredFutureSentences[0] || '',
+      requiredFutureSentences
     };
   }
   function createOverallMentionRules(context){
@@ -7960,7 +7973,8 @@ function varySentenceOpenings(text, studentName){
       selectedAssignments,
       studentRow,
       overallMeta,
-      lookingAheadText: lookingAheadSelected
+      lookingAheadText: lookingAheadSelected,
+      futureParagraph
     });
     const mentionRules = createOverallMentionRules(context);
     const dedupedReport = dedupeGeneratedComment(trimmedReport, context, requirements);
