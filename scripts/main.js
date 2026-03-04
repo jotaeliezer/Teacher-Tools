@@ -2596,7 +2596,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function getSelectedPrintTemplates(){
     if (printAllTemplates){
-      return ['attendance', 'marking', 'drill', 'reportCard'];
+      return ['attendance', 'marking', 'drill'];
     }
     if (!normalizePrintTemplateId(selectedTemplateId)){
       setSelectedPrintTemplate('attendance');
