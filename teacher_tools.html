@@ -624,7 +624,13 @@
           </div>
           <div id="builderBasicModePanel" class="builder-mode-panel" style="display:none;">
             <div class="builder-card">
-              <h4>Basic Generator</h4>
+              <div class="basic-generator-topbar">
+                <h4 style="margin:0;">Basic Generator</h4>
+                <div class="basic-generator-topbar-actions">
+                  <button class="btn" type="button" id="builderBasicSaveAllBtn" title="Download all comments as a text file">Save All</button>
+                  <button class="btn warn" type="button" id="builderBasicClearAllBtn" title="Clear all generated comments">Clear All</button>
+                </div>
+              </div>
               <div class="basic-generator-controls">
                 <label for="builderBasicTermSelector">Term
                   <select id="builderBasicTermSelector">
@@ -643,6 +649,11 @@
             </div>
           </div>
           <div id="builderAdvancedModePanel" class="builder-mode-panel">
+          <!-- Refine-mode banner: shown when editing a basic comment in advanced mode -->
+          <div id="builderRefineBanner" class="builder-refine-banner" style="display:none;">
+            <span class="builder-refine-banner-text">✏️ Editing a basic comment — adjust pronouns and/or select assignments, then click <strong>Refine Comment</strong>.</span>
+            <button class="btn" type="button" id="builderRefineCancelBtn">✕ Cancel</button>
+          </div>
           <div class="report-builder">
             <div class="builder-grid">
             <div class="builder-left-col">
@@ -740,7 +751,13 @@
               </div>
               <label class="builder-revised-label" for="builderRevisedOutput" style="display:none;">Revised Comment</label>
               <textarea id="builderRevisedOutput" placeholder="AI revised comment will appear here." readonly style="display:none;"></textarea>
-              <textarea id="builderAiCreatedOutput" placeholder="Click Create Comment to generate a new AI comment."></textarea>
+              <div class="builder-ai-output-wrap" id="builderAiOutputWrap">
+                <div class="builder-ai-spinner" id="builderAiSpinner" style="display:none;" aria-hidden="true">
+                  <div class="spinner-ring"></div>
+                  <span class="spinner-label">Generating…</span>
+                </div>
+                <textarea id="builderAiCreatedOutput" placeholder="Click Create Comment to generate a new AI comment."></textarea>
+              </div>
             </div>
             <div class="builder-card comment-bank-card">
               <h4>Comment Bank</h4>

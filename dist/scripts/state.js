@@ -381,6 +381,10 @@ function computePrintColumnWidths(students){
   const builderBasicBulkGenerateBtn = document.getElementById('builderBasicBulkGenerateBtn');
   const builderBasicStatusEl = document.getElementById('builderBasicStatus');
   const builderBasicResultsEl = document.getElementById('builderBasicResults');
+  const builderBasicSaveAllBtn = document.getElementById('builderBasicSaveAllBtn');
+  const builderBasicClearAllBtn = document.getElementById('builderBasicClearAllBtn');
+  const builderRefineBanner = document.getElementById('builderRefineBanner');
+  const builderRefineCancelBtn = document.getElementById('builderRefineCancelBtn');
   const builderStudentNameInput = document.getElementById('builderStudentName');
   const builderGradeGroupSelect = document.getElementById('builderGradeGroup');
   const builderIncludeFinalGradeInput = document.getElementById('builderIncludeFinalGrade');

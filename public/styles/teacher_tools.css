@@ -1759,6 +1759,18 @@
     .builder-mode-panel{
       width:100%;
     }
+    .basic-generator-topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+    .basic-generator-topbar-actions{
+      display:flex;
+      gap:8px;
+    }
     .basic-generator-controls{
       display:flex;
       align-items:flex-end;
@@ -1845,6 +1857,58 @@
       color:#b42318;
       font-weight:600;
     }
+    /* ── Spinner shared keyframe ────────────────────────────── */
+    @keyframes spin-ring{
+      to{ transform:rotate(360deg); }
+    }
+    .spinner-ring{
+      width:28px;
+      height:28px;
+      border:3px solid rgba(110,125,255,.2);
+      border-top-color:#6e7dff;
+      border-radius:50%;
+      animation:spin-ring .75s linear infinite;
+      flex-shrink:0;
+    }
+    .spinner-label{
+      font-size:12px;
+      color:#6b7280;
+      font-style:italic;
+    }
+    /* ── Basic-card per-student spinner ─────────────────────── */
+    .basic-card-spinner{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      flex:1;
+      min-height:80px;
+      padding:12px 0;
+    }
+    /* ── Advanced-mode AI output spinner ────────────────────── */
+    .builder-ai-output-wrap{
+      position:relative;
+    }
+    .builder-ai-spinner{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      border-radius:8px;
+      background:rgba(255,255,255,.55);
+      z-index:4;
+      pointer-events:none;
+    }
+    body.dark-mode .builder-ai-spinner{
+      background:rgba(15,21,34,.55);
+    }
+    body.dark-mode .spinner-ring{
+      border-color:rgba(110,125,255,.2);
+      border-top-color:#8892ff;
+    }
+    body.dark-mode .spinner-label{ color:#a0a8c0; }
     @media (max-width: 1800px){
       .basic-generator-list{
         grid-template-columns:repeat(3, minmax(0, 1fr));
@@ -1860,6 +1924,29 @@
         grid-template-columns:1fr;
       }
     }
+    /* Refine-mode banner */
+    .builder-refine-banner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 16px;
+      border-radius:10px;
+      background:linear-gradient(135deg,#fffbe6 0%,#fff3c4 100%);
+      border:1.5px solid #f5c518;
+      margin-bottom:14px;
+      flex-wrap:wrap;
+    }
+    .builder-refine-banner-text{
+      font-size:13px;
+      color:#7a5800;
+      flex:1;
+    }
+    body.dark-mode .builder-refine-banner{
+      background:linear-gradient(135deg,#2a2200 0%,#3a3000 100%);
+      border-color:#b38800;
+    }
+    body.dark-mode .builder-refine-banner-text{ color:#f5c518; }
     .report-builder{
       margin-top:24px;
       border-top:1px solid var(--panel-border);
@@ -2521,6 +2608,11 @@
       white-space:pre-wrap;
       font-size:14px;
       color:#111827;
+    }
+    .builder-ai-output-wrap{
+      flex:1;
+      display:flex;
+      flex-direction:column;
     }
     #builderAiCreatedOutput{
       flex:1;

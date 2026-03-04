@@ -54,6 +54,8 @@
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;
+  // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
+  let builderRefineBasicDraft = null;
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -483,11 +485,18 @@
     builderStudentSelect.addEventListener('change', () => {
       autoSaveCurrentReport('student-switch');
       const idx = Number(builderStudentSelect.value);
-      if (!Number.isNaN(idx)) prefillBuilderFromRow(idx);
+      if (!Number.isNaN(idx)){
+        // Changing student manually exits refine mode
+        if (builderRefineBasicDraft) exitRefineBasicMode();
+        prefillBuilderFromRow(idx);
+      }
     });
   }
   if (builderModeBasicBtn){
-    builderModeBasicBtn.addEventListener('click', () => setBuilderGeneratorMode('basic'));
+    builderModeBasicBtn.addEventListener('click', () => {
+      if (builderRefineBasicDraft) exitRefineBasicMode();
+      setBuilderGeneratorMode('basic');
+    });
   }
   if (builderModeAdvancedBtn){
     builderModeAdvancedBtn.addEventListener('click', () => setBuilderGeneratorMode('advanced'));
@@ -502,6 +511,15 @@
   }
   if (builderBasicBulkGenerateBtn){
     builderBasicBulkGenerateBtn.addEventListener('click', runBasicBulkGenerate);
+  }
+  if (builderBasicSaveAllBtn){
+    builderBasicSaveAllBtn.addEventListener('click', saveAllBasicComments);
+  }
+  if (builderBasicClearAllBtn){
+    builderBasicClearAllBtn.addEventListener('click', clearAllBasicComments);
+  }
+  if (builderRefineCancelBtn){
+    builderRefineCancelBtn.addEventListener('click', exitRefineBasicMode);
   }
   if (builderBasicResultsEl){
     builderBasicResultsEl.addEventListener('input', (e) => {
@@ -5270,6 +5288,11 @@ function getPerformanceToneLine(coreLevel, context){
         const rowIndex = queue.shift();
         if (rowIndex == null) return;
         const key = String(rowIndex);
+        // Mark this student as generating and show spinner in their card
+        contextStore[key] = { generating: true, text: '', termLabel };
+        if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
+          renderBasicGeneratedComments(contextId);
+        }
         try{
           const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
           contextStore[key] = {
@@ -5321,13 +5344,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (!endpoint) return;
     const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
     const rowKey = String(rowIndex);
-    contextStore[rowKey] = {
-      ...(contextStore[rowKey] || {}),
-      error: '',
-      text: 'Regenerating...',
-      termLabel,
-      updatedAt: Date.now()
-    };
+    contextStore[rowKey] = { generating: true, text: '', error: '', termLabel };
     persistBasicGeneratedComments();
     renderBasicGeneratedComments(activeContext.id);
     try{
@@ -5386,8 +5403,21 @@ function getPerformanceToneLine(coreLevel, context){
       copyBtn.type = 'button';
       copyBtn.dataset.basicCopy = String(rowIndex);
       copyBtn.textContent = 'Copy';
-      copyBtn.disabled = !String(entry.text || '').trim();
+      copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
       actions.appendChild(copyBtn);
+      // Edit button — opens the comment in the advanced panel for refinement
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn';
+      editBtn.type = 'button';
+      editBtn.textContent = 'Edit';
+      editBtn.disabled = entry.generating || !String(entry.text || '').trim();
+      editBtn.title = 'Open in Advanced Generator to refine pronouns and assignments';
+      editBtn.addEventListener('click', () => {
+        const currentText = card.querySelector('textarea[data-basic-row-index]')?.value || String(entry.text || '');
+        if (!currentText.trim()) return;
+        editBasicCommentInAdvanced(rowIndex, currentText);
+      });
+      actions.appendChild(editBtn);
       if (entry.error){
         const retryBtn = document.createElement('button');
         retryBtn.className = 'btn warn';
@@ -5399,17 +5429,31 @@ function getPerformanceToneLine(coreLevel, context){
       header.appendChild(title);
       header.appendChild(actions);
       card.appendChild(header);
-      const textarea = document.createElement('textarea');
-      textarea.className = 'basic-comment-textarea';
-      textarea.dataset.basicRowIndex = String(rowIndex);
-      textarea.value = String(entry.text || '');
-      textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
-      card.appendChild(textarea);
-      if (entry.error){
-        const error = document.createElement('div');
-        error.className = 'basic-comment-error';
-        error.textContent = `Error: ${entry.error}`;
-        card.appendChild(error);
+      if (entry.generating){
+        // Show a spinner while the comment is being generated
+        const spinnerWrap = document.createElement('div');
+        spinnerWrap.className = 'basic-card-spinner';
+        const ring = document.createElement('div');
+        ring.className = 'spinner-ring';
+        spinnerWrap.appendChild(ring);
+        const label = document.createElement('span');
+        label.className = 'spinner-label';
+        label.textContent = 'Generating…';
+        spinnerWrap.appendChild(label);
+        card.appendChild(spinnerWrap);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.className = 'basic-comment-textarea';
+        textarea.dataset.basicRowIndex = String(rowIndex);
+        textarea.value = String(entry.text || '');
+        textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
+        card.appendChild(textarea);
+        if (entry.error){
+          const error = document.createElement('div');
+          error.className = 'basic-comment-error';
+          error.textContent = `Error: ${entry.error}`;
+          card.appendChild(error);
+        }
       }
       builderBasicResultsEl.appendChild(card);
     });
@@ -5421,6 +5465,116 @@ function getPerformanceToneLine(coreLevel, context){
       });
     });
   }
+
+  // ── Save All ──────────────────────────────────────────────────────────────
+  function saveAllBasicComments(){
+    const contextId = activeContext?.id;
+    if (!contextId || !rows.length){
+      status('No class data loaded.');
+      return;
+    }
+    const store = getBasicCommentsStoreForContext(contextId);
+    if (!store){
+      status('No comments generated yet.');
+      return;
+    }
+    const indices = getVisibleCommentRowIndices();
+    const lines = [];
+    indices.forEach((idx) => {
+      const entry = store[String(idx)] || {};
+      const text = String(entry.text || '').trim();
+      if (!text) return;
+      const name = getRowLabel(idx);
+      lines.push(`${name}\n${'='.repeat(Math.max(name.length, 4))}\n${text}`);
+    });
+    if (!lines.length){
+      status('No generated comments to save yet.');
+      return;
+    }
+    const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const term = String(builderBasicTermSelector?.value || 'comments').replace(/\s+/g, '_');
+    a.download = `report_comments_${term}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    status(`Saved ${lines.length} comment(s).`);
+  }
+
+  // ── Clear All ─────────────────────────────────────────────────────────────
+  function clearAllBasicComments(){
+    const contextId = activeContext?.id;
+    if (!contextId) return;
+    if (!confirm('Clear all generated comments for this class? This cannot be undone.')) return;
+    if (basicGeneratedCommentsByContext){
+      basicGeneratedCommentsByContext[String(contextId)] = {};
+    }
+    persistBasicGeneratedComments();
+    renderBasicGeneratedComments(contextId);
+    updateBasicGeneratorStatus('All comments cleared.');
+  }
+
+  // ── Edit basic comment in Advanced mode ───────────────────────────────────
+  function editBasicCommentInAdvanced(rowIndex, commentText){
+    // Switch to advanced mode
+    setBuilderGeneratorMode('advanced');
+    // Select the correct student
+    prefillBuilderFromRow(rowIndex);
+    // Place the comment in the AI output box
+    setBuilderAiCreatedOutputText(String(commentText || ''), 'instant');
+    // Enter refine mode
+    builderRefineBasicDraft = String(commentText || '');
+    showRefineBanner();
+    // Scroll the advanced panel into view
+    if (builderAdvancedModePanel){
+      builderAdvancedModePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    status('Comment loaded into Advanced Generator. Adjust selections and click Refine Comment.');
+  }
+
+  function showRefineBanner(){
+    if (!builderRefineBanner) return;
+    builderRefineBanner.style.display = 'flex';
+    // Update the Create button label to "Refine Comment"
+    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Refine Comment';
+  }
+
+  function exitRefineBasicMode(){
+    builderRefineBasicDraft = null;
+    if (builderRefineBanner) builderRefineBanner.style.display = 'none';
+    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Create Comment';
+    status('Refine mode cancelled.');
+  }
+
+  // ── Payload for refine-basic mode ─────────────────────────────────────────
+  function buildBuilderRefineBasicPayload(){
+    const draft = String(builderRefineBasicDraft || '').trim();
+    const studentRow = rows[builderSelectedRowIndex] || null;
+    const firstName = getFirstNameFromRow(studentRow, builderSelectedRowIndex);
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
+    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
+    const assignments = getSelectedBuilderAssignments();
+    const assignmentFacts = assignments.slice(0, 6).map(col => {
+      const meta = studentRow ? deriveMarkMeta(studentRow[col], col) : null;
+      return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
+    }).filter(Boolean);
+    const isFemale = builderPronounFemaleInput?.checked;
+    return {
+      reviseMode: 'refine_basic',
+      draft,
+      studentName: builderStudentNameInput?.value.trim() || firstName,
+      studentFirstName: firstName,
+      pronoun: isFemale ? 'she' : 'he',
+      finalGrade,
+      assignmentFacts,
+      termLabel: builderTermSelector?.value || ''
+    };
+  }
+
   function shouldAutoGenerateBuilderReport(){
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
     if (gradeGroup === 'elem'){
@@ -7637,6 +7791,11 @@ function varySentenceOpenings(text, studentName){
     if (createConfirmModal) createConfirmModal.style.display = 'none';
   }
   function handleCreateCommentClick(){
+    // If in refine mode, go straight to refinement (skip future-assignment check)
+    if (builderRefineBasicDraft){
+      builderCreateCommentWithAI();
+      return;
+    }
     const futureSelected = getSelectedBuilderFutureAssignments();
     const lateSelected = getSelectedBuilderLateAssignments();
     const hasAnyFutureSelection = (futureSelected && futureSelected.length > 0) || (lateSelected && lateSelected.length > 0);
@@ -7654,14 +7813,19 @@ function varySentenceOpenings(text, studentName){
       status('Provide a student name before using Create.');
       return;
     }
-    const payload = buildBuilderAiCreatePayload();
-    const originalLabel = builderCreateAiBtn?.textContent || 'Create';
+    // Refine mode: use a minimal-edit prompt based on the basic comment draft
+    const isRefineMode = !!builderRefineBasicDraft;
+    const payload = isRefineMode ? buildBuilderRefineBasicPayload() : buildBuilderAiCreatePayload();
+    const originalLabel = builderCreateAiBtn?.textContent || 'Create Comment';
     try {
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = true;
-        builderCreateAiBtn.textContent = 'Creating...';
+        builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Creating...';
       }
-      status('Creating new comment with AI...');
+      // Show spinner over the output box and clear it while waiting
+      if (builderAiSpinner) builderAiSpinner.style.display = 'flex';
+      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '0.25';
+      status(isRefineMode ? 'Refining comment with AI...' : 'Creating new comment with AI...');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -7682,20 +7846,28 @@ function varySentenceOpenings(text, studentName){
       const polished = polishGrammar(cleanFluency(aiText));
       const termLabelValue = (builderTermSelector?.value || '').trim();
       let finalOutput;
-      if (termLabelValue){
+      if (isRefineMode){
+        // Refine mode: the refined comment already preserves its own term label from the draft
+        finalOutput = polished;
+      } else if (termLabelValue){
         finalOutput = `${termLabelValue}\n\n${polished}`;
       } else {
         finalOutput = `${polished}\n\n[Add term label here]`;
         status('No term selected — add the term label to the top of the comment manually.');
       }
       setBuilderAiCreatedOutputText(finalOutput, 'create');
-      if (termLabelValue){
-        status(modelUsed ? `AI comment created (${modelUsed}).` : 'AI comment created.');
+      const action = isRefineMode ? 'refined' : 'created';
+      if (termLabelValue || isRefineMode){
+        status(modelUsed ? `AI comment ${action} (${modelUsed}).` : `AI comment ${action}.`);
       }
+      // Exit refine mode after a successful refinement so next click is a fresh Create
+      if (isRefineMode) exitRefineBasicMode();
     } catch(err){
       console.error(err);
       status('Could not reach AI API.');
     } finally {
+      if (builderAiSpinner) builderAiSpinner.style.display = 'none';
+      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '';
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = false;
         builderCreateAiBtn.textContent = originalLabel;
