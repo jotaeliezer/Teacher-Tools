@@ -50,7 +50,7 @@
   let builderDiffClearTimer = null;
   let builderRevisedAnimationToken = 0;
   let builderOutputCrossfadeToken = 0;
-  let builderGeneratorMode = 'advanced';
+  let builderGeneratorMode = 'basic';
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;

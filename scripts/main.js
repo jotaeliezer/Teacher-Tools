@@ -12,7 +12,7 @@
   updateTransposeButton();
   setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
   selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
-  printAllClasses = !!initialSettings.printAllClasses;
+  printAllTemplates = !!initialSettings.printAllTemplates;
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
   const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
   const basicSavedComments = initialSettings.basicGeneratedCommentsByContext;
@@ -50,7 +50,7 @@
   let builderDiffClearTimer = null;
   let builderRevisedAnimationToken = 0;
   let builderOutputCrossfadeToken = 0;
-  let builderGeneratorMode = 'advanced';
+  let builderGeneratorMode = 'basic';
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;
@@ -406,13 +406,37 @@
       renderPrintPreview();
     });
   }
-  if (printAllClassesToggle){
-    printAllClassesToggle.addEventListener('change', () => {
-      printAllClasses = !!printAllClassesToggle.checked;
-      saveSettings({ printAllClasses });
-      selectedClassIds = new Set(getEffectivePrintContextIds());
+  if (printAllTemplatesToggle){
+    printAllTemplatesToggle.addEventListener('change', () => {
+      printAllTemplates = !!printAllTemplatesToggle.checked;
+      saveSettings({ printAllTemplates });
       renderPrintPreview();
       renderPrintMarkingColumnPanel();
+    });
+  }
+  if (allTemplatesMarkingCancelBtn){
+    allTemplatesMarkingCancelBtn.addEventListener('click', closeAllTemplatesMarkingModal);
+  }
+  if (allTemplatesMarkingConfirmBtn){
+    allTemplatesMarkingConfirmBtn.addEventListener('click', () => {
+      closeAllTemplatesMarkingModal();
+      launchPrintDialog();
+    });
+  }
+  if (allTemplatesMarkingSelectAllBtn){
+    allTemplatesMarkingSelectAllBtn.addEventListener('click', () => {
+      const ctx = activeContext;
+      if (!ctx) return;
+      updatePrintMarkingSelection(ctx, set => getPrintMarkingSourceColumns(ctx).forEach(col => set.add(col)));
+      renderAllTemplatesMarkingModal();
+    });
+  }
+  if (allTemplatesMarkingClearBtn){
+    allTemplatesMarkingClearBtn.addEventListener('click', () => {
+      const ctx = activeContext;
+      if (!ctx) return;
+      updatePrintMarkingSelection(ctx, set => set.clear());
+      renderAllTemplatesMarkingModal();
     });
   }
   if (printReportAllStudentsToggle){
@@ -440,7 +464,11 @@
   [printPreviewPrintTopBtn, printPreviewPrintBtn].forEach(btn => {
     if (!btn) return;
     btn.addEventListener('click', () => {
-      launchPrintDialog();
+      if (printAllTemplates){
+        openAllTemplatesMarkingModal();
+      } else {
+        launchPrintDialog();
+      }
     });
   });
   if (printCommentsBtn){
@@ -1917,9 +1945,7 @@ function getPerformanceToneLine(coreLevel, context){
     renderWarning(ctx.studentNameWarning || '');
     status('READY');
     // Align Print View selection with the clicked file in single-class mode.
-    if (!printAllClasses){
-      selectedClassIds = new Set([ctx.id]);
-    }
+    selectedClassIds = new Set([ctx.id]);
     if (isPrintTabActive()){
       renderPrintClassList();
       renderPrintPreview();
@@ -2569,6 +2595,9 @@ function getPerformanceToneLine(coreLevel, context){
     }
   }
   function getSelectedPrintTemplates(){
+    if (printAllTemplates){
+      return ['attendance', 'marking', 'drill', 'reportCard'];
+    }
     if (!normalizePrintTemplateId(selectedTemplateId)){
       setSelectedPrintTemplate('attendance');
     }else{
@@ -2577,9 +2606,6 @@ function getPerformanceToneLine(coreLevel, context){
     return [selectedTemplateId];
   }
   function getEffectivePrintContextIds(){
-    if (printAllClasses){
-      return fileContexts.map(ctx => ctx.id);
-    }
     if (activeContext?.id != null){
       return [activeContext.id];
     }
@@ -3026,10 +3052,6 @@ function getPerformanceToneLine(coreLevel, context){
     }
   }
   function syncPrintClassSelection(){
-    if (printAllClasses){
-      selectedClassIds = new Set(fileContexts.map(ctx => ctx.id));
-      return;
-    }
     const validIds = new Set(fileContexts.map(ctx => ctx.id));
     selectedClassIds = new Set([...selectedClassIds].filter(id => validIds.has(id)));
     if (!selectedClassIds.size){
@@ -3362,6 +3384,57 @@ function getPerformanceToneLine(coreLevel, context){
     resetPerformanceFilterState();
   };
   
+  function openAllTemplatesMarkingModal(){
+    if (!printAllTemplatesModal){ launchPrintDialog(); return; }
+    renderAllTemplatesMarkingModal();
+    printAllTemplatesModal.style.display = 'flex';
+  }
+  function closeAllTemplatesMarkingModal(){
+    if (printAllTemplatesModal) printAllTemplatesModal.style.display = 'none';
+  }
+  function renderAllTemplatesMarkingModal(){
+    if (!allTemplatesMarkingList) return;
+    const ctx = activeContext;
+    allTemplatesMarkingList.innerHTML = '';
+    if (!ctx){
+      const msg = document.createElement('p');
+      msg.className = 'muted';
+      msg.style.fontSize = '12px';
+      msg.textContent = 'Load a class to choose columns.';
+      allTemplatesMarkingList.appendChild(msg);
+      return;
+    }
+    const source = getPrintMarkingSourceColumns(ctx);
+    if (!source.length){
+      const msg = document.createElement('p');
+      msg.className = 'muted';
+      msg.style.fontSize = '12px';
+      msg.textContent = 'No columns available.';
+      allTemplatesMarkingList.appendChild(msg);
+      return;
+    }
+    const selected = new Set(ensurePrintMarkingSelection(ctx));
+    source.forEach(col => {
+      const label = document.createElement('label');
+      label.className = 'print-marking-row';
+      if (selected.has(col)) label.classList.add('selected');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(col);
+      cb.addEventListener('change', () => {
+        updatePrintMarkingSelection(ctx, set => {
+          if (cb.checked) set.add(col); else set.delete(col);
+          label.classList.toggle('selected', cb.checked);
+        });
+      });
+      const span = document.createElement('span');
+      span.textContent = col;
+      label.appendChild(cb);
+      label.appendChild(span);
+      allTemplatesMarkingList.appendChild(label);
+    });
+  }
+
   async function launchPrintDialog(){
     if (!printContainer) return;
     renderPrintPreview();
@@ -4778,8 +4851,8 @@ function getPerformanceToneLine(coreLevel, context){
       radio.checked = radio.value === termValue;
     });
     setSelectedPrintTemplate(selectedTemplateId, false);
-    if (printAllClassesToggle){
-      printAllClassesToggle.checked = !!printAllClasses;
+    if (printAllTemplatesToggle){
+      printAllTemplatesToggle.checked = !!printAllTemplates;
     }
     buildReportStudentOptions(activeContext);
   }
@@ -4856,7 +4929,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function renderPrintMarkingColumnPanel(){
     if (!printMarkingPanel) return;
-    const show = isMarkingTemplateSelected();
+    const show = isMarkingTemplateSelected() && !printAllTemplates;
     printMarkingPanel.style.display = show ? '' : 'none';
     if (!show){
       return;

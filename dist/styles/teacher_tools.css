@@ -476,7 +476,7 @@
       flex-direction:column;
       gap:12px;
     }
-    .print-meta-form label{
+    .print-meta-form label:not(.template-option):not(.print-bulk-toggle):not(.print-marking-row){
       font-size:12px;
       font-weight:600;
       display:flex;
@@ -512,13 +512,13 @@
     .template-option,
     .print-class-option{
       display:flex;
+      flex-direction:row;
       align-items:center;
       justify-content:flex-start;
       gap:8px;
       font-size:13px;
       text-align:left;
-      width:100%;
-      align-self:stretch;
+      cursor:pointer;
     }
     .print-bulk-toggle{
       padding:6px 8px;
@@ -2142,12 +2142,14 @@
     }
     .print-marking-row{
       display:flex;
+      flex-direction:row;
       align-items:center;
       gap:10px;
       padding:6px 8px;
       border-radius:8px;
       border:1px solid transparent;
       transition:background .2s ease, border-color .2s ease;
+      cursor:pointer;
     }
     .print-marking-row.selected{
       background:linear-gradient(0deg, rgba(193,216,47,.14), rgba(193,216,47,.14)), #fff;
