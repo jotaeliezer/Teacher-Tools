@@ -5157,8 +5157,8 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function buildBasicBulkPayload(rowIndex, termLabel){
     const row = rows[rowIndex];
-    const firstName = getFirstNameFromRow(row, rowIndex);
-    const studentName = firstName || getRowLabel(rowIndex);
+    const studentName = getRowLabel(rowIndex);
+    const firstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
     const missingCols = getMissingAssignmentColumnsForRow(row);
     const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
     const warningCount = missingCols.length;
@@ -5181,7 +5181,7 @@ function getPerformanceToneLine(coreLevel, context){
       requiredSections: ['Areas of Strength', 'Areas of Improvement'],
       termLabel,
       studentName,
-      studentFirstName: studentName,
+      studentFirstName: firstName,
       pronounGuess: getBasicPronounGuess(row, rowIndex),
       finalMark: getBasicFinalGrade(row),
       homeworkSubmissionLevel,
