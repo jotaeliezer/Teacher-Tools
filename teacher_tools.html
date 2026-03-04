@@ -191,7 +191,27 @@
       <button class="btn primary" id="allTemplatesMarkingConfirm">Print All Templates</button>
     </footer>
   </div>
-</div>
+  </div>
+  <div id="printAllTemplatesModal" class="modal-backdrop" style="display:none;">
+    <div class="modal" style="max-width:480px;">
+      <header>
+        <h3>Marking Sheet Columns</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="padding:16px;">
+        <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select the columns to include on the Marking Sheet. All other templates will be printed as-is.</p>
+        <div class="print-marking-actions" style="margin-bottom:10px;">
+          <button class="btn" type="button" id="allTemplatesMarkingSelectAll">Select All</button>
+          <button class="btn" type="button" id="allTemplatesMarkingClear">Clear</button>
+        </div>
+        <div id="allTemplatesMarkingList" class="print-marking-list" style="max-height:320px;"></div>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
+        <button class="btn" id="allTemplatesMarkingCancel">Cancel</button>
+        <button class="btn primary" id="allTemplatesMarkingConfirm">Print All Templates</button>
+      </footer>
+    </div>
+  </div>
 <div id="printPreviewModal" class="tab-section" style="display:none;">
   <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
     <header style="display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
