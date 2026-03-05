@@ -5694,22 +5694,23 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkAssignList(){
     if (!bulkAssignList) return;
-    const assignmentCols = allColumns.filter(col => isBasicAssignmentColumn(col));
+    const cols = getBulkColumnOptions();
     bulkAssignList.innerHTML = '';
-    if (!assignmentCols.length){
-      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No assignment columns found in the loaded data.</p>';
+    if (!cols.length){
+      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found in the loaded data.</p>';
       return;
     }
-    assignmentCols.forEach(col => {
+    cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
+      const hasMark = columnHasMark(col);
       const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; background:var(--surface-alt);';
+      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; background:var(--surface-alt);';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
       cb.dataset.col = col;
-      cb.style.cssText = 'width:16px; height:16px; flex-shrink:0; cursor:pointer;';
+      cb.style.cssText = 'width:15px; height:15px; flex-shrink:0; cursor:pointer;';
       if (bulkSelectedAssignCols.includes(col)) cb.checked = true;
       cb.addEventListener('change', () => {
         const checked = Array.from(bulkAssignList.querySelectorAll('input[type="checkbox"]:checked'));
@@ -5722,10 +5723,17 @@ function getPerformanceToneLine(coreLevel, context){
       });
       const lbl = document.createElement('label');
       lbl.htmlFor = safeId;
+      lbl.style.cssText = 'font-size:13px; cursor:pointer; flex:1; line-height:1.3;';
       lbl.textContent = label;
-      lbl.style.cssText = 'font-size:14px; cursor:pointer; flex:1;';
       div.appendChild(cb);
       div.appendChild(lbl);
+      if (hasMark){
+        const badge = document.createElement('span');
+        badge.title = 'Has mark data';
+        badge.textContent = '✓';
+        badge.style.cssText = 'font-size:11px; color:#1a7f4b; font-weight:700; flex-shrink:0;';
+        div.appendChild(badge);
+      }
       bulkAssignList.appendChild(div);
     });
   }
@@ -5741,29 +5749,37 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkUpcomingList(){
     if (!bulkUpcomingList) return;
-    const assignmentCols = allColumns.filter(col => isBasicAssignmentColumn(col));
+    const cols = getBulkColumnOptions();
     bulkUpcomingList.innerHTML = '';
-    if (!assignmentCols.length){
-      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found.</p>';
+    if (!cols.length){
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found in the loaded data.</p>';
       return;
     }
-    assignmentCols.forEach(col => {
+    cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
+      const hasMark = columnHasMark(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; background:var(--surface-alt);';
+      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; background:var(--surface-alt);';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
       cb.dataset.col = col;
-      cb.style.cssText = 'width:16px; height:16px; flex-shrink:0; cursor:pointer;';
+      cb.style.cssText = 'width:15px; height:15px; flex-shrink:0; cursor:pointer;';
       if (bulkSelectedUpcomingCols.includes(col)) cb.checked = true;
       const lbl = document.createElement('label');
       lbl.htmlFor = safeId;
+      lbl.style.cssText = 'font-size:13px; cursor:pointer; flex:1; line-height:1.3;';
       lbl.textContent = label;
-      lbl.style.cssText = 'font-size:14px; cursor:pointer; flex:1;';
       div.appendChild(cb);
       div.appendChild(lbl);
+      if (hasMark){
+        const badge = document.createElement('span');
+        badge.title = 'Has mark data';
+        badge.textContent = '✓';
+        badge.style.cssText = 'font-size:11px; color:#1a7f4b; font-weight:700; flex-shrink:0;';
+        div.appendChild(badge);
+      }
       bulkUpcomingList.appendChild(div);
     });
   }
@@ -5774,6 +5790,33 @@ function getPerformanceToneLine(coreLevel, context){
     bulkSelectedUpcomingCols = checked.map(cb => cb.dataset.col).filter(Boolean);
     if (bulkAssignModal) bulkAssignModal.style.display = 'none';
     runBasicBulkGenerate();
+  }
+
+  // Returns all columns suitable for display in the bulk assignment modal
+  // More inclusive than isBasicAssignmentColumn — shows anything with mark data
+  function getBulkColumnOptions(){
+    const gradeCol = String((commentConfig?.gradeColumn || FINAL_GRADE_COLUMN) || '').trim().toLowerCase();
+    return allColumns.filter(col => {
+      if (!col || col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn || col === firstNameKey || col === lastNameKey) return false;
+      const raw = String(col).trim();
+      const lower = raw.toLowerCase();
+      // Always exclude admin / identity columns
+      if (/^(orgdefinedid|username|email|section|class|course|term|enrol|attendance)$/i.test(raw)) return false;
+      // Exclude letter-grade symbol columns
+      if (/(grade scheme|letter grade|scheme symbol)/i.test(lower)) return false;
+      // Exclude configured final grade column
+      if (gradeCol && lower === gradeCol) return false;
+      if (/^calculated final /i.test(lower)) return false;
+      // Must have at least some data
+      if (!columnHasData(col)) return false;
+      return true;
+    });
+  }
+  // Returns true if at least one student row has a parseable numeric mark for this column
+  function columnHasMark(col){
+    if (!col || !rows.length) return false;
+    return rows.some(row => deriveMarkMeta(row?.[col], col) != null);
   }
 
   function computeBulkAssignmentFacts(row){
