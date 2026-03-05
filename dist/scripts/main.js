@@ -15,6 +15,7 @@
   printAllTemplates = !!initialSettings.printAllTemplates;
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
   const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
+  const basicSavedStructure = String(initialSettings.builderBasicStructure || '').trim().toLowerCase();
   const basicSavedComments = initialSettings.basicGeneratedCommentsByContext;
   const savedSeatingObjective = String(initialSettings.seatingObjective || '').trim();
   if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
@@ -56,6 +57,8 @@
   const BASIC_BULK_CONCURRENCY = 2;
   // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
   let builderRefineBasicDraft = null;
+  const BASIC_STRUCTURE_DEFAULT = 'strengths_feedback_blocks';
+  const BASIC_STRUCTURE_OPTIONS = new Set(['strengths_feedback_blocks', 'sandwich_paragraph', 'bullet_points']);
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
@@ -517,9 +520,26 @@
       autoSaveCurrentReport('student-switch');
       const idx = Number(builderStudentSelect.value);
       if (!Number.isNaN(idx)){
-        // Changing student manually exits refine mode
-        if (builderRefineBasicDraft) exitRefineBasicMode();
-        prefillBuilderFromRow(idx);
+        if (builderRefineBasicDraft && activeContext){
+          // While in refine mode, check if the newly selected student has a basic comment
+          const contextStore = getBasicCommentsStoreForContext(activeContext.id);
+          const entry = contextStore ? contextStore[String(idx)] : null;
+          const existingText = String(entry?.text || '').trim();
+          if (existingText){
+            // Stay in refine mode and load the new student's comment
+            prefillBuilderFromRow(idx);
+            builderRefineBasicDraft = existingText;
+            setBuilderAiCreatedOutputText(existingText, 'instant');
+            showRefineBanner();
+            status('Comment loaded for this student. Adjust selections and click Refine Comment.');
+          } else {
+            // No basic comment for this student — exit refine mode
+            exitRefineBasicMode();
+            prefillBuilderFromRow(idx);
+          }
+        } else {
+          prefillBuilderFromRow(idx);
+        }
       }
     });
   }
@@ -537,6 +557,16 @@
       saveSettings({ builderBasicTerm: builderBasicTermSelector.value || '' });
       if (builderGeneratorMode === 'basic'){
         updateBasicGeneratorStatus('Term updated. Ready for bulk generation.');
+      }
+    });
+  }
+  if (builderBasicStructureSelector){
+    builderBasicStructureSelector.addEventListener('change', () => {
+      const mode = normalizeBasicStructure(builderBasicStructureSelector.value);
+      builderBasicStructureSelector.value = mode;
+      saveSettings({ builderBasicStructure: mode });
+      if (builderGeneratorMode === 'basic'){
+        updateBasicGeneratorStatus('Structure updated. Ready for bulk generation.');
       }
     });
   }
@@ -702,6 +732,10 @@ function setupSelectAnimations(){
     if (!builderBasicTermSelector.value && basicSavedTerm){
       builderBasicTermSelector.value = basicSavedTerm;
     }
+  }
+  if (builderBasicStructureSelector){
+    const mode = getBasicStructureMode();
+    builderBasicStructureSelector.value = mode;
   }
   updateGradeGroupControls();
   if (builderCommentOrderToggle){
@@ -5313,10 +5347,47 @@ function getPerformanceToneLine(coreLevel, context){
     original:[/original/i],
     termAverage:[/term.*average/i,/avg/i]
   };
+  function normalizeBasicStructure(value){
+    const key = String(value || '').trim().toLowerCase();
+    return BASIC_STRUCTURE_OPTIONS.has(key) ? key : BASIC_STRUCTURE_DEFAULT;
+  }
+  function getBasicStructureMode(){
+    return normalizeBasicStructure(builderBasicStructureSelector?.value || basicSavedStructure || BASIC_STRUCTURE_DEFAULT);
+  }
+  function getBasicStructureConfig(structure){
+    const mode = normalizeBasicStructure(structure);
+    if (mode === 'sandwich_paragraph'){
+      return {
+        targetStructure: 'sandwich_paragraph',
+        requiredSections: [],
+        sentenceFormatHint: 'paragraph'
+      };
+    }
+    if (mode === 'bullet_points'){
+      return {
+        targetStructure: 'bullet_points',
+        requiredSections: ['Strengths', 'Feedback', 'Growth Measures'],
+        sentenceFormatHint: 'bullets'
+      };
+    }
+    return {
+      targetStructure: 'strengths_feedback_blocks',
+      requiredSections: ['Areas of Strength', 'Areas of Improvement'],
+      sentenceFormatHint: 'paragraph'
+    };
+  }
   function initializeCommentBuilder(){
     if (!builderStudentSelect) return;
     if (builderBasicTermSelector && !builderBasicTermSelector.value && basicSavedTerm){
       builderBasicTermSelector.value = basicSavedTerm;
+    }
+    if (builderBasicStructureSelector){
+      const defaultStructure = normalizeBasicStructure(basicSavedStructure || BASIC_STRUCTURE_DEFAULT);
+      if (!builderBasicStructureSelector.value){
+        builderBasicStructureSelector.value = defaultStructure;
+      }else{
+        builderBasicStructureSelector.value = normalizeBasicStructure(builderBasicStructureSelector.value);
+      }
     }
     renderBasicGeneratedComments(activeContext?.id || null);
     setBuilderGeneratorMode(builderGeneratorMode || 'advanced');
@@ -5509,6 +5580,8 @@ function getPerformanceToneLine(coreLevel, context){
     const row = rows[rowIndex];
     const studentName = getRowLabel(rowIndex);
     const firstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
+    const structureMode = getBasicStructureMode();
+    const structureConfig = getBasicStructureConfig(structureMode);
     const missingCols = getMissingAssignmentColumnsForRow(row);
     const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
     const warningCount = missingCols.length;
@@ -5527,8 +5600,10 @@ function getPerformanceToneLine(coreLevel, context){
     return {
       mode: 'basic_bulk',
       reviseMode: 'basic_bulk',
-      targetStructure: 'sandwich',
-      requiredSections: ['Areas of Strength', 'Areas of Improvement'],
+      targetStructure: structureConfig.targetStructure,
+      basicStructure: structureMode,
+      requiredSections: structureConfig.requiredSections,
+      sentenceFormatHint: structureConfig.sentenceFormatHint,
       termLabel,
       studentName,
       studentFirstName: firstName,
