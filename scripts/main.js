@@ -8175,7 +8175,7 @@ function varySentenceOpenings(text, studentName){
     const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
     const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
     const assignments = getSelectedBuilderAssignments();
-    const assignmentFacts = assignments.slice(0, 4).map(col => {
+    const assignmentFacts = assignments.slice(0, 6).map(col => {
       const meta = studentRow ? deriveMarkMeta(studentRow[col], col) : null;
       return meta ? { label: cleanAssignmentLabel(col), scoreText: formatPercentValue(meta.value) } : null;
     }).filter(Boolean);
