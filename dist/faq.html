@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TeacherTools | FAQ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Frequently asked questions about TeacherTools — data privacy, file formats, AI features, report comments, and the Marking Assistant." />
+  <link rel="icon" type="image/png" href="icon/teacher_tools_logo3.png" />
+  <link rel="stylesheet" href="styles/teacher_tools.css" />
+</head>
+<body>
+  <div class="home-shell">
+    <div class="home-nav">
+      <div class="brand">
+        <img src="icon/teacher_tools_logo3.png" alt="TeacherTools logo" class="brand-logo">
+        <div class="brand-text">
+          <strong>TeacherTools</strong>
+          <span>Data-ready reporting</span>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="home.html">Home</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="faq.html">FAQ</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      <span class="nav-beta">Local-only beta</span>
+      <a class="btn primary nav-launch" href="teacher_tools.html">Open TeacherTools</a>
+    </div>
+
+    <section class="full-section band-light">
+      <div class="section-heading page-hero">
+        <h1>Quick answers about TeacherTools.</h1>
+        <p class="section-lede">Everything runs locally today. AI features use the Gemini API — no student data is stored server-side.</p>
+      </div>
+      <div class="accordion" id="faqAccordion">
+        <div class="accordion-item is-open">
+          <div class="accordion-header">
+            <p class="accordion-title">Where does my data live?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">It stays in your browser. Nothing leaves your machine unless you export a file or use an AI feature — those send only the minimum required context to the Gemini API and nothing is stored on any server we operate.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">What files can I upload?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">CSV, XLSX, and XLS. You can drag multiple files or load an entire folder. Each file becomes a separate class you can switch between instantly.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">Do I need an account?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">Not yet. Everything works without signing in. Email-based access will be optional when cloud sync arrives — you will never be forced to create an account to use the core features.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">Does TeacherTools use AI?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">Yes — for two features. Report Comments uses the Gemini API to draft and refine per-student comments based on their marks, performance level, and upcoming assignments. The Marking Assistant uses Gemini Vision to read student names and scores from a photo of a handwritten assignment page. In both cases, only the minimum needed data is sent to the API and nothing is logged or retained.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">How does the Marking Assistant work?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">You enter a grade label and assignment name, then scan individual student pages one at a time using your phone camera or a file upload. The AI reads the student's name and their score from the page — typically in about two seconds — and adds a row to an editable table. When you're done, download the whole table as a CSV.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">How does report comment generation work?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">There are two modes. Bulk mode generates a comment for every student in the class at once using their marks and performance level — good for a first draft. Advanced mode lets you fine-tune one student at a time: pick specific assignments to mention, set upcoming or late work, and click "Refine Comment" to adjust any bulk-generated draft. Both modes use the student's final grade to set the tone of the comment.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">Can I print formatted reports?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">Yes. Use Print View to format attendance, marking, and drill sheets before printing or saving as PDF. You can print all three templates for the selected class at once — the app will prompt you to choose marking columns before printing.</div>
+        </div>
+        <div class="accordion-item">
+          <div class="accordion-header">
+            <p class="accordion-title">How do I get help?</p>
+            <div class="accordion-icon">+</div>
+          </div>
+          <div class="accordion-body">Visit the contact page for questions, onboarding, or feature requests. We usually respond within a school day.</div>
+        </div>
+      </div>
+      <div class="home-grid" style="margin-top:16px;">
+        <div class="home-card">
+          <h4>Still stuck?</h4>
+          <p>Visit the contact page and tell us what you are trying to do. We usually respond within a school day.</p>
+          <a class="btn primary" href="contact.html">Get help</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="footer-links">
+        <a href="home.html">Home</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="faq.html">FAQ</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </footer>
+  </div>
+  <script src="scripts/site.js"></script>
+</body>
+</html>

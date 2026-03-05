@@ -1,5 +1,5 @@
 (() => {
-  const MAIL_TO = "support@teachertools.local";
+  const MAIL_TO = "josue@spiritofmath.com"; // TODO: update if email changes
   const FORM_ENDPOINT = "/api/contact"; // placeholder; replace with your backend endpoint
 
   const waitlistButtons = document.querySelectorAll("[data-mailto='waitlist']");
@@ -73,6 +73,18 @@
     const top = target.getBoundingClientRect().top + window.scrollY - navOffset;
     window.scrollTo({ top, behavior: "smooth" });
   });
+
+  // Highlight the active nav link based on current page filename
+  (function markActiveNav() {
+    const path = window.location.pathname;
+    const filename = path.split("/").pop() || "home.html";
+    document.querySelectorAll(".nav-links a").forEach((a) => {
+      const href = (a.getAttribute("href") || "").split("/").pop();
+      if (href && (filename === href || (filename === "" && href === "home.html"))) {
+        a.classList.add("is-active");
+      }
+    });
+  })();
 
   function openMail(to, subject, bodyEncoded) {
     const href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${bodyEncoded}`;
