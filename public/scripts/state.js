@@ -468,6 +468,8 @@ const allTemplatesMarkingCancelBtn = document.getElementById('allTemplatesMarkin
 const allTemplatesMarkingConfirmBtn = document.getElementById('allTemplatesMarkingConfirm');
 const printDrillCountInput = document.getElementById('printDrillCount');
 // Marking Assistant
+const markingGradeInput = document.getElementById('markingGradeInput');
+const markingAssignmentInput = document.getElementById('markingAssignmentInput');
 const markingCameraInput = document.getElementById('markingCameraInput');
 const markingFileInput = document.getElementById('markingFileInput');
 const markingUploadArea = document.getElementById('markingUploadArea');
@@ -483,7 +485,7 @@ const markingResultsMeta = document.getElementById('markingResultsMeta');
 const markingResultsTable = document.getElementById('markingResultsTable');
 const markingDownloadCsvBtn = document.getElementById('markingDownloadCsvBtn');
 const markingAddRowBtn = document.getElementById('markingAddRowBtn');
-const markingAddColBtn = document.getElementById('markingAddColBtn');
+const markingClearAllBtn = document.getElementById('markingClearAllBtn');
 const printReportStudentSelect = document.getElementById('printReportStudentSelect');
 const printReportAllStudentsToggle = document.getElementById('printReportAllStudents');
 const printCommentsBtn = document.getElementById('printCommentsBtn');

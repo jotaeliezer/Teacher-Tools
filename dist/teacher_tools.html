@@ -87,6 +87,7 @@
   <input id="file" type="file" accept=".csv,.xlsx,.xls" multiple style="display:none;" />
   <div class="tab-bar">
     <button class="tab-btn active" id="tabDataBtn" type="button">Data</button>
+  <button class="tab-btn" id="tabMarkingAssistantBtn" type="button">Marking Assistant</button>
   <button class="tab-btn" id="tabPrintBtn" type="button">Print View</button>
   <button class="tab-btn" id="tabPhoneLogsBtn" type="button">Phone Logs</button>
   <button class="tab-btn" id="tabCommentsBtn" type="button">Report Comments</button>
@@ -212,6 +213,86 @@
       </footer>
     </div>
   </div>
+<div id="markingAssistantSection" class="tab-section" style="display:none;">
+  <div class="panel marking-assistant-panel">
+    <header class="marking-assistant-header">
+      <div>
+        <h3 style="margin:0;">Marking Assistant</h3>
+        <p class="muted" style="margin:4px 0 0 0; font-size:13px;">Scan student assignment pages one at a time. Each scan reads the student name and score and adds a row to the table.</p>
+      </div>
+    </header>
+
+    <!-- Setup bar -->
+    <div class="marking-setup-bar">
+      <label class="marking-setup-field">
+        <span class="marking-setup-label">Grade</span>
+        <input type="text" id="markingGradeInput" placeholder="e.g. Grade 7" />
+      </label>
+      <label class="marking-setup-field">
+        <span class="marking-setup-label">Assignment / Test name</span>
+        <input type="text" id="markingAssignmentInput" placeholder="e.g. Unit 4 Test" />
+      </label>
+    </div>
+
+    <div class="marking-assistant-layout">
+
+      <!-- Left: scan controls -->
+      <aside class="marking-assistant-controls">
+        <div class="marking-upload-area" id="markingUploadArea">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:#9ca3af;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <p style="margin:8px 0 4px 0; font-weight:600; font-size:14px;">Take or upload a photo</p>
+          <p class="muted" style="margin:0; font-size:12px;">Point camera at one student&rsquo;s page</p>
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:center;">
+            <label class="btn primary" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingCameraInput" accept="image/*" capture="environment" style="display:none;" />
+              Camera
+            </label>
+            <label class="btn" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingFileInput" accept="image/*" style="display:none;" />
+              Choose File
+            </label>
+          </div>
+        </div>
+
+        <!-- Image preview -->
+        <div id="markingImagePreviewWrap" style="display:none;">
+          <img id="markingImagePreview" src="" alt="Preview" class="marking-image-preview" />
+          <button class="btn" type="button" id="markingClearImageBtn" style="margin-top:8px; width:100%;">Remove Image</button>
+        </div>
+
+        <button class="btn primary" type="button" id="markingScanBtn" disabled style="width:100%; margin-top:12px; font-size:15px; padding:10px;">
+          Scan Page
+        </button>
+        <div id="markingStatus" class="marking-status muted" style="font-size:12px; margin-top:8px; text-align:center;"></div>
+      </aside>
+
+      <!-- Right: accumulating results -->
+      <section class="marking-assistant-results">
+        <div id="markingResultsEmpty" class="marking-results-empty">
+          <p class="muted" style="font-size:13px;">Scanned results will accumulate here. Fill in Grade and Assignment name above, then scan each student&rsquo;s page.</p>
+        </div>
+        <div id="markingResultsWrap" style="display:none;">
+          <div class="marking-results-toolbar">
+            <span id="markingResultsMeta" class="badge"></span>
+            <span class="spacer"></span>
+            <button class="btn" type="button" id="markingAddRowBtn">+ Row</button>
+            <button class="btn warn" type="button" id="markingClearAllBtn">Clear All</button>
+            <button class="btn primary" type="button" id="markingDownloadCsvBtn">Download CSV</button>
+          </div>
+          <div class="marking-table-wrap">
+            <table id="markingResultsTable" class="marking-results-table"></table>
+          </div>
+        </div>
+        <!-- Spinner overlay -->
+        <div id="markingSpinner" class="marking-spinner" style="display:none;">
+          <div class="spinner-ring"></div>
+          <span class="spinner-label">Scanning page&hellip;</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
 <div id="printPreviewModal" class="tab-section" style="display:none;">
   <div class="panel print-preview-modal" style="max-width:1600px; width:98vw; font-size:15px; position:relative;">
     <header style="display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">

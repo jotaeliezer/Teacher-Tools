@@ -205,6 +205,9 @@
   if (tabDataBtn){
     tabDataBtn.addEventListener('click', () => activateTab('data'));
   }
+  if (tabMarkingAssistantBtn){
+    tabMarkingAssistantBtn.addEventListener('click', () => activateTab('markingassistant'));
+  }
   if (tabPrintBtn){
     tabPrintBtn.addEventListener('click', () => {
       if (!rows.length){
@@ -3788,6 +3791,7 @@ function getPerformanceToneLine(coreLevel, context){
   function activateTab(kind){
     const sections = {
       data: dataTabSection,
+      markingassistant: markingAssistantSection,
       print: printTabSection,
       phonelogs: phoneLogsSection,
       comments: commentsTabSection,
@@ -3795,6 +3799,7 @@ function getPerformanceToneLine(coreLevel, context){
     };
     const buttons = {
       data: tabDataBtn,
+      markingassistant: tabMarkingAssistantBtn,
       print: tabPrintBtn,
       phonelogs: tabPhoneLogsBtn,
       comments: tabCommentsBtn,
@@ -4841,6 +4846,248 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function closePrintPreviewModal(){
     activateTab('data');
+  }
+
+  // ── Marking Assistant ────────────────────────────────────────────────────
+  let markingImageData = null;   // { dataUrl, mimeType }
+  // Fixed columns: Student Name + Score (accumulated across scans)
+  const MARKING_COLUMNS = ['Student Name', 'Score'];
+  let markingRows = [];          // [{ 'Student Name': '', 'Score': '' }, ...]
+
+  function getMarkingAssistantApiEndpoint(){
+    const base = (builderAiEndpoint || '').replace(/\/+$/, '').replace(/\/generate-comment$/, '');
+    if (!base) return null;
+    return base + '/scan-marks';
+  }
+
+  function setMarkingStatus(msg, tone){
+    if (!markingStatusEl) return;
+    markingStatusEl.textContent = String(msg || '');
+    markingStatusEl.classList.remove('status-error', 'status-ok');
+    if (tone === 'error') markingStatusEl.classList.add('status-error');
+    if (tone === 'ok') markingStatusEl.classList.add('status-ok');
+  }
+
+  // Compress image on a canvas before sending to reduce upload/transfer time
+  function compressImageForScan(dataUrl){
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX){
+          if (w >= h){ h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = () => resolve(dataUrl); // fallback: send original
+      img.src = dataUrl;
+    });
+  }
+
+  function setMarkingImage(dataUrl, mimeType){
+    markingImageData = dataUrl ? { dataUrl, mimeType: mimeType || 'image/jpeg' } : null;
+    if (markingImagePreview) markingImagePreview.src = dataUrl || '';
+    if (markingImagePreviewWrap) markingImagePreviewWrap.style.display = dataUrl ? '' : 'none';
+    if (markingUploadArea) markingUploadArea.style.display = dataUrl ? 'none' : '';
+    if (markingScanBtn) markingScanBtn.disabled = !dataUrl;
+    setMarkingStatus('');
+  }
+
+  function clearMarkingImage(){
+    setMarkingImage(null);
+    if (markingCameraInput) markingCameraInput.value = '';
+    if (markingFileInput) markingFileInput.value = '';
+  }
+
+  function handleMarkingFileSelect(file){
+    if (!file) return;
+    const mimeType = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = (e) => setMarkingImage(e.target.result, mimeType);
+    reader.readAsDataURL(file);
+  }
+
+  function initMarkingTable(){
+    if (!markingResultsTable) return;
+    markingResultsTable.innerHTML = '';
+    const thead = markingResultsTable.createTHead();
+    const hRow = thead.insertRow();
+    MARKING_COLUMNS.forEach(col => {
+      const th = document.createElement('th');
+      th.className = 'marking-th';
+      th.textContent = col;
+      hRow.appendChild(th);
+    });
+    // Delete-row header cell
+    const thDel = document.createElement('th');
+    thDel.style.width = '28px';
+    hRow.appendChild(thDel);
+    markingResultsTable.createTBody();
+  }
+
+  function appendMarkingRow(name, score, flash){
+    if (!markingResultsTable) return;
+    let tbody = markingResultsTable.tBodies[0];
+    if (!tbody){ initMarkingTable(); tbody = markingResultsTable.tBodies[0]; }
+
+    const rowObj = { 'Student Name': name, 'Score': score };
+    const ri = markingRows.length;
+    markingRows.push(rowObj);
+
+    const tr = document.createElement('tr');
+    MARKING_COLUMNS.forEach((col, ci) => {
+      const td = tr.insertCell();
+      td.contentEditable = 'true';
+      td.className = 'marking-td';
+      td.textContent = rowObj[col];
+      td.addEventListener('blur', () => { markingRows[ri][MARKING_COLUMNS[ci]] = td.textContent.trim(); });
+    });
+    // Delete button
+    const tdDel = tr.insertCell();
+    tdDel.style.padding = '2px 4px';
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn';
+    delBtn.style.cssText = 'padding:2px 7px; font-size:11px; color:#b91c1c;';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Remove row';
+    delBtn.addEventListener('click', () => {
+      markingRows.splice(ri, 1);
+      tr.remove();
+      updateMarkingMeta();
+    });
+    tdDel.appendChild(delBtn);
+    tbody.appendChild(tr);
+
+    if (flash){
+      tr.classList.add('marking-row-flash');
+      tr.addEventListener('animationend', () => tr.classList.remove('marking-row-flash'), { once: true });
+    }
+
+    if (markingResultsEmpty) markingResultsEmpty.style.display = 'none';
+    if (markingResultsWrap) markingResultsWrap.style.display = '';
+    updateMarkingMeta();
+  }
+
+  function updateMarkingMeta(){
+    if (markingResultsMeta){
+      markingResultsMeta.textContent = `${markingRows.length} student${markingRows.length !== 1 ? 's' : ''}`;
+    }
+  }
+
+  async function scanMarksWithAI(){
+    if (!markingImageData) return;
+    const endpoint = getMarkingAssistantApiEndpoint();
+    if (!endpoint){
+      setMarkingStatus('No AI endpoint configured. Set it in Report Comments settings first.', 'error');
+      return;
+    }
+    const assignmentName = markingAssignmentInput?.value.trim() || '';
+    if (markingSpinner) markingSpinner.style.display = 'flex';
+    if (markingScanBtn) { markingScanBtn.disabled = true; markingScanBtn.textContent = 'Scanning…'; }
+    setMarkingStatus('');
+    try {
+      const compressed = await compressImageForScan(markingImageData.dataUrl);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: compressed,
+          mimeType: 'image/jpeg',
+          assignmentName
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error){
+        setMarkingStatus(data.error || `API error (${res.status})`, 'error');
+        return;
+      }
+      const name = String(data.name || '?').trim();
+      const score = String(data.score || '?').trim();
+      appendMarkingRow(name, score, true);
+      setMarkingStatus(`Added: ${name} — ${score}`, 'ok');
+      // Reset image so teacher is ready to scan the next page
+      clearMarkingImage();
+    } catch(err){
+      setMarkingStatus(`Failed to reach scan API: ${err.message || err}`, 'error');
+    } finally {
+      if (markingSpinner) markingSpinner.style.display = 'none';
+      if (markingScanBtn) { markingScanBtn.disabled = false; markingScanBtn.textContent = 'Scan Page'; }
+    }
+  }
+
+  function downloadMarkingCsv(){
+    if (!markingRows.length) return;
+    const grade = markingGradeInput?.value.trim() || '';
+    const assignment = markingAssignmentInput?.value.trim() || '';
+    // Collect live cell values from DOM
+    const tbody = markingResultsTable?.tBodies[0];
+    const liveRows = [];
+    if (tbody){
+      Array.from(tbody.rows).forEach((tr, i) => {
+        liveRows.push({
+          'Student Name': tr.cells[0]?.textContent?.trim() ?? '',
+          'Score': tr.cells[1]?.textContent?.trim() ?? ''
+        });
+      });
+    } else {
+      liveRows.push(...markingRows);
+    }
+    const matrix = [MARKING_COLUMNS, ...liveRows.map(r => MARKING_COLUMNS.map(c => r[c] ?? ''))];
+    const csv = Papa.unparse(matrix);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const namePart = [grade, assignment].filter(Boolean).join('_') || 'scanned_marks';
+    a.download = `${namePart.replace(/[\\/:*?"<>|]+/g, '_')}.csv`;
+    a.click();
+  }
+
+  // Marking Assistant event wiring
+  if (markingCameraInput){
+    markingCameraInput.addEventListener('change', (e) => handleMarkingFileSelect(e.target.files?.[0]));
+  }
+  if (markingFileInput){
+    markingFileInput.addEventListener('change', (e) => handleMarkingFileSelect(e.target.files?.[0]));
+  }
+  if (markingClearImageBtn){
+    markingClearImageBtn.addEventListener('click', clearMarkingImage);
+  }
+  if (markingScanBtn){
+    markingScanBtn.addEventListener('click', scanMarksWithAI);
+  }
+  if (markingDownloadCsvBtn){
+    markingDownloadCsvBtn.addEventListener('click', downloadMarkingCsv);
+  }
+  if (markingAddRowBtn){
+    markingAddRowBtn.addEventListener('click', () => {
+      appendMarkingRow('', '', false);
+    });
+  }
+  if (markingClearAllBtn){
+    markingClearAllBtn.addEventListener('click', () => {
+      markingRows = [];
+      if (markingResultsTable) markingResultsTable.innerHTML = '';
+      initMarkingTable();
+      if (markingResultsWrap) markingResultsWrap.style.display = 'none';
+      if (markingResultsEmpty) markingResultsEmpty.style.display = '';
+      setMarkingStatus('');
+    });
+  }
+  // Drag-and-drop onto the upload area
+  if (markingUploadArea){
+    markingUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); markingUploadArea.classList.add('drag-over'); });
+    markingUploadArea.addEventListener('dragleave', () => markingUploadArea.classList.remove('drag-over'));
+    markingUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      markingUploadArea.classList.remove('drag-over');
+      handleMarkingFileSelect(e.dataTransfer?.files?.[0]);
+    });
   }
   function syncPrintMetaInputs(){
     if (printTeacherInput) printTeacherInput.value = printMeta.teacher || '';

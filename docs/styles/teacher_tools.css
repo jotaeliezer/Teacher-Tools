@@ -3996,7 +3996,42 @@ td.readonly{
 .marking-assistant-header{
   border-bottom: 1px solid var(--line);
   padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.marking-setup-bar{
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #f8f9fb;
+  border: 1px solid #e2e6ef;
+  border-radius: 10px;
+}
+.marking-setup-field{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 180px;
+}
+.marking-setup-label{
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.marking-setup-field input{
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--ink);
+}
+.marking-setup-field input:focus{
+  outline: none;
+  border-color: #6e7dff;
+  box-shadow: 0 0 0 3px rgba(110,125,255,.15);
 }
 .marking-assistant-layout{
   display: grid;
@@ -4102,7 +4137,33 @@ td.readonly{
   z-index: 4;
   pointer-events: none;
 }
+.marking-assistant-results{
+  min-height: 300px;
+}
+@keyframes markingRowFlash{
+  0%   { background: #d1fae5; }
+  60%  { background: #d1fae5; }
+  100% { background: transparent; }
+}
+.marking-row-flash td{
+  animation: markingRowFlash 1.2s ease forwards;
+}
 /* Dark mode */
+body.dark-mode .marking-setup-bar{
+  background: #1b1f2c;
+  border-color: #2c3240;
+}
+body.dark-mode .marking-setup-label{ color: #c5cde8; }
+body.dark-mode .marking-setup-field input{
+  background: #0f1522;
+  border-color: #2c3240;
+  color: #f3f6ff;
+}
+body.dark-mode @keyframes markingRowFlash{
+  0%   { background: #14532d; }
+  60%  { background: #14532d; }
+  100% { background: transparent; }
+}
 body.dark-mode .marking-assistant-panel,
 body.dark-mode .marking-upload-area,
 body.dark-mode .marking-results-empty{

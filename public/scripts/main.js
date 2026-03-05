@@ -517,9 +517,26 @@
       autoSaveCurrentReport('student-switch');
       const idx = Number(builderStudentSelect.value);
       if (!Number.isNaN(idx)){
-        // Changing student manually exits refine mode
-        if (builderRefineBasicDraft) exitRefineBasicMode();
-        prefillBuilderFromRow(idx);
+        if (builderRefineBasicDraft && activeContext){
+          // While in refine mode, check if the newly selected student has a basic comment
+          const contextStore = getBasicCommentsStoreForContext(activeContext.id);
+          const entry = contextStore ? contextStore[String(idx)] : null;
+          const existingText = String(entry?.text || '').trim();
+          if (existingText){
+            // Stay in refine mode and load the new student's comment
+            prefillBuilderFromRow(idx);
+            builderRefineBasicDraft = existingText;
+            setBuilderAiCreatedOutputText(existingText, 'instant');
+            showRefineBanner();
+            status('Comment loaded for this student. Adjust selections and click Refine Comment.');
+          } else {
+            // No basic comment for this student — exit refine mode
+            exitRefineBasicMode();
+            prefillBuilderFromRow(idx);
+          }
+        } else {
+          prefillBuilderFromRow(idx);
+        }
       }
     });
   }
@@ -4850,7 +4867,9 @@ function getPerformanceToneLine(coreLevel, context){
 
   // ── Marking Assistant ────────────────────────────────────────────────────
   let markingImageData = null;   // { dataUrl, mimeType }
-  let markingTableData = null;   // { columns: [], rows: [{...}] }
+  // Fixed columns: Student Name + Score (accumulated across scans)
+  const MARKING_COLUMNS = ['Student Name', 'Score'];
+  let markingRows = [];          // [{ 'Student Name': '', 'Score': '' }, ...]
 
   function getMarkingAssistantApiEndpoint(){
     const base = (builderAiEndpoint || '').replace(/\/+$/, '').replace(/\/generate-comment$/, '');
@@ -4864,6 +4883,27 @@ function getPerformanceToneLine(coreLevel, context){
     markingStatusEl.classList.remove('status-error', 'status-ok');
     if (tone === 'error') markingStatusEl.classList.add('status-error');
     if (tone === 'ok') markingStatusEl.classList.add('status-ok');
+  }
+
+  // Compress image on a canvas before sending to reduce upload/transfer time
+  function compressImageForScan(dataUrl){
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX){
+          if (w >= h){ h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = () => resolve(dataUrl); // fallback: send original
+      img.src = dataUrl;
+    });
   }
 
   function setMarkingImage(dataUrl, mimeType){
@@ -4889,53 +4929,42 @@ function getPerformanceToneLine(coreLevel, context){
     reader.readAsDataURL(file);
   }
 
-  function renderMarkingTable(columns, rows){
-    markingTableData = { columns: [...columns], rows: rows.map(r => ({ ...r })) };
+  function initMarkingTable(){
     if (!markingResultsTable) return;
     markingResultsTable.innerHTML = '';
-
-    // Header row
     const thead = markingResultsTable.createTHead();
     const hRow = thead.insertRow();
-    columns.forEach((col, ci) => {
+    MARKING_COLUMNS.forEach(col => {
       const th = document.createElement('th');
-      th.contentEditable = 'true';
       th.className = 'marking-th';
       th.textContent = col;
-      th.addEventListener('blur', () => {
-        markingTableData.columns[ci] = th.textContent.trim() || col;
-      });
       hRow.appendChild(th);
     });
-    // Delete-row control column header
+    // Delete-row header cell
     const thDel = document.createElement('th');
     thDel.style.width = '28px';
     hRow.appendChild(thDel);
-
-    // Data rows
-    const tbody = markingResultsTable.createTBody();
-    rows.forEach((row, ri) => {
-      const tr = addMarkingTableRow(tbody, columns, row, ri);
-      tbody.appendChild(tr);
-    });
-
-    if (markingResultsEmpty) markingResultsEmpty.style.display = 'none';
-    if (markingResultsWrap) markingResultsWrap.style.display = '';
-    if (markingResultsMeta) markingResultsMeta.textContent = `${rows.length} student${rows.length !== 1 ? 's' : ''}, ${columns.length} column${columns.length !== 1 ? 's' : ''}`;
+    markingResultsTable.createTBody();
   }
 
-  function addMarkingTableRow(tbody, columns, row, ri){
+  function appendMarkingRow(name, score, flash){
+    if (!markingResultsTable) return;
+    let tbody = markingResultsTable.tBodies[0];
+    if (!tbody){ initMarkingTable(); tbody = markingResultsTable.tBodies[0]; }
+
+    const rowObj = { 'Student Name': name, 'Score': score };
+    const ri = markingRows.length;
+    markingRows.push(rowObj);
+
     const tr = document.createElement('tr');
-    columns.forEach((col, ci) => {
+    MARKING_COLUMNS.forEach((col, ci) => {
       const td = tr.insertCell();
       td.contentEditable = 'true';
       td.className = 'marking-td';
-      td.textContent = row?.[col] ?? '';
-      td.addEventListener('blur', () => {
-        if (markingTableData?.rows[ri]) markingTableData.rows[ri][markingTableData.columns[ci]] = td.textContent.trim();
-      });
+      td.textContent = rowObj[col];
+      td.addEventListener('blur', () => { markingRows[ri][MARKING_COLUMNS[ci]] = td.textContent.trim(); });
     });
-    // Delete row button
+    // Delete button
     const tdDel = tr.insertCell();
     tdDel.style.padding = '2px 4px';
     const delBtn = document.createElement('button');
@@ -4945,14 +4974,27 @@ function getPerformanceToneLine(coreLevel, context){
     delBtn.textContent = '✕';
     delBtn.title = 'Remove row';
     delBtn.addEventListener('click', () => {
-      markingTableData?.rows.splice(ri, 1);
+      markingRows.splice(ri, 1);
       tr.remove();
-      if (markingResultsMeta && markingTableData){
-        markingResultsMeta.textContent = `${markingTableData.rows.length} student${markingTableData.rows.length !== 1 ? 's' : ''}, ${markingTableData.columns.length} column${markingTableData.columns.length !== 1 ? 's' : ''}`;
-      }
+      updateMarkingMeta();
     });
     tdDel.appendChild(delBtn);
-    return tr;
+    tbody.appendChild(tr);
+
+    if (flash){
+      tr.classList.add('marking-row-flash');
+      tr.addEventListener('animationend', () => tr.classList.remove('marking-row-flash'), { once: true });
+    }
+
+    if (markingResultsEmpty) markingResultsEmpty.style.display = 'none';
+    if (markingResultsWrap) markingResultsWrap.style.display = '';
+    updateMarkingMeta();
+  }
+
+  function updateMarkingMeta(){
+    if (markingResultsMeta){
+      markingResultsMeta.textContent = `${markingRows.length} student${markingRows.length !== 1 ? 's' : ''}`;
+    }
   }
 
   async function scanMarksWithAI(){
@@ -4962,57 +5004,64 @@ function getPerformanceToneLine(coreLevel, context){
       setMarkingStatus('No AI endpoint configured. Set it in Report Comments settings first.', 'error');
       return;
     }
+    const assignmentName = markingAssignmentInput?.value.trim() || '';
     if (markingSpinner) markingSpinner.style.display = 'flex';
     if (markingScanBtn) { markingScanBtn.disabled = true; markingScanBtn.textContent = 'Scanning…'; }
     setMarkingStatus('');
     try {
+      const compressed = await compressImageForScan(markingImageData.dataUrl);
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: markingImageData.dataUrl, mimeType: markingImageData.mimeType })
+        body: JSON.stringify({
+          image: compressed,
+          mimeType: 'image/jpeg',
+          assignmentName
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.error){
         setMarkingStatus(data.error || `API error (${res.status})`, 'error');
         return;
       }
-      if (!data.columns?.length || !data.rows?.length){
-        setMarkingStatus('No marks could be detected in this image. Try a clearer photo.', 'error');
-        return;
-      }
-      renderMarkingTable(data.columns, data.rows);
-      setMarkingStatus(`Found ${data.rows.length} student${data.rows.length !== 1 ? 's' : ''}.`, 'ok');
+      const name = String(data.name || '?').trim();
+      const score = String(data.score || '?').trim();
+      appendMarkingRow(name, score, true);
+      setMarkingStatus(`Added: ${name} — ${score}`, 'ok');
+      // Reset image so teacher is ready to scan the next page
+      clearMarkingImage();
     } catch(err){
       setMarkingStatus(`Failed to reach scan API: ${err.message || err}`, 'error');
     } finally {
       if (markingSpinner) markingSpinner.style.display = 'none';
-      if (markingScanBtn) { markingScanBtn.disabled = false; markingScanBtn.textContent = 'Scan Marks'; }
+      if (markingScanBtn) { markingScanBtn.disabled = false; markingScanBtn.textContent = 'Scan Page'; }
     }
   }
 
   function downloadMarkingCsv(){
-    if (!markingTableData?.columns?.length) return;
-    // Collect current cell values from the DOM (user may have edited them)
-    const table = markingResultsTable;
-    const tbody = table?.tBodies[0];
-    const rows = [];
+    if (!markingRows.length) return;
+    const grade = markingGradeInput?.value.trim() || '';
+    const assignment = markingAssignmentInput?.value.trim() || '';
+    // Collect live cell values from DOM
+    const tbody = markingResultsTable?.tBodies[0];
+    const liveRows = [];
     if (tbody){
-      Array.from(tbody.rows).forEach(tr => {
-        const obj = {};
-        markingTableData.columns.forEach((col, ci) => {
-          obj[col] = tr.cells[ci]?.textContent?.trim() ?? '';
+      Array.from(tbody.rows).forEach((tr, i) => {
+        liveRows.push({
+          'Student Name': tr.cells[0]?.textContent?.trim() ?? '',
+          'Score': tr.cells[1]?.textContent?.trim() ?? ''
         });
-        rows.push(obj);
       });
+    } else {
+      liveRows.push(...markingRows);
     }
-    const headerRow = [...markingTableData.columns];
-    const dataRows = rows.map(r => headerRow.map(col => r[col] ?? ''));
-    const matrix = [headerRow, ...dataRows];
+    const matrix = [MARKING_COLUMNS, ...liveRows.map(r => MARKING_COLUMNS.map(c => r[c] ?? ''))];
     const csv = Papa.unparse(matrix);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'scanned_marks.csv';
+    const namePart = [grade, assignment].filter(Boolean).join('_') || 'scanned_marks';
+    a.download = `${namePart.replace(/[\\/:*?"<>|]+/g, '_')}.csv`;
     a.click();
   }
 
@@ -5034,22 +5083,17 @@ function getPerformanceToneLine(coreLevel, context){
   }
   if (markingAddRowBtn){
     markingAddRowBtn.addEventListener('click', () => {
-      if (!markingTableData) return;
-      const newRow = {};
-      markingTableData.columns.forEach(col => { newRow[col] = ''; });
-      const ri = markingTableData.rows.length;
-      markingTableData.rows.push(newRow);
-      const tbody = markingResultsTable?.tBodies[0];
-      if (tbody) addMarkingTableRow(tbody, markingTableData.columns, newRow, ri);
+      appendMarkingRow('', '', false);
     });
   }
-  if (markingAddColBtn){
-    markingAddColBtn.addEventListener('click', () => {
-      if (!markingTableData) return;
-      const colName = `Score ${markingTableData.columns.length}`;
-      markingTableData.columns.push(colName);
-      markingTableData.rows.forEach(r => { r[colName] = ''; });
-      renderMarkingTable(markingTableData.columns, markingTableData.rows);
+  if (markingClearAllBtn){
+    markingClearAllBtn.addEventListener('click', () => {
+      markingRows = [];
+      if (markingResultsTable) markingResultsTable.innerHTML = '';
+      initMarkingTable();
+      if (markingResultsWrap) markingResultsWrap.style.display = 'none';
+      if (markingResultsEmpty) markingResultsEmpty.style.display = '';
+      setMarkingStatus('');
     });
   }
   // Drag-and-drop onto the upload area
