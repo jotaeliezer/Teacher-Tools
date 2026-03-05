@@ -1,3 +1,7 @@
+// ==== Constants needed before any init code ====
+  const BASIC_STRUCTURE_DEFAULT = 'strengths_feedback_blocks';
+  const BASIC_STRUCTURE_OPTIONS = new Set(['strengths_feedback_blocks', 'sandwich_paragraph', 'bullet_points']);
+
 // ==== Init from stored settings ====
   const initialSettings = loadSettings();
   setWrapHeaders(!!initialSettings.wrapHeaders, false);
@@ -63,8 +67,6 @@
   let bulkSelectedUpcomingCols = [];
   // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
   let builderRefineBasicDraft = null;
-  const BASIC_STRUCTURE_DEFAULT = 'strengths_feedback_blocks';
-  const BASIC_STRUCTURE_OPTIONS = new Set(['strengths_feedback_blocks', 'sandwich_paragraph', 'bullet_points']);
 
 // ==== Directory handle persistence ====
   const HANDLE_DB = 'teacher_tools_handles';
