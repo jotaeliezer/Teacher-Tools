@@ -16,6 +16,9 @@
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
   const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
   const basicSavedStructure = String(initialSettings.builderBasicStructure || '').trim().toLowerCase();
+  if (initialSettings.commentOrderMode){
+    commentOrderMode = normalizeBasicStructure(String(initialSettings.commentOrderMode));
+  }
   const basicSavedComments = initialSettings.basicGeneratedCommentsByContext;
   const savedSeatingObjective = String(initialSettings.seatingObjective || '').trim();
   if (printMeta) printMeta.teacher = String(initialSettings.printTeacher || '').trim();
@@ -739,7 +742,12 @@ function setupSelectAnimations(){
   }
   updateGradeGroupControls();
   if (builderCommentOrderToggle){
-    builderCommentOrderToggle.addEventListener('click', toggleCommentOrderMode);
+    builderCommentOrderToggle.addEventListener('change', () => {
+      commentOrderMode = normalizeBasicStructure(builderCommentOrderToggle.value);
+      builderCommentOrderToggle.value = commentOrderMode;
+      saveSettings({ commentOrderMode });
+      if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
+    });
   }
   if (builderTermSelector){
     builderTermSelector.addEventListener('change', () => {
@@ -5397,6 +5405,7 @@ function getPerformanceToneLine(coreLevel, context){
       builderBankRendered = true;
     }
     updateCommentOrderToggleLabel();
+    if (builderCommentOrderToggle) builderCommentOrderToggle.value = normalizeBasicStructure(commentOrderMode);
     if (builderSelectedRowIndex == null && rows.length){
       builderSelectedRowIndex = filteredIdx.length ? filteredIdx[0] : 0;
     }
@@ -5968,6 +5977,7 @@ function getPerformanceToneLine(coreLevel, context){
     const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'refine_basic',
+      basicStructure: normalizeBasicStructure(commentOrderMode),
       draft,
       studentName: builderStudentNameInput?.value.trim() || firstName,
       studentFirstName: firstName,
@@ -5988,24 +5998,10 @@ function getPerformanceToneLine(coreLevel, context){
     }
     return Boolean(builderStudentNameInput?.value.trim() && builderCorePerformanceSelect?.value);
   }
-  function toggleCommentOrderMode(){
-    const modes = ['sandwich', 'selection', 'bullet'];
-    const idx = modes.indexOf(commentOrderMode);
-    commentOrderMode = modes[(idx + 1) % modes.length];
-    updateCommentOrderToggleLabel();
-    if (shouldAutoGenerateBuilderReport()){
-      builderGenerateReport();
-    }
-  }
   function updateCommentOrderToggleLabel(){
     if (!builderCommentOrderToggle) return;
-    const labelMap = {
-      sandwich: 'Order: Sandwich',
-      selection: 'Order: Selection',
-      bullet: 'Order: Bullets'
-    };
-    builderCommentOrderToggle.textContent = labelMap[commentOrderMode] || 'Order: Selection';
-    builderCommentOrderToggle.title = 'Toggle comment order mode (sandwich, selection, bullets)';
+    const mode = normalizeBasicStructure(commentOrderMode);
+    builderCommentOrderToggle.value = mode;
   }
   function buildBuilderAssignmentsList(){
     const listEl = document.getElementById('builderAssignmentsList');
@@ -7124,14 +7120,14 @@ function buildGradeBasedComment(row, studentName, pronouns, gradeGroup, includeF
   function buildCommentSnippetText(selectedComments, context){
     if (!Array.isArray(selectedComments) || !selectedComments.length) return '';
     const replace = (item) => builderReplacePlaceholders(item.text, context);
-    if (commentOrderMode === 'sandwich'){
+    if (commentOrderMode === 'sandwich_paragraph'){
       const prioritized = prioritizePersonalQualities(selectedComments);
       const pqFirst = prioritized.filter(it => it.section === 'personalqualities');
       const others = prioritized.filter(it => it.section !== 'personalqualities');
       const ordered = pqFirst.concat(orderCommentsSandwichStyle(others));
       return ordered.map(replace).join(' ');
     }
-    if (commentOrderMode === 'bullet'){
+    if (commentOrderMode === 'bullet_points'){
       const nameRegex = new RegExp(`\\b${escapeRegExp(context.studentName)}\\b`, 'gi');
       const positives = selectedComments.filter(it => it.type === 'positive').map(replace);
       const constructives = selectedComments.filter(it => it.type !== 'positive').map(replace);
@@ -7245,7 +7241,7 @@ function splitIntoSentences(text){
   function dedupeGeneratedComment(report, context, requirements = {}){
     const source = String(report || '').trim();
     if (!source) return '';
-    if (commentOrderMode === 'bullet') return source;
+    if (commentOrderMode === 'bullet_points') return source;
     const sentences = splitIntoSentences(source);
     const kept = [];
     sentences.forEach(sentence => {
@@ -7280,7 +7276,7 @@ function splitIntoSentences(text){
   }
   function ensureRequiredFactsInReport(report, requirements = {}){
     const result = String(report || '').trim();
-    if (!result || commentOrderMode === 'bullet') return result;
+    if (!result || commentOrderMode === 'bullet_points') return result;
     const sourceSentences = splitIntoSentences(requirements.sourceText || '');
     const outputSentences = splitIntoSentences(result);
     const hasText = (needle) => String(outputSentences.join(' ')).toLowerCase().includes(String(needle || '').toLowerCase());
@@ -7592,12 +7588,12 @@ function splitIntoSentences(text){
     if (!Array.isArray(selectedComments) || !selectedComments.length){
       return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: '' };
     }
-    if (commentOrderMode === 'bullet'){
+    if (commentOrderMode === 'bullet_points'){
       return { pqSentences: [], lookingAheadSentences: [], lookingAheadPositiveSentences: [], otherSentences: [], otherText: buildCommentSnippetText(selectedComments, context) };
     }
     const replace = (item) => builderReplacePlaceholders(item.text, context);
     let ordered = selectedComments;
-    if (commentOrderMode === 'sandwich'){
+    if (commentOrderMode === 'sandwich_paragraph'){
       const prioritized = prioritizePersonalQualities(selectedComments);
       const pqFirst = prioritized.filter(it => it.section === 'personalqualities');
       const others = prioritized.filter(it => it.section !== 'personalqualities');
@@ -8184,6 +8180,7 @@ function varySentenceOpenings(text, studentName){
     const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     return {
       reviseMode: 'create',
+      basicStructure: normalizeBasicStructure(commentOrderMode),
       studentName: builderStudentNameInput?.value.trim() || '',
       pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
       gradeGroup: builderGradeGroupSelect?.value || 'middle',
@@ -8336,7 +8333,8 @@ function varySentenceOpenings(text, studentName){
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
     const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
-    const orderMode = ['sandwich', 'selection', 'bullet'].includes(commentOrderMode) ? commentOrderMode : 'selection';
+    const orderModeMap = { sandwich_paragraph: 'sandwich', strengths_feedback_blocks: 'selection', bullet_points: 'bullet' };
+    const orderMode = orderModeMap[commentOrderMode] || 'selection';
     return {
       draft: String(draft || '').trim(),
       reviseMode: 'rewrite',

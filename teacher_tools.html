@@ -897,7 +897,11 @@
               <h4>Comment Bank</h4>
               <div class="builder-helper" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span>Check the statements you want to include for this student.</span>
-                <button class="btn" type="button" id="builderCommentOrderToggle">Order: Selection</button>
+                <select id="builderCommentOrderToggle" class="btn" title="Comment output structure">
+                  <option value="sandwich_paragraph">Sandwich Paragraph</option>
+                  <option value="strengths_feedback_blocks">Strengths/Feedback Blocks</option>
+                  <option value="bullet_points">Bullet Points</option>
+                </select>
               </div>
               <div id="builderSelectedComments" class="selected-comments" style="display:none;">
                 <h5 style="margin:0 0 6px 0;">Selected Comments</h5>
