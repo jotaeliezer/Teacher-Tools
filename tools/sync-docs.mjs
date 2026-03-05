@@ -7,6 +7,10 @@ const docsDir = resolve(root, "docs");
 const publicDir = resolve(root, "public");
 const docsMappings = [
   ["teacher_tools.html", "docs/teacher_tools.html"],
+  ["home.html",          "docs/home.html"],
+  ["pricing.html",       "docs/pricing.html"],
+  ["faq.html",           "docs/faq.html"],
+  ["contact.html",       "docs/contact.html"],
   ["styles/teacher_tools.css", "docs/styles/teacher_tools.css"],
   ["scripts", "docs/scripts"],
   ["icon", "docs/icon"]
@@ -31,6 +35,10 @@ if (!existsSync(docsDir)) {
 const sourceDir = existsSync(publicDir) ? publicDir : root;
 const sourceMappings = [
   ["teacher_tools.html", "docs/teacher_tools.html"],
+  ["home.html",          "docs/home.html"],
+  ["pricing.html",       "docs/pricing.html"],
+  ["faq.html",           "docs/faq.html"],
+  ["contact.html",       "docs/contact.html"],
   ["styles/teacher_tools.css", "docs/styles/teacher_tools.css"],
   ["scripts", "docs/scripts"],
   ["icon", "docs/icon"]

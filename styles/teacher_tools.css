@@ -3348,6 +3348,11 @@ td.readonly{
 .nav-links a:hover{
   background:rgba(27,27,27,.06);
 }
+.nav-links a.is-active{
+  color:var(--magenta);
+  background:rgba(175,0,111,.07);
+  border-bottom:2px solid var(--magenta);
+}
 .nav-launch{
   white-space:nowrap;
   display:inline-flex;
