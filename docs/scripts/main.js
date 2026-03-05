@@ -58,6 +58,9 @@
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;
+  // Bulk assignment modal selections — set when the teacher confirms the two-step modal
+  let bulkSelectedAssignCols = [];
+  let bulkSelectedUpcomingCols = [];
   // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
   let builderRefineBasicDraft = null;
   const BASIC_STRUCTURE_DEFAULT = 'strengths_feedback_blocks';
@@ -574,7 +577,22 @@
     });
   }
   if (builderBasicBulkGenerateBtn){
-    builderBasicBulkGenerateBtn.addEventListener('click', runBasicBulkGenerate);
+    builderBasicBulkGenerateBtn.addEventListener('click', showBulkAssignModal);
+  }
+  if (bulkAssignCancelBtn){
+    bulkAssignCancelBtn.addEventListener('click', () => { if (bulkAssignModal) bulkAssignModal.style.display = 'none'; });
+  }
+  if (bulkAssignStep1Btn){
+    bulkAssignStep1Btn.addEventListener('click', handleBulkAssignContinue);
+  }
+  if (bulkAssignBackBtn){
+    bulkAssignBackBtn.addEventListener('click', () => {
+      if (bulkAssignStep1) bulkAssignStep1.style.display = '';
+      if (bulkAssignStep2) bulkAssignStep2.style.display = 'none';
+    });
+  }
+  if (bulkAssignGenerateBtn){
+    bulkAssignGenerateBtn.addEventListener('click', handleBulkAssignGenerate);
   }
   if (builderBasicSaveAllBtn){
     builderBasicSaveAllBtn.addEventListener('click', saveAllBasicComments);
@@ -5591,20 +5609,20 @@ function getPerformanceToneLine(coreLevel, context){
     const firstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
     const structureMode = getBasicStructureMode();
     const structureConfig = getBasicStructureConfig(structureMode);
-    const missingCols = getMissingAssignmentColumnsForRow(row);
-    const missingLabels = missingCols.map((col) => cleanAssignmentLabel(col));
-    const warningCount = missingCols.length;
-    const homeworkSubmissionLevel = getHomeworkSubmissionLevelFromWarnings(warningCount);
     const performanceCode = getRowPerformanceLevel(row);
     const classFirstNames = getVisibleCommentRowIndices()
       .map((idx) => getFirstNameFromRow(rows[idx], idx))
       .filter(Boolean)
       .slice(0, 120);
-    const assignmentFacts = getBasicAssignmentFactsForRow(row);
+    // Use teacher-selected assignments (2 of up to 3 chosen in the modal, picked at random per student)
+    const assignmentFacts = computeBulkAssignmentFacts(row);
+    // Upcoming tests are the ones the teacher flagged in the modal
+    const upcomingTests = bulkSelectedUpcomingCols
+      .map(col => cleanAssignmentLabel(col))
+      .filter(Boolean);
     const allowedAssignmentLabels = [
       ...assignmentFacts.map((item) => item.label),
-      ...missingLabels.slice(0, 4),
-      ...getUpcomingTestsFromMissingColumns(missingCols)
+      ...upcomingTests
     ].filter(Boolean);
     return {
       mode: 'basic_bulk',
@@ -5618,15 +5636,10 @@ function getPerformanceToneLine(coreLevel, context){
       studentFirstName: firstName,
       pronounGuess: getBasicPronounGuess(row, rowIndex),
       finalMark: getBasicFinalGrade(row),
-      homeworkSubmissionLevel,
-      missingAssignments: {
-        count: warningCount,
-        labels: missingLabels.slice(0, 4)
-      },
-      upcomingTests: getUpcomingTestsFromMissingColumns(missingCols),
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
       assignmentFacts,
+      upcomingTests,
       allowedAssignmentLabels,
       classFirstNames
     };
@@ -5658,6 +5671,127 @@ function getPerformanceToneLine(coreLevel, context){
   function getBasicRunStatus(completed, total, successCount){
     return `${completed}/${total} generated • ${successCount} success`;
   }
+
+  // ── Bulk Assignment Selection Modal ──────────────────────────────────────
+  function showBulkAssignModal(){
+    if (!activeContext || !rows.length){
+      updateBasicGeneratorStatus('Load class data first.');
+      return;
+    }
+    const termLabel = String(builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term first.');
+      return;
+    }
+    populateBulkAssignList();
+    if (bulkAssignStep1) bulkAssignStep1.style.display = '';
+    if (bulkAssignStep2) bulkAssignStep2.style.display = 'none';
+    if (bulkAssignWarning) bulkAssignWarning.style.display = 'none';
+    if (bulkAssignModal) bulkAssignModal.style.display = 'flex';
+  }
+
+  function populateBulkAssignList(){
+    if (!bulkAssignList) return;
+    const assignmentCols = allColumns.filter(col => isBasicAssignmentColumn(col));
+    bulkAssignList.innerHTML = '';
+    if (!assignmentCols.length){
+      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No assignment columns found in the loaded data.</p>';
+      return;
+    }
+    assignmentCols.forEach(col => {
+      const label = cleanAssignmentLabel(col);
+      const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; background:var(--surface-alt);';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = safeId;
+      cb.dataset.col = col;
+      cb.style.cssText = 'width:16px; height:16px; flex-shrink:0; cursor:pointer;';
+      if (bulkSelectedAssignCols.includes(col)) cb.checked = true;
+      cb.addEventListener('change', () => {
+        const checked = Array.from(bulkAssignList.querySelectorAll('input[type="checkbox"]:checked'));
+        if (checked.length > 3){
+          cb.checked = false;
+          if (bulkAssignWarning) bulkAssignWarning.style.display = '';
+          return;
+        }
+        if (bulkAssignWarning) bulkAssignWarning.style.display = 'none';
+      });
+      const lbl = document.createElement('label');
+      lbl.htmlFor = safeId;
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:14px; cursor:pointer; flex:1;';
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      bulkAssignList.appendChild(div);
+    });
+  }
+
+  function handleBulkAssignContinue(){
+    if (!bulkAssignList) return;
+    const checked = Array.from(bulkAssignList.querySelectorAll('input[type="checkbox"]:checked'));
+    bulkSelectedAssignCols = checked.map(cb => cb.dataset.col).filter(Boolean);
+    populateBulkUpcomingList();
+    if (bulkAssignStep1) bulkAssignStep1.style.display = 'none';
+    if (bulkAssignStep2) bulkAssignStep2.style.display = '';
+  }
+
+  function populateBulkUpcomingList(){
+    if (!bulkUpcomingList) return;
+    const assignmentCols = allColumns.filter(col => isBasicAssignmentColumn(col));
+    bulkUpcomingList.innerHTML = '';
+    if (!assignmentCols.length){
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found.</p>';
+      return;
+    }
+    assignmentCols.forEach(col => {
+      const label = cleanAssignmentLabel(col);
+      const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; background:var(--surface-alt);';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = safeId;
+      cb.dataset.col = col;
+      cb.style.cssText = 'width:16px; height:16px; flex-shrink:0; cursor:pointer;';
+      if (bulkSelectedUpcomingCols.includes(col)) cb.checked = true;
+      const lbl = document.createElement('label');
+      lbl.htmlFor = safeId;
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:14px; cursor:pointer; flex:1;';
+      div.appendChild(cb);
+      div.appendChild(lbl);
+      bulkUpcomingList.appendChild(div);
+    });
+  }
+
+  function handleBulkAssignGenerate(){
+    if (!bulkUpcomingList) return;
+    const checked = Array.from(bulkUpcomingList.querySelectorAll('input[type="checkbox"]:checked'));
+    bulkSelectedUpcomingCols = checked.map(cb => cb.dataset.col).filter(Boolean);
+    if (bulkAssignModal) bulkAssignModal.style.display = 'none';
+    runBasicBulkGenerate();
+  }
+
+  function computeBulkAssignmentFacts(row){
+    if (!row || !bulkSelectedAssignCols.length) return [];
+    // Randomly pick up to 2 of the user-selected columns for variety across students
+    const shuffled = [...bulkSelectedAssignCols].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, Math.min(2, shuffled.length));
+    return picked.map(col => {
+      const rawValue = row[col];
+      const meta = deriveMarkMeta(rawValue, col);
+      if (!meta) return null;
+      return {
+        label: cleanAssignmentLabel(col),
+        scoreText: formatMarkText(meta, rawValue),
+        scoreValue: meta.value,
+        tone: meta.value > 75 ? 'positive' : 'constructive'
+      };
+    }).filter(Boolean);
+  }
+
   async function runBasicBulkGenerate(){
     if (!activeContext || !rows.length){
       updateBasicGeneratorStatus('Load class data first.');

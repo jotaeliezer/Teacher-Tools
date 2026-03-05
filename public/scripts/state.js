@@ -468,6 +468,17 @@ const allTemplatesMarkingClearBtn = document.getElementById('allTemplatesMarking
 const allTemplatesMarkingCancelBtn = document.getElementById('allTemplatesMarkingCancel');
 const allTemplatesMarkingConfirmBtn = document.getElementById('allTemplatesMarkingConfirm');
 const printDrillCountInput = document.getElementById('printDrillCount');
+// Bulk Assignment Selection Modal
+const bulkAssignModal = document.getElementById('bulkAssignModal');
+const bulkAssignStep1 = document.getElementById('bulkAssignStep1');
+const bulkAssignStep2 = document.getElementById('bulkAssignStep2');
+const bulkAssignList = document.getElementById('bulkAssignList');
+const bulkUpcomingList = document.getElementById('bulkUpcomingList');
+const bulkAssignWarning = document.getElementById('bulkAssignWarning');
+const bulkAssignCancelBtn = document.getElementById('bulkAssignCancelBtn');
+const bulkAssignStep1Btn = document.getElementById('bulkAssignStep1Btn');
+const bulkAssignBackBtn = document.getElementById('bulkAssignBackBtn');
+const bulkAssignGenerateBtn = document.getElementById('bulkAssignGenerateBtn');
 // Marking Assistant
 const markingGradeInput = document.getElementById('markingGradeInput');
 const markingAssignmentInput = document.getElementById('markingAssignmentInput');
