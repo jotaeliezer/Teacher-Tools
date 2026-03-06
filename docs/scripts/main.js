@@ -5782,26 +5782,22 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkUpcomingList(){
     if (!bulkUpcomingList) return;
-    // Columns where at least one student has no data yet (same logic as the Advanced Generator's future panel)
+    // Only show columns where NO student has a mark yet — truly future/ungraded assignments
     const cols = allColumns.filter(col => {
       if (!col) return false;
       if (col === END_OF_LINE_COL) return false;
       if (col === studentNameColumn) return false;
       if (col === firstNameKey) return false;
       if (col === lastNameKey) return false;
-      return rows.some(row => {
-        const val = row?.[col];
-        return val == null || String(val).trim() === '';
-      });
+      return !columnHasMark(col);
     });
     bulkUpcomingList.innerHTML = '';
     if (!cols.length){
-      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No upcoming columns found. All columns appear to have marks for every student.</p>';
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No upcoming columns found — all columns already have marks.</p>';
       return;
     }
     cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
-      const avg = getColumnClassAverage(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
       div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
@@ -5820,15 +5816,8 @@ function getPerformanceToneLine(coreLevel, context){
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
       lbl.textContent = label;
-      const avgBadge = document.createElement('span');
-      const avgText = avg != null ? `${Math.round(avg)}%` : '—';
-      const avgColor = getAvgColor(avg);
-      avgBadge.style.cssText = `font-size:12px; font-weight:700; min-width:38px; text-align:right; flex-shrink:0; color:${avgColor};`;
-      avgBadge.title = avg != null ? `Class avg: ${avg.toFixed(1)}%` : 'No marks yet';
-      avgBadge.textContent = avgText;
       div.appendChild(cb);
       div.appendChild(lbl);
-      div.appendChild(avgBadge);
       bulkUpcomingList.appendChild(div);
     });
   }
