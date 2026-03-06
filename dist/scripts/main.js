@@ -5669,6 +5669,7 @@ function getPerformanceToneLine(coreLevel, context){
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
       needsSupport: omitMark,
+      gradeGroup: builderBasicGradeGroupSelector?.value || 'gr5_gr8',
       assignmentFacts,
       upcomingTests,
       allowedAssignmentLabels,

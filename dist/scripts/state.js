@@ -380,6 +380,7 @@ function computePrintColumnWidths(students){
   const builderBasicModePanel = document.getElementById('builderBasicModePanel');
   const builderAdvancedModePanel = document.getElementById('builderAdvancedModePanel');
   const builderBasicTermSelector = document.getElementById('builderBasicTermSelector');
+  const builderBasicGradeGroupSelector = document.getElementById('builderBasicGradeGroupSelector');
   const builderBasicStructureSelector = document.getElementById('builderBasicStructureSelector');
   const builderBasicBulkGenerateBtn = document.getElementById('builderBasicBulkGenerateBtn');
   const builderBasicStatusEl = document.getElementById('builderBasicStatus');
@@ -435,6 +436,7 @@ function computePrintColumnWidths(students){
     builderBasicModePanel,
     builderAdvancedModePanel,
     builderBasicTermSelector,
+    builderBasicGradeGroupSelector,
     builderBasicBulkGenerateBtn,
     builderBasicStatusEl,
     builderBasicResultsEl

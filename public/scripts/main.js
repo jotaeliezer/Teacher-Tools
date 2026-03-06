@@ -6067,20 +6067,48 @@ function getPerformanceToneLine(coreLevel, context){
     const contextStore = getBasicCommentsStoreForContext(id, true);
     builderBasicResultsEl.innerHTML = '';
     const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const classGradeAvg = gradeCol ? getColumnClassAverage(gradeCol) : null;
     indices.forEach((rowIndex) => {
+      const row = rows[rowIndex];
       const name = getRowLabel(rowIndex);
       // Use the same mark-high/mid/low classification as the student dropdown
-      const markMeta = gradeCol ? deriveMarkMeta(rows[rowIndex]?.[gradeCol], gradeCol) : null;
+      const markMeta = gradeCol ? deriveMarkMeta(row?.[gradeCol], gradeCol) : null;
       const markClass = markMeta ? markMeta.className : 'mark-low';
       const entry = contextStore[String(rowIndex)] || {};
+      // Compute flags for highlighting
+      const performanceCode = getRowPerformanceLevel(row);
+      const studentGradeVal = markMeta?.value ?? null;
+      const isMarkOmitted = performanceCode === 'needs_support'
+        && studentGradeVal != null
+        && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
+      const pronounGuess = getBasicPronounGuess(row, rowIndex);
+      const isNeutralPronoun = pronounGuess === 'they';
       const card = document.createElement('div');
       card.className = 'basic-comment-card';
+      if (isMarkOmitted || isNeutralPronoun) card.classList.add('basic-comment-card--flagged');
       const header = document.createElement('div');
       header.className = 'basic-comment-card-header';
       const title = document.createElement('strong');
       title.className = 'basic-comment-name';
       title.classList.add(markClass);
       title.textContent = name;
+      // Flag badges
+      const flagWrap = document.createElement('div');
+      flagWrap.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center;';
+      if (isMarkOmitted){
+        const b = document.createElement('span');
+        b.className = 'basic-flag-badge basic-flag-badge--nomark';
+        b.textContent = '⚠ Mark omitted';
+        b.title = 'Mark was omitted because this student is significantly below the class average. Review comment.';
+        flagWrap.appendChild(b);
+      }
+      if (isNeutralPronoun){
+        const b = document.createElement('span');
+        b.className = 'basic-flag-badge basic-flag-badge--pronoun';
+        b.textContent = '👤 They/Them';
+        b.title = 'Pronoun could not be determined — comment uses they/them. Verify and edit if needed.';
+        flagWrap.appendChild(b);
+      }
       const actions = document.createElement('div');
       actions.className = 'basic-comment-card-actions';
       const copyBtn = document.createElement('button');
@@ -6112,6 +6140,7 @@ function getPerformanceToneLine(coreLevel, context){
         actions.appendChild(retryBtn);
       }
       header.appendChild(title);
+      if (flagWrap.children.length) header.appendChild(flagWrap);
       header.appendChild(actions);
       card.appendChild(header);
       if (entry.generating){
