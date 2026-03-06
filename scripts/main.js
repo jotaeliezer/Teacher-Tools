@@ -5694,10 +5694,18 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkAssignList(){
     if (!bulkAssignList) return;
-    const cols = getBulkColumnOptions();
+    // Same filter as buildBuilderAssignmentsList in the advanced generator
+    const cols = allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      return columnHasData(col);
+    });
     bulkAssignList.innerHTML = '';
     if (!cols.length){
-      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found in the loaded data.</p>';
+      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found. Make sure data is loaded.</p>';
       return;
     }
     cols.forEach(col => {
@@ -5705,10 +5713,11 @@ function getPerformanceToneLine(coreLevel, context){
       const hasMark = columnHasMark(col);
       const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; background:var(--surface-alt);';
+      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
+      cb.value = col;
       cb.dataset.col = col;
       cb.style.cssText = 'width:15px; height:15px; flex-shrink:0; cursor:pointer;';
       if (bulkSelectedAssignCols.includes(col)) cb.checked = true;
@@ -5721,19 +5730,21 @@ function getPerformanceToneLine(coreLevel, context){
         }
         if (bulkAssignWarning) bulkAssignWarning.style.display = 'none';
       });
-      const lbl = document.createElement('label');
-      lbl.htmlFor = safeId;
-      lbl.style.cssText = 'font-size:13px; cursor:pointer; flex:1; line-height:1.3;';
+      div.addEventListener('click', (e) => {
+        if (e.target === cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
       lbl.textContent = label;
+      const markBadge = document.createElement('span');
+      markBadge.style.cssText = `font-size:12px; font-weight:600; min-width:30px; text-align:right; flex-shrink:0; color:${hasMark ? '#1a7f4b' : '#bbb'};`;
+      markBadge.title = hasMark ? 'Has mark data' : 'No marks yet';
+      markBadge.textContent = hasMark ? '✓' : '—';
       div.appendChild(cb);
       div.appendChild(lbl);
-      if (hasMark){
-        const badge = document.createElement('span');
-        badge.title = 'Has mark data';
-        badge.textContent = '✓';
-        badge.style.cssText = 'font-size:11px; color:#1a7f4b; font-weight:700; flex-shrink:0;';
-        div.appendChild(badge);
-      }
+      div.appendChild(markBadge);
       bulkAssignList.appendChild(div);
     });
   }
@@ -5749,10 +5760,21 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkUpcomingList(){
     if (!bulkUpcomingList) return;
-    const cols = getBulkColumnOptions();
+    // Same logic as buildBuilderFutureAssignmentsList — columns where at least one student has no data yet
+    const cols = allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      return rows.some(row => {
+        const val = row?.[col];
+        return val == null || String(val).trim() === '';
+      });
+    });
     bulkUpcomingList.innerHTML = '';
     if (!cols.length){
-      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found in the loaded data.</p>';
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No upcoming columns found. All columns appear to have marks for every student.</p>';
       return;
     }
     cols.forEach(col => {
@@ -5760,26 +5782,28 @@ function getPerformanceToneLine(coreLevel, context){
       const hasMark = columnHasMark(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; background:var(--surface-alt);';
+      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
+      cb.value = col;
       cb.dataset.col = col;
       cb.style.cssText = 'width:15px; height:15px; flex-shrink:0; cursor:pointer;';
       if (bulkSelectedUpcomingCols.includes(col)) cb.checked = true;
-      const lbl = document.createElement('label');
-      lbl.htmlFor = safeId;
-      lbl.style.cssText = 'font-size:13px; cursor:pointer; flex:1; line-height:1.3;';
+      div.addEventListener('click', (e) => {
+        if (e.target === cb) return;
+        cb.checked = !cb.checked;
+      });
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
       lbl.textContent = label;
+      const markBadge = document.createElement('span');
+      markBadge.style.cssText = `font-size:12px; font-weight:600; min-width:30px; text-align:right; flex-shrink:0; color:${hasMark ? '#1a7f4b' : '#bbb'};`;
+      markBadge.title = hasMark ? 'Has some marks' : 'No marks yet (fully upcoming)';
+      markBadge.textContent = hasMark ? '✓' : '—';
       div.appendChild(cb);
       div.appendChild(lbl);
-      if (hasMark){
-        const badge = document.createElement('span');
-        badge.title = 'Has mark data';
-        badge.textContent = '✓';
-        badge.style.cssText = 'font-size:11px; color:#1a7f4b; font-weight:700; flex-shrink:0;';
-        div.appendChild(badge);
-      }
+      div.appendChild(markBadge);
       bulkUpcomingList.appendChild(div);
     });
   }
@@ -6110,13 +6134,23 @@ function getPerformanceToneLine(coreLevel, context){
   function editBasicCommentInAdvanced(rowIndex, commentText){
     // Switch to advanced mode
     setBuilderGeneratorMode('advanced');
-    // Select the correct student
+    // Select the correct student (this rebuilds both assignment lists)
     prefillBuilderFromRow(rowIndex);
     // Place the comment in the AI output box
     setBuilderAiCreatedOutputText(String(commentText || ''), 'instant');
     // Enter refine mode
     builderRefineBasicDraft = String(commentText || '');
     showRefineBanner();
+    // Pre-check the assignments that were used during bulk generation
+    if (bulkSelectedAssignCols.length){
+      const assignCbs = document.querySelectorAll('#builderAssignmentsList input[type="checkbox"]');
+      assignCbs.forEach(cb => { cb.checked = bulkSelectedAssignCols.includes(cb.value); });
+    }
+    // Pre-check the upcoming tests that were selected during bulk generation
+    if (bulkSelectedUpcomingCols.length){
+      const futureCbs = document.querySelectorAll('#builderFutureAssignmentsList input[type="checkbox"]');
+      futureCbs.forEach(cb => { cb.checked = bulkSelectedUpcomingCols.includes(cb.value); });
+    }
     // Scroll the advanced panel into view
     if (builderAdvancedModePanel){
       builderAdvancedModePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
