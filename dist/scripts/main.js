@@ -5970,6 +5970,28 @@ function getPerformanceToneLine(coreLevel, context){
   function getBasicRunStatus(completed, total, successCount){
     return `${completed}/${total} generated • ${successCount} success`;
   }
+  function getBuilderBasicSelectedTermCode(){
+    const value = String(builderBasicTermSelector?.value || '').trim().toUpperCase();
+    if (value === 'TERM 2' || value === 'T2') return 'T2';
+    if (value === 'TERM 3' || value === 'T3') return 'T3';
+    if (value === 'TERM 1' || value === 'T1') return 'T1';
+    return '';
+  }
+  function getBulkAssignmentColumnsForSelectedTerm(){
+    const selectedTerm = getBuilderBasicSelectedTermCode();
+    return allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      if (!columnHasData(col)) return false;
+      const termData = detectLessonTerm(col);
+      if (!termData) return false;
+      if (selectedTerm && termData.term !== selectedTerm) return false;
+      return true;
+    });
+  }
 
   // ── Bulk Assignment Selection Modal ──────────────────────────────────────
   function showBulkAssignModal(){
@@ -5992,17 +6014,13 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkAssignList(){
     if (!bulkAssignList) return;
-    const cols = allColumns.filter(col => {
-      if (!col) return false;
-      if (col === END_OF_LINE_COL) return false;
-      if (col === studentNameColumn) return false;
-      if (col === firstNameKey) return false;
-      if (col === lastNameKey) return false;
-      return columnHasData(col);
-    });
+    const cols = getBulkAssignmentColumnsForSelectedTerm();
+    bulkSelectedAssignCols = bulkSelectedAssignCols.filter(col => cols.includes(col));
     bulkAssignList.innerHTML = '';
     if (!cols.length){
-      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found. Make sure data is loaded.</p>';
+      const selectedTerm = getBuilderBasicSelectedTermCode();
+      const termLabel = selectedTerm ? getTermLabel(selectedTerm) : 'the selected term';
+      bulkAssignList.innerHTML = `<p class="muted" style="font-size:13px; margin:0;">No assignments or tests matched ${termLabel}. Use lesson-style column names such as L1-L13, L14-L26, or L27-L39.</p>`;
       return;
     }
     cols.forEach(col => {
