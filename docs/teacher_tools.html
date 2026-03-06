@@ -213,50 +213,6 @@
       </footer>
     </div>
   </div>
-<div id="bulkAssignModal" class="modal-backdrop" style="display:none;">
-  <div class="modal" style="max-width:580px;">
-    <div id="bulkAssignStep1">
-      <header>
-        <h3>Choose Assignments to Include</h3>
-        <span class="spacer"></span>
-      </header>
-      <div class="content" style="padding:16px; display:flex; gap:20px; align-items:flex-start; min-height:240px;">
-        <div style="flex:0 0 180px;">
-          <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select <strong>up to 3</strong> assignments. Each comment references 2 of your selections — framed as a strength if above 75%, or constructive feedback if 75% or below.</p>
-          <p id="bulkAssignWarning" style="display:none; margin:0; font-size:12px; color:var(--magenta); font-weight:600;">Maximum 3 — deselect one first.</p>
-        </div>
-        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
-          <input type="text" id="bulkAssignSearch" placeholder="Search assignments…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
-          <div id="bulkAssignList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
-        </div>
-      </div>
-      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
-        <button class="btn" id="bulkAssignCancelBtn">Cancel</button>
-        <button class="btn primary" id="bulkAssignStep1Btn">Continue →</button>
-      </footer>
-    </div>
-    <div id="bulkAssignStep2" style="display:none;">
-      <header>
-        <h3>Choose Upcoming Tests</h3>
-        <span class="spacer"></span>
-      </header>
-      <div class="content" style="padding:16px; display:flex; gap:20px; align-items:flex-start; min-height:240px;">
-        <div style="flex:0 0 180px;">
-          <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select <strong>one</strong> upcoming test or assignment students should look forward to. It will be mentioned with an encouraging, forward-looking tone.</p>
-          <p class="muted" style="margin:0; font-size:12px; font-style:italic;">Skip if none apply.</p>
-        </div>
-        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
-          <input type="text" id="bulkUpcomingSearch" placeholder="Search tests…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
-          <div id="bulkUpcomingList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
-        </div>
-      </div>
-      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
-        <button class="btn" id="bulkAssignBackBtn">← Back</button>
-        <button class="btn primary" id="bulkAssignGenerateBtn">Generate Comments</button>
-      </footer>
-    </div>
-  </div>
-</div>
 <div id="markingAssistantSection" class="tab-section" style="display:none;">
   <div class="panel marking-assistant-panel">
     <header class="marking-assistant-header">
@@ -994,6 +950,51 @@
 </footer>
 <div id="printContainer"></div>
 <div id="phoneLogsPrintContainer" style="display:none;"></div>
+<!-- Bulk-generate modal — kept outside #appRoot so position:fixed works despite the zoom transform -->
+<div id="bulkAssignModal" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="max-width:580px;">
+    <div id="bulkAssignStep1">
+      <header>
+        <h3>Choose Assignments to Include</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="padding:16px; display:flex; gap:20px; align-items:flex-start; min-height:240px;">
+        <div style="flex:0 0 180px;">
+          <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select <strong>up to 3</strong> assignments. Each comment references 2 of your selections — framed as a strength if above 75%, or constructive feedback if 75% or below.</p>
+          <p id="bulkAssignWarning" style="display:none; margin:0; font-size:12px; color:var(--magenta); font-weight:600;">Maximum 3 — deselect one first.</p>
+        </div>
+        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
+          <input type="text" id="bulkAssignSearch" placeholder="Search assignments…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
+          <div id="bulkAssignList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
+        </div>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
+        <button class="btn" id="bulkAssignCancelBtn">Cancel</button>
+        <button class="btn primary" id="bulkAssignStep1Btn">Continue →</button>
+      </footer>
+    </div>
+    <div id="bulkAssignStep2" style="display:none;">
+      <header>
+        <h3>Choose Upcoming Tests</h3>
+        <span class="spacer"></span>
+      </header>
+      <div class="content" style="padding:16px; display:flex; gap:20px; align-items:flex-start; min-height:240px;">
+        <div style="flex:0 0 180px;">
+          <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select <strong>one</strong> upcoming test or assignment students should look forward to. It will be mentioned with an encouraging, forward-looking tone.</p>
+          <p class="muted" style="margin:0; font-size:12px; font-style:italic;">Skip if none apply.</p>
+        </div>
+        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
+          <input type="text" id="bulkUpcomingSearch" placeholder="Search tests…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
+          <div id="bulkUpcomingList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
+        </div>
+      </div>
+      <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
+        <button class="btn" id="bulkAssignBackBtn">← Back</button>
+        <button class="btn primary" id="bulkAssignGenerateBtn">Generate Comments</button>
+      </footer>
+    </div>
+  </div>
+</div>
 <script src="scripts/state.js"></script>
 <script src="scripts/main.js"></script>
 <script src="scripts/comments.js"></script>
