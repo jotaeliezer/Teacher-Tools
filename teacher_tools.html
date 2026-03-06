@@ -225,8 +225,9 @@
           <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select <strong>up to 3</strong> assignments. Each comment references 2 of your selections — framed as a strength if above 75%, or constructive feedback if 75% or below.</p>
           <p id="bulkAssignWarning" style="display:none; margin:0; font-size:12px; color:var(--magenta); font-weight:600;">Maximum 3 — deselect one first.</p>
         </div>
-        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column;">
-          <div id="bulkAssignList" style="flex:1; max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:5px;"></div>
+        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
+          <input type="text" id="bulkAssignSearch" placeholder="Search assignments…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
+          <div id="bulkAssignList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
         </div>
       </div>
       <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">
@@ -244,8 +245,9 @@
           <p class="muted" style="margin:0 0 10px 0; font-size:13px;">Select tests or assignments students should look forward to. These will be mentioned with an encouraging, forward-looking tone.</p>
           <p class="muted" style="margin:0; font-size:12px; font-style:italic;">Skip if none apply.</p>
         </div>
-        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column;">
-          <div id="bulkUpcomingList" style="flex:1; max-height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:5px;"></div>
+        <div style="flex:1; border-left:1px solid var(--border,#e6e6e6); padding-left:16px; display:flex; flex-direction:column; gap:6px;">
+          <input type="text" id="bulkUpcomingSearch" placeholder="Search tests…" style="padding:5px 8px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box;" />
+          <div id="bulkUpcomingList" style="flex:1; max-height:260px; overflow-y:auto; display:flex; flex-direction:column;"></div>
         </div>
       </div>
       <footer style="display:flex; justify-content:flex-end; gap:8px; padding:12px 16px;">

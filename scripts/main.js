@@ -596,6 +596,24 @@
   if (bulkAssignGenerateBtn){
     bulkAssignGenerateBtn.addEventListener('click', handleBulkAssignGenerate);
   }
+  if (bulkAssignSearch){
+    bulkAssignSearch.addEventListener('input', () => {
+      const q = bulkAssignSearch.value.trim().toLowerCase();
+      if (!bulkAssignList) return;
+      Array.from(bulkAssignList.children).forEach(div => {
+        div.style.display = !q || (div.dataset.label || '').includes(q) ? '' : 'none';
+      });
+    });
+  }
+  if (bulkUpcomingSearch){
+    bulkUpcomingSearch.addEventListener('input', () => {
+      const q = bulkUpcomingSearch.value.trim().toLowerCase();
+      if (!bulkUpcomingList) return;
+      Array.from(bulkUpcomingList.children).forEach(div => {
+        div.style.display = !q || (div.dataset.label || '').includes(q) ? '' : 'none';
+      });
+    });
+  }
   if (builderBasicSaveAllBtn){
     builderBasicSaveAllBtn.addEventListener('click', saveAllBasicComments);
   }
@@ -5685,6 +5703,7 @@ function getPerformanceToneLine(coreLevel, context){
       updateBasicGeneratorStatus('Select a term first.');
       return;
     }
+    if (bulkAssignSearch) bulkAssignSearch.value = '';
     populateBulkAssignList();
     if (bulkAssignStep1) bulkAssignStep1.style.display = '';
     if (bulkAssignStep2) bulkAssignStep2.style.display = 'none';
@@ -5694,7 +5713,6 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkAssignList(){
     if (!bulkAssignList) return;
-    // Same filter as buildBuilderAssignmentsList in the advanced generator
     const cols = allColumns.filter(col => {
       if (!col) return false;
       if (col === END_OF_LINE_COL) return false;
@@ -5710,10 +5728,11 @@ function getPerformanceToneLine(coreLevel, context){
     }
     cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
-      const hasMark = columnHasMark(col);
+      const avg = getColumnClassAverage(col);
       const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
       div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
+      div.dataset.label = label.toLowerCase();
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
@@ -5738,13 +5757,15 @@ function getPerformanceToneLine(coreLevel, context){
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
       lbl.textContent = label;
-      const markBadge = document.createElement('span');
-      markBadge.style.cssText = `font-size:12px; font-weight:600; min-width:30px; text-align:right; flex-shrink:0; color:${hasMark ? '#1a7f4b' : '#bbb'};`;
-      markBadge.title = hasMark ? 'Has mark data' : 'No marks yet';
-      markBadge.textContent = hasMark ? '✓' : '—';
+      const avgBadge = document.createElement('span');
+      const avgText = avg != null ? `${Math.round(avg)}%` : '—';
+      const avgColor = getAvgColor(avg);
+      avgBadge.style.cssText = `font-size:12px; font-weight:700; min-width:38px; text-align:right; flex-shrink:0; color:${avgColor};`;
+      avgBadge.title = avg != null ? `Class avg: ${avg.toFixed(1)}%` : 'No marks yet';
+      avgBadge.textContent = avgText;
       div.appendChild(cb);
       div.appendChild(lbl);
-      div.appendChild(markBadge);
+      div.appendChild(avgBadge);
       bulkAssignList.appendChild(div);
     });
   }
@@ -5753,6 +5774,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (!bulkAssignList) return;
     const checked = Array.from(bulkAssignList.querySelectorAll('input[type="checkbox"]:checked'));
     bulkSelectedAssignCols = checked.map(cb => cb.dataset.col).filter(Boolean);
+    if (bulkUpcomingSearch) bulkUpcomingSearch.value = '';
     populateBulkUpcomingList();
     if (bulkAssignStep1) bulkAssignStep1.style.display = 'none';
     if (bulkAssignStep2) bulkAssignStep2.style.display = '';
@@ -5760,7 +5782,7 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkUpcomingList(){
     if (!bulkUpcomingList) return;
-    // Same logic as buildBuilderFutureAssignmentsList — columns where at least one student has no data yet
+    // Columns where at least one student has no data yet (same logic as the Advanced Generator's future panel)
     const cols = allColumns.filter(col => {
       if (!col) return false;
       if (col === END_OF_LINE_COL) return false;
@@ -5779,10 +5801,11 @@ function getPerformanceToneLine(coreLevel, context){
     }
     cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
-      const hasMark = columnHasMark(col);
+      const avg = getColumnClassAverage(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
       div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
+      div.dataset.label = label.toLowerCase();
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
@@ -5797,13 +5820,15 @@ function getPerformanceToneLine(coreLevel, context){
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
       lbl.textContent = label;
-      const markBadge = document.createElement('span');
-      markBadge.style.cssText = `font-size:12px; font-weight:600; min-width:30px; text-align:right; flex-shrink:0; color:${hasMark ? '#1a7f4b' : '#bbb'};`;
-      markBadge.title = hasMark ? 'Has some marks' : 'No marks yet (fully upcoming)';
-      markBadge.textContent = hasMark ? '✓' : '—';
+      const avgBadge = document.createElement('span');
+      const avgText = avg != null ? `${Math.round(avg)}%` : '—';
+      const avgColor = getAvgColor(avg);
+      avgBadge.style.cssText = `font-size:12px; font-weight:700; min-width:38px; text-align:right; flex-shrink:0; color:${avgColor};`;
+      avgBadge.title = avg != null ? `Class avg: ${avg.toFixed(1)}%` : 'No marks yet';
+      avgBadge.textContent = avgText;
       div.appendChild(cb);
       div.appendChild(lbl);
-      div.appendChild(markBadge);
+      div.appendChild(avgBadge);
       bulkUpcomingList.appendChild(div);
     });
   }
@@ -5841,6 +5866,43 @@ function getPerformanceToneLine(coreLevel, context){
   function columnHasMark(col){
     if (!col || !rows.length) return false;
     return rows.some(row => deriveMarkMeta(row?.[col], col) != null);
+  }
+
+  // Returns the class average (0–100) for a column, or null if no marks found
+  function getColumnClassAverage(col){
+    if (!col || !rows.length) return null;
+    const values = [];
+    rows.forEach(row => {
+      const meta = deriveMarkMeta(row?.[col], col);
+      if (meta && Number.isFinite(meta.value)) values.push(meta.value);
+    });
+    if (!values.length) return null;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }
+
+  // Returns a CSS colour for an average percentage
+  function getAvgColor(avg){
+    if (!Number.isFinite(avg)) return '#bbb';
+    if (avg >= 80) return '#1a7f4b';
+    if (avg >= 70) return '#b07800';
+    return 'var(--magenta, #c0186a)';
+  }
+
+  function playCompletionPing(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1047, ctx.currentTime);
+      gain.gain.setValueAtTime(0.22, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.28);
+      osc.onended = () => ctx.close();
+    }catch(e){ /* Web Audio API unavailable */ }
   }
 
   function computeBulkAssignmentFacts(row){
@@ -5913,6 +5975,7 @@ function getPerformanceToneLine(coreLevel, context){
             error: ''
           };
           successCount += 1;
+          playCompletionPing();
         }catch(err){
           failureCount += 1;
           contextStore[key] = {
