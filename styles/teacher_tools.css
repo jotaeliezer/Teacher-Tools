@@ -1795,12 +1795,9 @@
     }
     .basic-generator-list{
       margin-top:8px;
-      max-height:66vh;
-      overflow:auto;
       display:grid;
       grid-template-columns:repeat(4, minmax(0, 1fr));
       gap:10px;
-      padding-right:4px;
     }
     .basic-comment-card{
       border:1px solid #e3e6ed;
