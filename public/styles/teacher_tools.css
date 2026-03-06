@@ -1891,6 +1891,12 @@
       gap:6px;
       flex-wrap:wrap;
     }
+    .basic-comment-toggle{
+      min-width:36px;
+      padding:0 10px;
+      font-size:16px;
+      line-height:1;
+    }
     .basic-comment-name,
     .phone-log-name.mark-high,
     .phone-log-name.mark-mid,
@@ -1926,14 +1932,59 @@
     }
     .basic-comment-textarea{
       width:100%;
-      min-height:150px;
-      resize:vertical;
+      min-height:112px;
+      resize:none;
+      overflow-y:hidden;
       font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
       line-height:1.45;
       padding:10px;
       border:1px solid #d7dae3;
       border-radius:8px;
       box-sizing:border-box;
+      transition:height 0.18s ease;
+    }
+    .basic-comment-textarea-wrap{
+      position:relative;
+    }
+    .basic-comment-textarea.is-animating{
+      color:transparent;
+      caret-color:transparent;
+    }
+    .basic-comment-textarea-overlay{
+      position:absolute;
+      inset:0;
+      padding:10px;
+      border:1px solid transparent;
+      border-radius:8px;
+      box-sizing:border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size:14px;
+      line-height:1.45;
+      white-space:pre-wrap;
+      word-break:break-word;
+      overflow:hidden;
+      pointer-events:none;
+      color:#111827;
+      background:transparent;
+    }
+    .basic-comment-textarea-overlay.is-visible{
+      display:block;
+    }
+    .basic-comment-char{
+      display:inline-block;
+      opacity:0;
+      transform:translateY(3px);
+      animation:basicCharFadeIn 140ms ease forwards;
+    }
+    @keyframes basicCharFadeIn{
+      from{
+        opacity:0;
+        transform:translateY(3px);
+      }
+      to{
+        opacity:1;
+        transform:translateY(0);
+      }
     }
     .basic-comment-error{
       font-size:12px;
@@ -2398,6 +2449,9 @@
       background:#0f1522;
       color:#f4f6ff;
       border-color:#2c3240;
+    }
+    body.dark-mode .basic-comment-textarea-overlay{
+      color:#f4f6ff;
     }
     body.dark-mode .basic-comment-error{
       color:#ff8a80;

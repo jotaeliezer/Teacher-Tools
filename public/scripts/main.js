@@ -1,6 +1,8 @@
 // ==== Constants needed before any init code ====
   const BASIC_STRUCTURE_DEFAULT = 'strengths_feedback_blocks';
   const BASIC_STRUCTURE_OPTIONS = new Set(['strengths_feedback_blocks', 'sandwich_paragraph', 'bullet_points']);
+  const BASIC_SORT_DEFAULT = 'grade_desc';
+  const BASIC_SORT_OPTIONS = new Set(['grade_desc', 'first_name', 'last_name']);
 
 // ==== Init from stored settings ====
   const initialSettings = loadSettings();
@@ -20,6 +22,7 @@
   builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
   const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
   const basicSavedStructure = String(initialSettings.builderBasicStructure || '').trim().toLowerCase();
+  const basicSavedSort = String(initialSettings.builderBasicSort || BASIC_SORT_DEFAULT).trim().toLowerCase();
   if (initialSettings.commentOrderMode){
     commentOrderMode = normalizeBasicStructure(String(initialSettings.commentOrderMode));
   }
@@ -60,6 +63,7 @@
   let builderOutputCrossfadeToken = 0;
   let builderGeneratorMode = 'basic';
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
+  let basicCommentAnimationQueueByContext = {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;
   // Bulk assignment modal selections — set when the teacher confirms the two-step modal
@@ -578,6 +582,14 @@
       }
     });
   }
+  if (builderBasicSortSelector){
+    builderBasicSortSelector.addEventListener('change', () => {
+      const mode = normalizeBasicSort(builderBasicSortSelector.value);
+      builderBasicSortSelector.value = mode;
+      saveSettings({ builderBasicSort: mode });
+      renderBasicGeneratedComments(activeContext?.id || null);
+    });
+  }
   if (builderBasicBulkGenerateBtn){
     builderBasicBulkGenerateBtn.addEventListener('click', showBulkAssignModal);
   }
@@ -636,6 +648,7 @@
         text: textarea.value || '',
         updatedAt: Date.now()
       };
+      syncBasicCommentTextareaState(textarea, !!contextStore[String(rowIndex)]?.expanded);
       persistBasicGeneratedComments();
     });
     builderBasicResultsEl.addEventListener('click', (e) => {
@@ -649,6 +662,28 @@
       if (!text) return;
       copyTextToClipboard(text);
       status('Basic comment copied.');
+    });
+    builderBasicResultsEl.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('button[data-basic-toggle-expand]');
+      if (!toggleBtn || !activeContext) return;
+      const rowIndex = Number(toggleBtn.dataset.basicToggleExpand);
+      if (Number.isNaN(rowIndex)) return;
+      const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+      const entry = contextStore[String(rowIndex)] || {};
+      const nextExpanded = !entry.expanded;
+      contextStore[String(rowIndex)] = {
+        ...entry,
+        expanded: nextExpanded
+      };
+      persistBasicGeneratedComments();
+      const card = toggleBtn.closest('.basic-comment-card');
+      const textarea = card?.querySelector('textarea[data-basic-row-index]');
+      if (textarea){
+        syncBasicCommentTextareaState(textarea, nextExpanded);
+      }
+      toggleBtn.textContent = nextExpanded ? '^' : 'v';
+      toggleBtn.title = nextExpanded ? 'Collapse comment' : 'Expand comment';
+      toggleBtn.setAttribute('aria-label', nextExpanded ? 'Collapse comment' : 'Expand comment');
     });
     builderBasicResultsEl.addEventListener('click', (e) => {
       const pronounToastBtn = e.target.closest('button[data-basic-pronoun-toast]');
@@ -796,6 +831,9 @@ function setupSelectAnimations(){
   if (builderBasicStructureSelector){
     const mode = getBasicStructureMode();
     builderBasicStructureSelector.value = mode;
+  }
+  if (builderBasicSortSelector){
+    builderBasicSortSelector.value = getBasicSortMode();
   }
   updateGradeGroupControls();
   if (builderCommentOrderToggle){
@@ -5513,8 +5551,15 @@ function getPerformanceToneLine(coreLevel, context){
     const key = String(value || '').trim().toLowerCase();
     return BASIC_STRUCTURE_OPTIONS.has(key) ? key : BASIC_STRUCTURE_DEFAULT;
   }
+  function normalizeBasicSort(value){
+    const key = String(value || '').trim().toLowerCase();
+    return BASIC_SORT_OPTIONS.has(key) ? key : BASIC_SORT_DEFAULT;
+  }
   function getBasicStructureMode(){
     return normalizeBasicStructure(builderBasicStructureSelector?.value || basicSavedStructure || BASIC_STRUCTURE_DEFAULT);
+  }
+  function getBasicSortMode(){
+    return normalizeBasicSort(builderBasicSortSelector?.value || basicSavedSort || BASIC_SORT_DEFAULT);
   }
   function getBasicStructureConfig(structure){
     const mode = normalizeBasicStructure(structure);
@@ -5628,6 +5673,76 @@ function getPerformanceToneLine(coreLevel, context){
       toastEl.classList.toggle('is-open', keepOpen);
       toastEl.setAttribute('aria-expanded', keepOpen ? 'true' : 'false');
     });
+  }
+  function syncBasicCommentTextareaState(textarea, expanded){
+    if (!textarea) return;
+    const isExpanded = !!expanded;
+    textarea.classList.toggle('is-expanded', isExpanded);
+    textarea.classList.toggle('is-collapsed', !isExpanded);
+    textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
+    const currentHeight = Math.max(textarea.offsetHeight || 112, 112);
+    const targetHeight = isExpanded ? Math.max(textarea.scrollHeight, 112) : 112;
+    textarea.style.height = `${currentHeight}px`;
+    requestAnimationFrame(() => {
+      textarea.style.height = `${targetHeight}px`;
+    });
+  }
+  function queueBasicCommentAnimation(contextId, rowIndex, text){
+    if (!contextId) return;
+    const contextKey = String(contextId);
+    if (!basicCommentAnimationQueueByContext[contextKey]){
+      basicCommentAnimationQueueByContext[contextKey] = {};
+    }
+    basicCommentAnimationQueueByContext[contextKey][String(rowIndex)] = String(text || '');
+  }
+  function consumeBasicCommentAnimation(contextId, rowIndex){
+    const contextKey = String(contextId || '');
+    const queue = basicCommentAnimationQueueByContext[contextKey];
+    if (!queue) return '';
+    const key = String(rowIndex);
+    const text = queue[key] || '';
+    delete queue[key];
+    if (!Object.keys(queue).length){
+      delete basicCommentAnimationQueueByContext[contextKey];
+    }
+    return text;
+  }
+  function animateBasicCommentTextarea(textarea, overlay, text, expanded){
+    if (!textarea || !overlay){
+      if (textarea) syncBasicCommentTextareaState(textarea, expanded);
+      return;
+    }
+    const source = String(text || '');
+    const token = String(Date.now() + Math.random());
+    overlay.dataset.animToken = token;
+    overlay.innerHTML = '';
+    overlay.hidden = false;
+    overlay.classList.add('is-visible');
+    textarea.classList.add('is-animating');
+    textarea.value = source;
+    syncBasicCommentTextareaState(textarea, expanded);
+    let index = 0;
+    const charsPerStep = 3;
+    const stepDelay = 10;
+    const step = () => {
+      if (overlay.dataset.animToken !== token) return;
+      const end = Math.min(index + charsPerStep, source.length);
+      for (; index < end; index += 1){
+        const span = document.createElement('span');
+        span.className = 'basic-comment-char';
+        span.textContent = source.charAt(index);
+        overlay.appendChild(span);
+      }
+      if (index < source.length){
+        setTimeout(step, stepDelay);
+        return;
+      }
+      textarea.classList.remove('is-animating');
+      overlay.classList.remove('is-visible');
+      overlay.hidden = true;
+      syncBasicCommentTextareaState(textarea, expanded);
+    };
+    step();
   }
   function updateBasicGeneratorStatus(message){
     if (!builderBasicStatusEl) return;
@@ -5878,6 +5993,45 @@ function getPerformanceToneLine(coreLevel, context){
     if (numeric >= high) return 'good';
     if (numeric >= mid) return 'mid';
     return 'needs_support';
+  }
+  function getBasicLastNameFromRow(row, rowIndex){
+    const explicit = lastNameKey ? String(row?.[lastNameKey] ?? '').trim() : '';
+    if (explicit) return explicit;
+    const fullName = String(getRowLabel(rowIndex) || '').trim();
+    if (!fullName) return '';
+    const parts = fullName.split(/\s+/).filter(Boolean);
+    return parts.length > 1 ? parts[parts.length - 1] : parts[0] || '';
+  }
+  function getBasicSortedCommentRowIndices(indices){
+    const list = Array.isArray(indices) ? [...indices] : [];
+    const mode = getBasicSortMode();
+    const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const compareText = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+    list.sort((aIdx, bIdx) => {
+      const aRow = rows[aIdx] || {};
+      const bRow = rows[bIdx] || {};
+      if (mode === 'first_name'){
+        const aFirst = toProperCase(getFirstNameFromRow(aRow, aIdx) || getRowLabel(aIdx));
+        const bFirst = toProperCase(getFirstNameFromRow(bRow, bIdx) || getRowLabel(bIdx));
+        const firstCmp = compareText(aFirst, bFirst);
+        if (firstCmp) return firstCmp;
+        return compareText(getRowLabel(aIdx), getRowLabel(bIdx));
+      }
+      if (mode === 'last_name'){
+        const aLast = toProperCase(getBasicLastNameFromRow(aRow, aIdx) || getRowLabel(aIdx));
+        const bLast = toProperCase(getBasicLastNameFromRow(bRow, bIdx) || getRowLabel(bIdx));
+        const lastCmp = compareText(aLast, bLast);
+        if (lastCmp) return lastCmp;
+        return compareText(getRowLabel(aIdx), getRowLabel(bIdx));
+      }
+      const aMeta = gradeColumn ? deriveMarkMeta(aRow?.[gradeColumn], gradeColumn) : null;
+      const bMeta = gradeColumn ? deriveMarkMeta(bRow?.[gradeColumn], gradeColumn) : null;
+      const aScore = Number.isFinite(aMeta?.value) ? aMeta.value : -Infinity;
+      const bScore = Number.isFinite(bMeta?.value) ? bMeta.value : -Infinity;
+      if (aScore !== bScore) return bScore - aScore;
+      return compareText(getRowLabel(aIdx), getRowLabel(bIdx));
+    });
+    return list;
   }
   const SUPPORT_TRAIT_HINTS = [
     'Shows effort despite struggles',
@@ -6229,7 +6383,7 @@ function getPerformanceToneLine(coreLevel, context){
     }
     const endpoint = ensureBuilderAiEndpoint();
     if (!endpoint) return;
-    const indices = getVisibleCommentRowIndices();
+    const indices = getBasicSortedCommentRowIndices(getVisibleCommentRowIndices());
     if (!indices.length){
       updateBasicGeneratorStatus('No students available in the current view.');
       return;
@@ -6277,6 +6431,7 @@ function getPerformanceToneLine(coreLevel, context){
             generating: false,
             error: ''
           };
+          queueBasicCommentAnimation(contextId, rowIndex, result.text);
           successCount += 1;
           playCompletionPing();
         }catch(err){
@@ -6343,6 +6498,7 @@ function getPerformanceToneLine(coreLevel, context){
         generating: false,
         error: ''
       };
+      queueBasicCommentAnimation(activeContext.id, rowIndex, result.text);
       updateBasicGeneratorStatus('Retry completed.');
     }catch(err){
       contextStore[rowKey] = {
@@ -6400,6 +6556,7 @@ function getPerformanceToneLine(coreLevel, context){
         generating: false,
         error: ''
       };
+      queueBasicCommentAnimation(activeContext.id, rowIndex, result.text);
       updateBasicGeneratorStatus(`Pronouns updated for ${studentName}.`);
     }catch(err){
       contextStore[rowKey] = {
@@ -6423,7 +6580,7 @@ function getPerformanceToneLine(coreLevel, context){
       builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No class data loaded.</div>';
       return;
     }
-    const indices = getVisibleCommentRowIndices();
+    const indices = getBasicSortedCommentRowIndices(getVisibleCommentRowIndices());
     if (!indices.length){
       builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No students in the current filtered view.</div>';
       return;
@@ -6510,6 +6667,16 @@ function getPerformanceToneLine(coreLevel, context){
       copyBtn.textContent = 'Copy';
       copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
       actions.appendChild(copyBtn);
+      const toggleBtn = document.createElement('button');
+      const isExpanded = !!entry.expanded;
+      toggleBtn.className = 'btn basic-comment-toggle';
+      toggleBtn.type = 'button';
+      toggleBtn.dataset.basicToggleExpand = String(rowIndex);
+      toggleBtn.textContent = isExpanded ? '^' : 'v';
+      toggleBtn.title = isExpanded ? 'Collapse comment' : 'Expand comment';
+      toggleBtn.setAttribute('aria-label', isExpanded ? 'Collapse comment' : 'Expand comment');
+      toggleBtn.disabled = entry.generating || !String(entry.text || '').trim();
+      actions.appendChild(toggleBtn);
       // Edit button — opens the comment in the advanced panel for refinement
       const editBtn = document.createElement('button');
       editBtn.className = 'btn';
@@ -6548,12 +6715,25 @@ function getPerformanceToneLine(coreLevel, context){
         spinnerWrap.appendChild(label);
         card.appendChild(spinnerWrap);
       } else {
+        const textWrap = document.createElement('div');
+        textWrap.className = 'basic-comment-textarea-wrap';
         const textarea = document.createElement('textarea');
         textarea.className = 'basic-comment-textarea';
         textarea.dataset.basicRowIndex = String(rowIndex);
+        textarea.dataset.basicExpanded = entry.expanded ? 'true' : 'false';
         textarea.value = String(entry.text || '');
         textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
-        card.appendChild(textarea);
+        const overlay = document.createElement('div');
+        overlay.className = 'basic-comment-textarea-overlay';
+        overlay.hidden = true;
+        textWrap.appendChild(textarea);
+        textWrap.appendChild(overlay);
+        card.appendChild(textWrap);
+        syncBasicCommentTextareaState(textarea, !!entry.expanded);
+        const queuedAnimationText = consumeBasicCommentAnimation(id, rowIndex);
+        if (queuedAnimationText){
+          animateBasicCommentTextarea(textarea, overlay, queuedAnimationText, !!entry.expanded);
+        }
         if (entry.error){
           const error = document.createElement('div');
           error.className = 'basic-comment-error';
