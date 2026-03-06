@@ -5644,6 +5644,16 @@ function getPerformanceToneLine(coreLevel, context){
       ...assignmentFacts.map((item) => item.label),
       ...upcomingTests
     ].filter(Boolean);
+    // Determine if the student's grade is very low relative to class average
+    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const studentGradeVal = gradeCol ? (() => {
+      const meta = deriveMarkMeta(row?.[gradeCol], gradeCol);
+      return meta?.value ?? null;
+    })() : null;
+    const classGradeAvg = gradeCol ? getColumnClassAverage(gradeCol) : null;
+    const omitMark = performanceCode === 'needs_support'
+      && studentGradeVal != null
+      && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
     return {
       mode: 'basic_bulk',
       reviseMode: 'basic_bulk',
@@ -5655,9 +5665,10 @@ function getPerformanceToneLine(coreLevel, context){
       studentName,
       studentFirstName: firstName,
       pronounGuess: getBasicPronounGuess(row, rowIndex),
-      finalMark: getBasicFinalGrade(row),
+      finalMark: omitMark ? '' : getBasicFinalGrade(row),
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
+      needsSupport: omitMark,
       assignmentFacts,
       upcomingTests,
       allowedAssignmentLabels,
@@ -5809,9 +5820,17 @@ function getPerformanceToneLine(coreLevel, context){
       cb.dataset.col = col;
       cb.style.cssText = 'width:15px; height:15px; flex-shrink:0; cursor:pointer;';
       if (bulkSelectedUpcomingCols.includes(col)) cb.checked = true;
+      cb.addEventListener('change', () => {
+        if (cb.checked){
+          Array.from(bulkUpcomingList.querySelectorAll('input[type="checkbox"]')).forEach(other => {
+            if (other !== cb) other.checked = false;
+          });
+        }
+      });
       div.addEventListener('click', (e) => {
         if (e.target === cb) return;
         cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
       });
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
@@ -8434,7 +8453,7 @@ function varySentenceOpenings(text, studentName){
     const studentRow = rows[builderSelectedRowIndex] || null;
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
-    const finalGrade = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
+    const finalGradeText = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
     const assignments = getSelectedBuilderAssignments();
     const assignmentFacts = assignments.slice(0, 6).map(col => {
       const meta = studentRow ? deriveMarkMeta(studentRow[col], col) : null;
@@ -8443,15 +8462,23 @@ function varySentenceOpenings(text, studentName){
     const selectedComments = getBuilderSelectedComments();
     const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    // Check if mark should be omitted (very low compared to class average)
+    const performanceLevel = builderCorePerformanceSelect?.value || '';
+    const studentGradeVal = finalGradeMeta?.value ?? null;
+    const classGradeAvg = gradeColumn ? getColumnClassAverage(gradeColumn) : null;
+    const omitMark = performanceLevel === 'poor1' || performanceLevel === 'poor2'
+      ? (studentGradeVal != null && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10)))
+      : false;
     return {
       reviseMode: 'create',
       basicStructure: normalizeBasicStructure(commentOrderMode),
       studentName: builderStudentNameInput?.value.trim() || '',
       pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
       gradeGroup: builderGradeGroupSelect?.value || 'middle',
-      performanceLevel: builderCorePerformanceSelect?.value || '',
+      performanceLevel,
       termLabel: builderTermSelector?.value || '',
-      finalGrade,
+      finalGrade: omitMark ? '' : finalGradeText,
+      needsSupport: omitMark,
       assignmentFacts,
       futureAssignments,
       lateAssignments,
