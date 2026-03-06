@@ -5514,14 +5514,113 @@ function getPerformanceToneLine(coreLevel, context){
     }
     return '';
   }
+  // Returns a properly-cased first name (handles ALL-CAPS input like "JOHN" → "John")
+  function toProperCase(name){
+    if (!name) return '';
+    const s = String(name).trim();
+    if (!s) return '';
+    if (s === s.toUpperCase() && s.length > 1) return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    return s;
+  }
+
   function guessPronounFromFirstName(firstName){
     const name = String(firstName || '').trim().toLowerCase();
     if (!name) return 'they';
-    const femaleHints = new Set(['ana','anaya','anita','amelia','ava','emma','mia','sophia','olivia','isabella','aisha','sara','sehar','irene','annie']);
-    const maleHints = new Set(['adam','ethan','noah','liam','lucas','jacob','mikhail','aadit','zaydan','wesley','yash','kabir','kanav']);
-    if (femaleHints.has(name)) return 'she';
-    if (maleHints.has(name)) return 'he';
-    if (/[aeiy]$/.test(name) && !/(ay|ey)$/.test(name)) return 'she';
+
+    // ── Female names: English, Chinese (pinyin), Indian / South-Asian ──────
+    const female = new Set([
+      // English
+      'emma','olivia','ava','sophia','isabella','mia','charlotte','amelia','evelyn','abigail',
+      'emily','elizabeth','ella','avery','sofia','camila','aria','scarlett','victoria','madison',
+      'luna','grace','chloe','penelope','layla','riley','zoey','nora','lily','eleanor','hannah',
+      'lillian','aubrey','ellie','stella','natalia','zoe','leah','hazel','violet','aurora',
+      'savannah','audrey','brooklyn','bella','claire','skylar','lucy','anna','caroline','nova',
+      'emilia','kennedy','samantha','maya','willow','naomi','aaliyah','elena','sarah','ariana',
+      'allison','gabriella','alice','ruby','eva','serenity','autumn','hailey','gianna',
+      'valentina','isla','eliana','quinn','ivy','sadie','piper','lydia','alexa','josephine',
+      'julia','delilah','arianna','vivian','kaylee','sophie','madeline','peyton','rylee','clara',
+      'hadley','amber','anaya','anita','ana','irene','annie','aisha','sara','sehar','jessica',
+      'jennifer','ashley','amanda','megan','rachel','laura','natalie','kayla','brianna','taylor',
+      'jasmine','vanessa','caitlin','shannon','amanda','melissa','tiffany','brittany','amber',
+      'danielle','crystal','holly','katie','kelly','lindsey','miranda','nikki','paige','shelby',
+      'stacy','wendy','sandra','patricia','linda','barbara','margaret','carol','donna','diane',
+      // Chinese female (pinyin)
+      'mei','fang','jing','ling','xiu','hui','yan','ying','xin','yue','zhen','lan','rong',
+      'juan','min','fen','xia','na','qing','hua','shan','dan','rou','xue','ting','lian',
+      'qian','shu','tian','ping','yanyan','tingting','linlin','xiaoyan','xiaoling','xiaomei',
+      'yinyin','jingjing','huihui','shanshan','xinxin','yueyue','fangfang','rongrong',
+      // Indian / South-Asian female
+      'priya','ananya','divya','pooja','shreya','riya','neha','aditi','swati','deepa',
+      'kavya','nisha','sunita','meera','anjali','sita','lakshmi','puja','isha','diya',
+      'sonal','tanya','vanya','mansi','sakshi','smita','nita','rita','gita','rashmi',
+      'shweta','preeti','seema','reena','rina','reema','rekha','renu','usha','uma',
+      'vidya','vinita','varsha','vandana','veena','yamini','yashika','yashna','anika',
+      'aastha','anushka','avni','charu','devika','esha','gargi','harsha','hema','indu',
+      'jaya','jyoti','kajal','kamla','karuna','komal','kriti','lavanya','madhuri','manisha',
+      'megha','minal','mohini','namita','nandita','natasha','nidhi','nilam','paro','parvati',
+      'poonam','prachi','pragya','rachna','radhika','radha','rani','riddhi','ritu','ruhi',
+      'rupal','rupali','sandhya','sanjana','saraswati','savita','shanti','shilpa','shobha',
+      'shruti','simran','sonali','sonam','sudha','supriya','surbhi','sushma','swapna',
+      'tanvi','taruna','trisha','trishna','urvashi','vasudha','vibha','vimala','vrinda',
+      'anam','fatima','zainab','maryam','nadia','hana','sara','layla','yasmin','sana',
+      'bushra','farah','hira','iram','noor','rabia','rima','sahar','samia','sobia','sofia',
+    ]);
+
+    // ── Male names: English, Chinese (pinyin), Indian / South-Asian ────────
+    const male = new Set([
+      // English
+      'liam','noah','william','james','oliver','benjamin','elijah','lucas','mason','logan',
+      'alexander','ethan','jacob','michael','daniel','henry','jackson','sebastian','aiden','matthew',
+      'samuel','david','joseph','carter','owen','wyatt','john','jack','luke','jayden',
+      'dylan','grayson','levi','isaac','gabriel','julian','mateo','anthony','jaxon','lincoln',
+      'joshua','christopher','andrew','theodore','caleb','ryan','asher','nathaniel','thomas','leo',
+      'christian','jonathan','ezra','charles','colton','cameron','eli','hudson','aaron','landon',
+      'adam','dominic','austin','evan','parker','tyler','blake','chase','garrett','grant',
+      'ian','kyle','nolan','seth','tanner','trevor','troy','victor','wade','zach','zachary',
+      'mikhail','zaydan','wesley','kanav','kabir','aadit','hunter','hayden','cole','jordan',
+      'kevin','brian','jason','justin','brandon','sean','kyle','derek','eric','greg',
+      'mark','paul','scott','steven','christopher','robert','richard','edward','george',
+      // Chinese male (pinyin)
+      'wei','jun','hao','ming','jie','tao','bin','rui','long','peng',
+      'gang','feng','bo','yi','dong','kang','qiang','chao','jian','kai',
+      'liang','xiang','yang','yu','zheng','jiahao','jiaming','junhao','junming',
+      'mingzhe','ruihao','tianhao','yuhao','zihao','ziyang','ziyuan',
+      // Indian / South-Asian male
+      'arjun','rahul','rohan','raj','vikram','arun','suresh','rajesh','kiran','amit',
+      'nikhil','vivek','sanjay','gaurav','vishal','akash','ravi','kunal','aditya','saurabh',
+      'pranav','varun','ishaan','aarav','advait','dhruv','harsh','krishna','manav','nakul',
+      'omkar','parth','prateek','rishabh','rohit','samarth','siddharth','tanmay','uday',
+      'vaibhav','vedant','vikas','vinay','vineet','yash','yogesh','ankit','apoorv',
+      'aryan','ashish','ayush','bharat','chirag','deepak','devesh','dheeraj',
+      'dinesh','dipak','girish','gopal','govind','harish','hitesh','jatin','jayesh',
+      'karan','kartik','mahesh','manish','mayank','mohit','naresh','naveen','nilesh','nishant',
+      'pankaj','paras','piyush','prakash','prasad','pratik','praveen','pushkar',
+      'raghav','rakesh','ramesh','ritesh','sachin','sahil','santosh','satish',
+      'shyam','sumit','sunil','suraj','tushar','umesh','vipul',
+      // Muslim / Sikh male
+      'muhammad','omar','ali','hassan','hussain','ibrahim','ismail','yusuf','tariq','khalid',
+      'adnan','bilal','faisal','hamza','imran','jawad','kamran','naveed','sajid','shahid',
+      'sufyan','usman','waleed','zain','zubair','gurpreet','harpreet','jaswinder','kulwant',
+      'mandeep','navneet','paramjit','rajinder','surjit','amrit','balwinder','davinder',
+      'gurmeet','inderjit','jaskaran','jaspal','lakhvir','manjit','narinder','parminder',
+      'ranjit','satinder','tarsem','tejinder',
+    ]);
+
+    if (female.has(name)) return 'she';
+    if (male.has(name)) return 'he';
+
+    // ── Heuristic patterns ───────────────────────────────────────────────────
+    // Indian female endings: -ika, -ita, -ina, -iya, -shi, -thi, -dhi, -nee, -dee, -pri
+    if (/i[ck]a$|ita$|ina$|n[iy]a$|l[iy]a$|s[iy]a$|m[iy]a$|[iy][ay]$|shi$|thi$|dhi$|nee$|dee$|jot[i]?$|vani$|wati$|kumari$/.test(name)) return 'she';
+    // Indian male endings: -raj, -han, -nav, -esh, -jit, -pal, -bir, -vin, -kar, -deep
+    if (/raj$|han$|nav$|esh$|jit$|pal$|bir$|vin$|kar$|jot$|vir$|deep$|nand$|preet$|meet$|inder$|winder$/.test(name)) return 'he';
+    // Chinese female endings
+    if (/(ling|mei|xin|yan|ying|yue|fang|xiu|rong|juan|shan|rou|lian|qian|shu)$/.test(name)) return 'she';
+    // Chinese male endings
+    if (/(jun|hao|wei|jie|long|peng|yang|ming|feng|gang|dong|kang|bin|rui|tao|liang)$/.test(name)) return 'he';
+    // English: clear -a ending is often female (Emma, Olivia, etc.) — but not names like Joshua/Issa
+    if (/a$/.test(name) && !/sha$|cha$|ssa$|kha$|pha$/.test(name)) return 'she';
+
     return 'they';
   }
   function getBasicPronounGuess(row, rowIndex){
@@ -5623,10 +5722,17 @@ function getPerformanceToneLine(coreLevel, context){
     if (numeric >= mid) return 'mid';
     return 'needs_support';
   }
+  const SUPPORT_TRAIT_HINTS = [
+    'Shows effort despite struggles',
+    'Smart and capable, great potential',
+    'Pleasant, remains positive through challenges'
+  ];
+
   function buildBasicBulkPayload(rowIndex, termLabel){
     const row = rows[rowIndex];
     const studentName = getRowLabel(rowIndex);
-    const firstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
+    const rawFirstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
+    const firstName = toProperCase(rawFirstName);
     const structureMode = getBasicStructureMode();
     const structureConfig = getBasicStructureConfig(structureMode);
     const performanceCode = getRowPerformanceLevel(row);
@@ -5654,6 +5760,9 @@ function getPerformanceToneLine(coreLevel, context){
     const omitMark = performanceCode === 'needs_support'
       && studentGradeVal != null
       && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
+    const supportTraitHint = omitMark
+      ? SUPPORT_TRAIT_HINTS[Math.floor(Math.random() * SUPPORT_TRAIT_HINTS.length)]
+      : null;
     return {
       mode: 'basic_bulk',
       reviseMode: 'basic_bulk',
@@ -5669,6 +5778,7 @@ function getPerformanceToneLine(coreLevel, context){
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
       needsSupport: omitMark,
+      supportTraitHint,
       gradeGroup: builderBasicGradeGroupSelector?.value || 'gr5_gr8',
       assignmentFacts,
       upcomingTests,
