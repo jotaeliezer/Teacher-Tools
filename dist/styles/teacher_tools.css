@@ -1833,6 +1833,52 @@
       color:#3949ab;
       border:1px solid #9fa8da;
     }
+    .basic-pronoun-toast{
+      cursor:pointer;
+      transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+    .basic-pronoun-toast:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 12px rgba(57,73,171,.18);
+      filter:saturate(1.06);
+    }
+    .basic-pronoun-toast:focus-visible{
+      outline:2px solid #3949ab;
+      outline-offset:2px;
+    }
+    .basic-pronoun-toast.is-open{
+      transform:translateY(-1px);
+      box-shadow:0 5px 10px rgba(57,73,171,.2);
+    }
+    .basic-pronoun-chooser{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-left:2px;
+    }
+    .basic-pronoun-chooser[hidden]{
+      display:none;
+    }
+    .basic-pronoun-choice{
+      border:1px solid #9fa8da;
+      background:#fff;
+      border-radius:999px;
+      min-width:46px;
+      padding:2px 8px;
+      font-size:16px;
+      line-height:1.2;
+      cursor:pointer;
+      transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    }
+    .basic-pronoun-choice:hover{
+      transform:translateY(-1px);
+      border-color:#5c6bc0;
+      box-shadow:0 4px 10px rgba(57,73,171,.18);
+    }
+    .basic-pronoun-choice:focus-visible{
+      outline:2px solid #3949ab;
+      outline-offset:1px;
+    }
     .basic-comment-card-header{
       display:flex;
       align-items:center;
@@ -2355,6 +2401,23 @@
     }
     body.dark-mode .basic-comment-error{
       color:#ff8a80;
+    }
+    body.dark-mode .basic-pronoun-toast{
+      color:#cfd5ff;
+      background:#222a44;
+      border-color:#4a5aa3;
+    }
+    body.dark-mode .basic-pronoun-toast:hover{
+      box-shadow:0 6px 12px rgba(88,111,217,.25);
+    }
+    body.dark-mode .basic-pronoun-choice{
+      background:#151c2f;
+      color:#f0f4ff;
+      border-color:#4a5aa3;
+    }
+    body.dark-mode .basic-pronoun-choice:hover{
+      border-color:#6e7fd2;
+      box-shadow:0 4px 10px rgba(88,111,217,.25);
     }
     /* Apply click animation helper to any element with .btn-anim */
     .btn-anim{

@@ -650,6 +650,25 @@
       copyTextToClipboard(text);
       status('Basic comment copied.');
     });
+    builderBasicResultsEl.addEventListener('click', (e) => {
+      const pronounToastBtn = e.target.closest('button[data-basic-pronoun-toast]');
+      if (pronounToastBtn){
+        const rowIndex = Number(pronounToastBtn.dataset.basicPronounToast);
+        if (Number.isNaN(rowIndex)) return;
+        const chooserEl = builderBasicResultsEl.querySelector(`[data-basic-pronoun-chooser="${rowIndex}"]`);
+        if (!chooserEl) return;
+        const willOpen = chooserEl.hidden;
+        closeBasicPronounChooser(willOpen ? rowIndex : null);
+        return;
+      }
+      const pronounChoiceBtn = e.target.closest('button[data-basic-pronoun-select]');
+      if (!pronounChoiceBtn) return;
+      const rowIndex = Number(pronounChoiceBtn.dataset.basicPronounRow);
+      const pronounValue = normalizeBasicPronounValue(pronounChoiceBtn.dataset.basicPronounSelect);
+      if (Number.isNaN(rowIndex) || !pronounValue || pronounValue === 'they') return;
+      closeBasicPronounChooser(null);
+      regenerateBasicCommentPronoun(rowIndex, pronounValue);
+    });
   }
   // "Use Data Values" button removed; keep display name/pronouns always synced to selection.
   if (builderCorePerformanceSelect){
@@ -1731,20 +1750,117 @@ if (builderGradeGroupSelect){
       ]
     }
   };
+  const TERM_STAGE_INTRO_VARIANTS = {
+    term1: {
+      good: [
+        "[Student] has started the year strongly and is performing with confidence.",
+        "[Student] is beginning the year with strong results and clear reasoning.",
+        "[Student] has opened the year at a high level with steady confidence."
+      ],
+      average: [
+        "[Student] has started the year with steady progress and is meeting expectations.",
+        "[Student] is beginning the year on track with consistent effort.",
+        "[Student] has opened the year with solid progress and growing confidence."
+      ],
+      satisfactory: [
+        "[Student] has started the year with partial consistency and is building stronger routines.",
+        "[Student] is beginning the year with developing skills and needs steady practice.",
+        "[Student] has opened the year with mixed results and is working toward consistency."
+      ],
+      poor: [
+        "[Student] has started the year with challenges and is building core routines.",
+        "[Student] is beginning the year with some difficulty and needs structured support.",
+        "[Student] has opened the year with gaps that can improve through steady practice."
+      ],
+      newstu: [
+        "[Student] has started the year by adjusting to the program and learning routines.",
+        "[Student] is beginning the year while settling into expectations and class pace.",
+        "[Student] has opened the year by building confidence in new routines."
+      ]
+    },
+    term2: {
+      good: [
+        "[Student] is carrying strong momentum into the second term and continues to perform confidently.",
+        "[Student] is building on first-term success with strong, consistent results.",
+        "[Student] is maintaining high performance in the second term with clear reasoning."
+      ],
+      average: [
+        "[Student] is building on first-term learning with steady progress in the second term.",
+        "[Student] is continuing the year with consistent effort and expected progress.",
+        "[Student] is moving through the second term with steady growth and improving confidence."
+      ],
+      satisfactory: [
+        "[Student] is entering the second term with mixed consistency and needs steady reinforcement.",
+        "[Student] is building through the second term with partial mastery and targeted support.",
+        "[Student] is progressing through Term 2 with developing skills and uneven results."
+      ],
+      poor: [
+        "[Student] is in the second term and still needs consistent routines to support progress.",
+        "[Student] is moving through Term 2 with continued challenges and needs focused support.",
+        "[Student] is in the second term and can improve through structured practice and feedback."
+      ],
+      newstu: [
+        "[Student] is adjusting through the second term and is continuing to build classroom routines.",
+        "[Student] is progressing through Term 2 while settling into program expectations.",
+        "[Student] is in the second term and is gaining confidence as routines become familiar."
+      ]
+    },
+    term3: {
+      good: [
+        "[Student] is closing the year with strong performance and confident reasoning.",
+        "[Student] is finishing the year at a high level with consistent success.",
+        "[Student] is ending the year with strong mastery and sustained effort."
+      ],
+      average: [
+        "[Student] is closing the year with steady progress and expected achievement.",
+        "[Student] is finishing the year on track with consistent effort and growth.",
+        "[Student] is ending the year with solid progress and improving confidence."
+      ],
+      satisfactory: [
+        "[Student] is closing the year with developing consistency and needs targeted reinforcement.",
+        "[Student] is finishing the year with partial mastery and continued growth opportunities.",
+        "[Student] is ending the year with mixed results and can benefit from focused review."
+      ],
+      poor: [
+        "[Student] is closing the year with ongoing challenges and needs clear support strategies.",
+        "[Student] is finishing the year with gaps that require structured reinforcement.",
+        "[Student] is ending the year with difficulty, but consistent support can improve outcomes."
+      ],
+      newstu: [
+        "[Student] is closing the year while still consolidating routines as a newer student.",
+        "[Student] is finishing the year with growing confidence as expectations become familiar.",
+        "[Student] is ending the year with improving adjustment to program routines."
+      ]
+    }
+  };
+  function getBuilderTermStageKey(termLabel){
+    const value = String(termLabel || '').trim().toLowerCase();
+    if (value === 'term 1' || value === 't1') return 'term1';
+    if (value === 'term 2' || value === 't2') return 'term2';
+    if (value === 'term 3' || value === 't3') return 'term3';
+    return '';
+  }
   function getPerformanceIntroLine(coreLevel, context){
     if (!coreLevel) return '';
     let key = '';
     if (coreLevel.startsWith('good')) key = 'good';
     else if (coreLevel.startsWith('average')) key = 'average';
     else if (coreLevel.startsWith('satisfactory')) key = 'satisfactory';
-    else if (coreLevel.startsWith('satisfactory')) key = 'satisfactory';
     else if (coreLevel.startsWith('newstu')) key = 'newstu';
     else if (coreLevel.startsWith('poor')) key = 'poor';
     if (!key) return '';
+    const versionIdx = Math.max(0, (parseInt(String(coreLevel).replace(/\D/g, ''), 10) || 1) - 1);
+    const termStageKey = getBuilderTermStageKey(context?.termLabel);
+    if (termStageKey){
+      const stageVariants = TERM_STAGE_INTRO_VARIANTS[termStageKey]?.[key] || [];
+      if (stageVariants.length){
+        const stagedLine = stageVariants[versionIdx % stageVariants.length];
+        return builderReplacePlaceholders(stagedLine, context);
+      }
+    }
     const groupKey = normalizeGradeGroup(context.gradeGroup) || 'middle';
     const group = PERFORMANCE_INTRO_BY_GRADE_GROUP[groupKey] || PERFORMANCE_INTRO_BY_GRADE_GROUP.middle;
     const variants = group[key] || [];
-    const versionIdx = Math.max(0, (parseInt(String(coreLevel).replace(/\D/g, ''), 10) || 1) - 1);
     const line = variants.length ? variants[versionIdx % variants.length] : '';
     return builderReplacePlaceholders(line, context);
   }
@@ -5498,6 +5614,21 @@ function getPerformanceToneLine(coreLevel, context){
   function persistBasicGeneratedComments(){
     saveSettings({ basicGeneratedCommentsByContext });
   }
+  function closeBasicPronounChooser(rowIndexToKeep = null){
+    if (!builderBasicResultsEl) return;
+    builderBasicResultsEl.querySelectorAll('[data-basic-pronoun-chooser]').forEach((chooserEl) => {
+      const rowIndex = Number(chooserEl.dataset.basicPronounChooser);
+      const keepOpen = rowIndexToKeep != null && rowIndex === rowIndexToKeep;
+      chooserEl.hidden = !keepOpen;
+      chooserEl.classList.toggle('is-open', keepOpen);
+    });
+    builderBasicResultsEl.querySelectorAll('[data-basic-pronoun-toast]').forEach((toastEl) => {
+      const rowIndex = Number(toastEl.dataset.basicPronounToast);
+      const keepOpen = rowIndexToKeep != null && rowIndex === rowIndexToKeep;
+      toastEl.classList.toggle('is-open', keepOpen);
+      toastEl.setAttribute('aria-expanded', keepOpen ? 'true' : 'false');
+    });
+  }
   function updateBasicGeneratorStatus(message){
     if (!builderBasicStatusEl) return;
     builderBasicStatusEl.textContent = String(message || '').trim();
@@ -5629,6 +5760,32 @@ function getPerformanceToneLine(coreLevel, context){
     const first = getFirstNameFromRow(row, rowIndex);
     return guessPronounFromFirstName(first);
   }
+  function normalizeBasicPronounValue(value){
+    const key = String(value || '').trim().toLowerCase();
+    if (key === 'he' || key === 'male') return 'he';
+    if (key === 'she' || key === 'female') return 'she';
+    if (key === 'they' || key === 'them' || key === 'they/them') return 'they';
+    return '';
+  }
+  function getBasicPronounForRow(row, rowIndex, options = {}){
+    const override = normalizeBasicPronounValue(options?.pronounOverride);
+    if (override) return override;
+    const contextId = activeContext?.id;
+    if (contextId != null){
+      const store = getBasicCommentsStoreForContext(contextId);
+      const entry = store ? store[String(rowIndex)] : null;
+      const storedOverride = normalizeBasicPronounValue(entry?.pronounOverride);
+      if (storedOverride) return storedOverride;
+    }
+    return getBasicPronounGuess(row, rowIndex);
+  }
+  function shouldShowTheyThemToast(commentText){
+    const text = String(commentText || '').toLowerCase();
+    if (!text) return false;
+    const hasThey = /\bthey\b|\bthem\b|\btheir\b/.test(text);
+    const hasGendered = /\bhe\b|\bhim\b|\bhis\b|\bshe\b|\bher\b/.test(text);
+    return hasThey && !hasGendered;
+  }
   function isBasicAssignmentColumn(col){
     if (!col) return false;
     const raw = String(col || '').trim();
@@ -5728,7 +5885,7 @@ function getPerformanceToneLine(coreLevel, context){
     'Pleasant, remains positive through challenges'
   ];
 
-  function buildBasicBulkPayload(rowIndex, termLabel){
+  function buildBasicBulkPayload(rowIndex, termLabel, options = {}){
     const row = rows[rowIndex];
     const studentName = getRowLabel(rowIndex);
     const rawFirstName = getFirstNameFromRow(row, rowIndex) || String(studentName || '').trim().split(/\s+/)[0] || '';
@@ -5773,7 +5930,7 @@ function getPerformanceToneLine(coreLevel, context){
       termLabel,
       studentName,
       studentFirstName: firstName,
-      pronounGuess: getBasicPronounGuess(row, rowIndex),
+      pronounGuess: getBasicPronounForRow(row, rowIndex, options),
       finalMark: omitMark ? '' : getBasicFinalGrade(row),
       performanceLevel: performanceCode,
       performanceLabel: getPerformanceLabelFromCode(performanceCode),
@@ -5806,12 +5963,34 @@ function getPerformanceToneLine(coreLevel, context){
       modelUsed: String(data?.modelUsed || '').trim()
     };
   }
-  async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint){
-    const payload = buildBasicBulkPayload(rowIndex, termLabel);
+  async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint, options = {}){
+    const payload = buildBasicBulkPayload(rowIndex, termLabel, options);
     return requestBasicComment(endpoint, payload);
   }
   function getBasicRunStatus(completed, total, successCount){
     return `${completed}/${total} generated • ${successCount} success`;
+  }
+  function getBuilderBasicSelectedTermCode(){
+    const value = String(builderBasicTermSelector?.value || '').trim().toUpperCase();
+    if (value === 'TERM 2' || value === 'T2') return 'T2';
+    if (value === 'TERM 3' || value === 'T3') return 'T3';
+    if (value === 'TERM 1' || value === 'T1') return 'T1';
+    return '';
+  }
+  function getBulkAssignmentColumnsForSelectedTerm(){
+    const selectedTerm = getBuilderBasicSelectedTermCode();
+    return allColumns.filter(col => {
+      if (!col) return false;
+      if (col === END_OF_LINE_COL) return false;
+      if (col === studentNameColumn) return false;
+      if (col === firstNameKey) return false;
+      if (col === lastNameKey) return false;
+      if (!columnHasData(col)) return false;
+      const termData = detectLessonTerm(col);
+      if (!termData) return false;
+      if (selectedTerm && termData.term !== selectedTerm) return false;
+      return true;
+    });
   }
 
   // ── Bulk Assignment Selection Modal ──────────────────────────────────────
@@ -5835,17 +6014,13 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkAssignList(){
     if (!bulkAssignList) return;
-    const cols = allColumns.filter(col => {
-      if (!col) return false;
-      if (col === END_OF_LINE_COL) return false;
-      if (col === studentNameColumn) return false;
-      if (col === firstNameKey) return false;
-      if (col === lastNameKey) return false;
-      return columnHasData(col);
-    });
+    const cols = getBulkAssignmentColumnsForSelectedTerm();
+    bulkSelectedAssignCols = bulkSelectedAssignCols.filter(col => cols.includes(col));
     bulkAssignList.innerHTML = '';
     if (!cols.length){
-      bulkAssignList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No columns found. Make sure data is loaded.</p>';
+      const selectedTerm = getBuilderBasicSelectedTermCode();
+      const termLabel = selectedTerm ? getTermLabel(selectedTerm) : 'the selected term';
+      bulkAssignList.innerHTML = `<p class="muted" style="font-size:13px; margin:0;">No assignments or tests matched ${termLabel}. Use lesson-style column names such as L1-L13, L14-L26, or L27-L39.</p>`;
       return;
     }
     cols.forEach(col => {
@@ -6079,18 +6254,27 @@ function getPerformanceToneLine(coreLevel, context){
         const rowIndex = queue.shift();
         if (rowIndex == null) return;
         const key = String(rowIndex);
+        const existingEntry = contextStore[key] || {};
         // Mark this student as generating and show spinner in their card
-        contextStore[key] = { generating: true, text: '', termLabel };
+        contextStore[key] = {
+          ...existingEntry,
+          generating: true,
+          text: '',
+          termLabel,
+          error: ''
+        };
         if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
           renderBasicGeneratedComments(contextId);
         }
         try{
           const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
           contextStore[key] = {
+            ...contextStore[key],
             text: result.text,
             termLabel,
             updatedAt: Date.now(),
             modelUsed: result.modelUsed,
+            generating: false,
             error: ''
           };
           successCount += 1;
@@ -6098,10 +6282,12 @@ function getPerformanceToneLine(coreLevel, context){
         }catch(err){
           failureCount += 1;
           contextStore[key] = {
+            ...contextStore[key],
             text: '',
             termLabel,
             updatedAt: Date.now(),
             modelUsed: '',
+            generating: false,
             error: String(err?.message || 'No valid output returned')
           };
         }
@@ -6136,16 +6322,25 @@ function getPerformanceToneLine(coreLevel, context){
     if (!endpoint) return;
     const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
     const rowKey = String(rowIndex);
-    contextStore[rowKey] = { generating: true, text: '', error: '', termLabel };
+    const existingEntry = contextStore[rowKey] || {};
+    contextStore[rowKey] = {
+      ...existingEntry,
+      generating: true,
+      text: '',
+      error: '',
+      termLabel
+    };
     persistBasicGeneratedComments();
     renderBasicGeneratedComments(activeContext.id);
     try{
       const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
       contextStore[rowKey] = {
+        ...contextStore[rowKey],
         text: result.text,
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
+        generating: false,
         error: ''
       };
       updateBasicGeneratorStatus('Retry completed.');
@@ -6155,9 +6350,68 @@ function getPerformanceToneLine(coreLevel, context){
         text: '',
         termLabel,
         updatedAt: Date.now(),
+        generating: false,
         error: String(err?.message || 'No valid output returned')
       };
       updateBasicGeneratorStatus('Retry failed for one student.');
+    }
+    persistBasicGeneratedComments();
+    renderBasicGeneratedComments(activeContext.id);
+  }
+  async function regenerateBasicCommentPronoun(rowIndex, pronounOverride){
+    if (!activeContext || !rows.length) return;
+    const normalized = normalizeBasicPronounValue(pronounOverride);
+    if (!normalized || normalized === 'they'){
+      updateBasicGeneratorStatus('Choose either 👦🏻 or 👧🏻 to regenerate pronouns.');
+      return;
+    }
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+    const rowKey = String(rowIndex);
+    const existingEntry = contextStore[rowKey] || {};
+    const termLabel = String(existingEntry.termLabel || builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term before regenerating pronouns.');
+      return;
+    }
+    const previousText = String(existingEntry.text || '');
+    contextStore[rowKey] = {
+      ...existingEntry,
+      pronounOverride: normalized,
+      generating: true,
+      text: '',
+      error: '',
+      termLabel
+    };
+    persistBasicGeneratedComments();
+    renderBasicGeneratedComments(activeContext.id);
+    const studentName = getRowLabel(rowIndex);
+    updateBasicGeneratorStatus(`Updating pronouns for ${studentName}...`);
+    try{
+      const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint, { pronounOverride: normalized });
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        pronounOverride: normalized,
+        text: result.text,
+        termLabel,
+        updatedAt: Date.now(),
+        modelUsed: result.modelUsed,
+        generating: false,
+        error: ''
+      };
+      updateBasicGeneratorStatus(`Pronouns updated for ${studentName}.`);
+    }catch(err){
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        pronounOverride: normalized,
+        text: previousText,
+        termLabel,
+        updatedAt: Date.now(),
+        generating: false,
+        error: String(err?.message || 'No valid output returned')
+      };
+      updateBasicGeneratorStatus(`Pronoun update failed for ${studentName}.`);
     }
     persistBasicGeneratedComments();
     renderBasicGeneratedComments(activeContext.id);
@@ -6191,8 +6445,8 @@ function getPerformanceToneLine(coreLevel, context){
       const isMarkOmitted = performanceCode === 'needs_support'
         && studentGradeVal != null
         && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
-      const pronounGuess = getBasicPronounGuess(row, rowIndex);
-      const isNeutralPronoun = pronounGuess === 'they';
+      const detectedTheyThem = shouldShowTheyThemToast(entry.text);
+      const isNeutralPronoun = detectedTheyThem && !entry.generating;
       const card = document.createElement('div');
       card.className = 'basic-comment-card';
       if (isMarkOmitted || isNeutralPronoun) card.classList.add('basic-comment-card--flagged');
@@ -6213,11 +6467,39 @@ function getPerformanceToneLine(coreLevel, context){
         flagWrap.appendChild(b);
       }
       if (isNeutralPronoun){
-        const b = document.createElement('span');
-        b.className = 'basic-flag-badge basic-flag-badge--pronoun';
-        b.textContent = '👤 They/Them';
-        b.title = 'Pronoun could not be determined — comment uses they/them. Verify and edit if needed.';
-        flagWrap.appendChild(b);
+        const toastBtn = document.createElement('button');
+        toastBtn.type = 'button';
+        toastBtn.className = 'basic-flag-badge basic-flag-badge--pronoun basic-pronoun-toast';
+        toastBtn.dataset.basicPronounToast = String(rowIndex);
+        toastBtn.setAttribute('aria-expanded', 'false');
+        toastBtn.textContent = '👤 They/Them';
+        toastBtn.title = 'This comment uses they/them. Click to pick 👦🏻 or 👧🏻 and regenerate with gendered pronouns.';
+        flagWrap.appendChild(toastBtn);
+
+        const chooser = document.createElement('div');
+        chooser.className = 'basic-pronoun-chooser';
+        chooser.dataset.basicPronounChooser = String(rowIndex);
+        chooser.hidden = true;
+
+        const boyBtn = document.createElement('button');
+        boyBtn.type = 'button';
+        boyBtn.className = 'basic-pronoun-choice';
+        boyBtn.dataset.basicPronounSelect = 'he';
+        boyBtn.dataset.basicPronounRow = String(rowIndex);
+        boyBtn.textContent = '👦🏻?';
+        boyBtn.title = 'Regenerate this comment with he/him pronouns';
+        chooser.appendChild(boyBtn);
+
+        const girlBtn = document.createElement('button');
+        girlBtn.type = 'button';
+        girlBtn.className = 'basic-pronoun-choice';
+        girlBtn.dataset.basicPronounSelect = 'she';
+        girlBtn.dataset.basicPronounRow = String(rowIndex);
+        girlBtn.textContent = '👧🏻?';
+        girlBtn.title = 'Regenerate this comment with she/her pronouns';
+        chooser.appendChild(girlBtn);
+
+        flagWrap.appendChild(chooser);
       }
       const actions = document.createElement('div');
       actions.className = 'basic-comment-card-actions';
@@ -8475,6 +8757,9 @@ function varySentenceOpenings(text, studentName){
     const token = builderOutputCrossfadeToken;
     clearBuilderDiffOverlay();
     clearBuilderSelectionOverlay();
+    // Keep the textarea value current immediately so Copy uses the newest generated comment.
+    builderReportOutput.value = next;
+    builderLastFullOutput = next;
 
     // Show old text in overlay and start fading it out
     builderReportOverlay.innerHTML = escapeHtml(previous);
@@ -8488,9 +8773,6 @@ function varySentenceOpenings(text, studentName){
     const fadeMs = 260;
     setTimeout(() => {
       if (token !== builderOutputCrossfadeToken) return;
-      // Swap in new text while overlay is invisible
-      builderReportOutput.value = next;
-      builderLastFullOutput = next;
       // Hide overlay, remove fade class, restore opacity for next use
       builderOutputWrap.classList.remove('overlay-active');
       builderReportOverlay.classList.remove('overlay-fade-out');
@@ -8877,8 +9159,13 @@ function varySentenceOpenings(text, studentName){
     setBuilderRevisedOutputText('', 'instant');
     const studentName = builderStudentNameInput?.value.trim();
     const coreLevel = builderCorePerformanceSelect?.value;
+    const selectedTermLabel = String(builderTermSelector?.value || '').trim();
     if (!studentName){
       setBuilderReportOutputText('Provide a student name.', 'instant');
+      return;
+    }
+    if (!selectedTermLabel){
+      setBuilderReportOutputText('Select a term first.', 'instant');
       return;
     }
     if (!coreLevel && (builderGradeGroupSelect?.value || 'middle') !== 'elem'){
@@ -8892,7 +9179,7 @@ function varySentenceOpenings(text, studentName){
       retestScore: builderRetestInput?.value.trim(),
       originalScore: builderOriginalInput?.value.trim(),
       termAverage: builderTermAverageInput?.value.trim(),
-      termLabel: builderTermSelector?.value || '',
+      termLabel: selectedTermLabel,
       customComment: builderCustomCommentInput?.value.trim(),
       gradeGroup: builderGradeGroupSelect?.value || "middle",
       includeFinalGrade: !!builderIncludeFinalGradeInput?.checked
@@ -9013,8 +9300,12 @@ function varySentenceOpenings(text, studentName){
   }
 
   function builderCopyReport(){
-    if (!builderReportOutput || !String(builderReportOutput.value || '').trim()) return;
-    copyTextToClipboard(String(builderReportOutput.value || '').trim());
+    if (!builderReportOutput) return;
+    const visibleText = String(builderReportOutput.value || '').trim();
+    const latestText = String(builderLastFullOutput || '').trim();
+    const textToCopy = visibleText || latestText;
+    if (!textToCopy) return;
+    copyTextToClipboard(textToCopy);
   }
   function getCurrentReportData(){
     const text = String(builderReportOutput?.value || '').trim();
