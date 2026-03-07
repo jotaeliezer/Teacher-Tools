@@ -670,7 +670,7 @@
       if (Number.isNaN(rowIndex)) return;
       const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
       const entry = contextStore[String(rowIndex)] || {};
-      const nextExpanded = !entry.expanded;
+      const nextExpanded = !shouldExpandBasicComment(entry);
       contextStore[String(rowIndex)] = {
         ...entry,
         expanded: nextExpanded
@@ -846,6 +846,7 @@ function setupSelectAnimations(){
   }
   if (builderTermSelector){
     builderTermSelector.addEventListener('change', () => {
+      buildBuilderAssignmentsList();
       if (shouldAutoGenerateBuilderReport()) builderGenerateReport();
     });
   }
@@ -5687,6 +5688,12 @@ function getPerformanceToneLine(coreLevel, context){
       textarea.style.height = `${targetHeight}px`;
     });
   }
+  function shouldExpandBasicComment(entry){
+    if (!entry) return false;
+    const hasText = !!String(entry.text || '').trim();
+    if (!hasText) return false;
+    return entry.expanded !== false;
+  }
   function queueBasicCommentAnimation(contextId, rowIndex, text){
     if (!contextId) return;
     const contextKey = String(contextId);
@@ -6131,8 +6138,20 @@ function getPerformanceToneLine(coreLevel, context){
     if (value === 'TERM 1' || value === 'T1') return 'T1';
     return '';
   }
-  function getBulkAssignmentColumnsForSelectedTerm(){
-    const selectedTerm = getBuilderBasicSelectedTermCode();
+  function getBuilderAdvancedSelectedTermCode(){
+    const value = String(builderTermSelector?.value || '').trim().toUpperCase();
+    if (value === 'TERM 2' || value === 'T2') return 'T2';
+    if (value === 'TERM 3' || value === 'T3') return 'T3';
+    if (value === 'TERM 1' || value === 'T1') return 'T1';
+    return '';
+  }
+  function getAssignmentColumnsForTermCode(termCode){
+    const selectedTerm = String(termCode || '').trim().toUpperCase();
+    const lessonRanges = {
+      T1: [1, 13],
+      T2: [14, 26],
+      T3: [27, 39]
+    };
     return allColumns.filter(col => {
       if (!col) return false;
       if (col === END_OF_LINE_COL) return false;
@@ -6140,11 +6159,20 @@ function getPerformanceToneLine(coreLevel, context){
       if (col === firstNameKey) return false;
       if (col === lastNameKey) return false;
       if (!columnHasData(col)) return false;
+      if (!selectedTerm) return true;
+      const lessonNumber = getLessonNumber(col);
+      if (lessonNumber != null){
+        const [min, max] = lessonRanges[selectedTerm] || [];
+        return lessonNumber >= min && lessonNumber <= max;
+      }
       const termData = detectLessonTerm(col);
       if (!termData) return false;
-      if (selectedTerm && termData.term !== selectedTerm) return false;
+      if (termData.term !== selectedTerm) return false;
       return true;
     });
+  }
+  function getBulkAssignmentColumnsForSelectedTerm(){
+    return getAssignmentColumnsForTermCode(getBuilderBasicSelectedTermCode());
   }
 
   // ── Bulk Assignment Selection Modal ──────────────────────────────────────
@@ -6180,10 +6208,12 @@ function getPerformanceToneLine(coreLevel, context){
     cols.forEach(col => {
       const label = cleanAssignmentLabel(col);
       const avg = getColumnClassAverage(col);
+      const submittedRate = getColumnSubmittedRate(col);
       const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex; align-items:center; gap:8px; padding:5px 8px; border-bottom:1px solid #eee;';
+      div.className = 'bulk-assign-row';
       div.dataset.label = label.toLowerCase();
+      div.title = label;
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = safeId;
@@ -6205,18 +6235,31 @@ function getPerformanceToneLine(coreLevel, context){
         cb.checked = !cb.checked;
         cb.dispatchEvent(new Event('change'));
       });
+      const labelCell = document.createElement('label');
+      labelCell.className = 'bulk-assign-label-cell';
+      labelCell.htmlFor = safeId;
       const lbl = document.createElement('span');
-      lbl.style.cssText = 'font-size:13px; flex:1; line-height:1.3; cursor:pointer;';
+      lbl.className = 'bulk-assign-label-text';
       lbl.textContent = label;
+      labelCell.appendChild(cb);
+      labelCell.appendChild(lbl);
       const avgBadge = document.createElement('span');
-      const avgText = avg != null ? `${Math.round(avg)}%` : '—';
+      avgBadge.className = 'bulk-assign-metric';
+      const avgText = avg != null ? `${Math.round(avg)}%` : '-';
       const avgColor = getAvgColor(avg);
-      avgBadge.style.cssText = `font-size:12px; font-weight:700; min-width:38px; text-align:right; flex-shrink:0; color:${avgColor};`;
+      avgBadge.style.color = avgColor;
       avgBadge.title = avg != null ? `Class avg: ${avg.toFixed(1)}%` : 'No marks yet';
       avgBadge.textContent = avgText;
-      div.appendChild(cb);
-      div.appendChild(lbl);
+      const submittedBadge = document.createElement('span');
+      submittedBadge.className = 'bulk-assign-metric';
+      const submittedText = submittedRate != null ? `${Math.round(submittedRate)}%` : '-';
+      const submittedColor = getAvgColor(submittedRate);
+      submittedBadge.style.color = submittedColor;
+      submittedBadge.title = submittedRate != null ? `${Math.round(submittedRate)}% of students have marks for this assignment.` : 'No marks submitted yet';
+      submittedBadge.textContent = submittedText;
+      div.appendChild(labelCell);
       div.appendChild(avgBadge);
+      div.appendChild(submittedBadge);
       bulkAssignList.appendChild(div);
     });
   }
@@ -6327,6 +6370,15 @@ function getPerformanceToneLine(coreLevel, context){
     if (!values.length) return null;
     return values.reduce((a, b) => a + b, 0) / values.length;
   }
+  function getColumnSubmittedRate(col){
+    if (!col || !rows.length) return null;
+    let submitted = 0;
+    rows.forEach(row => {
+      const meta = deriveMarkMeta(row?.[col], col);
+      if (meta && Number.isFinite(meta.value)) submitted += 1;
+    });
+    return (submitted / rows.length) * 100;
+  }
 
   // Returns a CSS colour for an average percentage
   function getAvgColor(avg){
@@ -6428,6 +6480,7 @@ function getPerformanceToneLine(coreLevel, context){
             termLabel,
             updatedAt: Date.now(),
             modelUsed: result.modelUsed,
+            expanded: true,
             generating: false,
             error: ''
           };
@@ -6495,6 +6548,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
+        expanded: true,
         generating: false,
         error: ''
       };
@@ -6553,6 +6607,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
+        expanded: true,
         generating: false,
         error: ''
       };
@@ -6668,7 +6723,7 @@ function getPerformanceToneLine(coreLevel, context){
       copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
       actions.appendChild(copyBtn);
       const toggleBtn = document.createElement('button');
-      const isExpanded = !!entry.expanded;
+      const isExpanded = shouldExpandBasicComment(entry);
       toggleBtn.className = 'btn basic-comment-toggle';
       toggleBtn.type = 'button';
       toggleBtn.dataset.basicToggleExpand = String(rowIndex);
@@ -6720,7 +6775,7 @@ function getPerformanceToneLine(coreLevel, context){
         const textarea = document.createElement('textarea');
         textarea.className = 'basic-comment-textarea';
         textarea.dataset.basicRowIndex = String(rowIndex);
-        textarea.dataset.basicExpanded = entry.expanded ? 'true' : 'false';
+        textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
         textarea.value = String(entry.text || '');
         textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
         const overlay = document.createElement('div');
@@ -6729,10 +6784,10 @@ function getPerformanceToneLine(coreLevel, context){
         textWrap.appendChild(textarea);
         textWrap.appendChild(overlay);
         card.appendChild(textWrap);
-        syncBasicCommentTextareaState(textarea, !!entry.expanded);
+        syncBasicCommentTextareaState(textarea, isExpanded);
         const queuedAnimationText = consumeBasicCommentAnimation(id, rowIndex);
         if (queuedAnimationText){
-          animateBasicCommentTextarea(textarea, overlay, queuedAnimationText, !!entry.expanded);
+          animateBasicCommentTextarea(textarea, overlay, queuedAnimationText, isExpanded);
         }
         if (entry.error){
           const error = document.createElement('div');
@@ -6892,33 +6947,33 @@ function getPerformanceToneLine(coreLevel, context){
   function buildBuilderAssignmentsList(){
     const listEl = document.getElementById('builderAssignmentsList');
     if (!listEl) return;
-    
+
+    const previouslySelected = new Set(
+      Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'))
+        .map(cb => cb.value)
+        .filter(Boolean)
+    );
     listEl.innerHTML = '';
-    
-    // Get columns that have data (assignments)
-    const assignmentColumns = allColumns.filter(col => {
-      if (!col) return false;
-      if (col === END_OF_LINE_COL) return false;
-      if (col === studentNameColumn) return false;
-      if (col === firstNameKey) return false;
-      if (col === lastNameKey) return false;
-      return columnHasData(col);
-    });
-    
+
+    const assignmentColumns = getAssignmentColumnsForTermCode(getBuilderAdvancedSelectedTermCode());
+
     if (!assignmentColumns.length){
       const msg = document.createElement('div');
       msg.className = 'muted';
       msg.style.fontSize = '12px';
-      msg.textContent = 'No assignment columns available.';
+      const selectedTerm = getBuilderAdvancedSelectedTermCode();
+      msg.textContent = selectedTerm
+        ? `No assignment columns available for ${getTermLabel(selectedTerm)}.`
+        : 'No assignment columns available.';
       listEl.appendChild(msg);
       return;
     }
-    
+
     // Get the current student's row
     const studentRow = (builderSelectedRowIndex != null && rows[builderSelectedRowIndex]) 
       ? rows[builderSelectedRowIndex] 
       : null;
-    
+
     assignmentColumns.forEach(col => {
       const wrapper = document.createElement('div');
       wrapper.style.display = 'flex';
@@ -6932,6 +6987,7 @@ function getPerformanceToneLine(coreLevel, context){
       checkbox.value = col;
       checkbox.dataset.assignmentCol = col;
       checkbox.style.flexShrink = '0';
+      checkbox.checked = previouslySelected.has(col);
       
       const labelText = document.createElement('span');
       labelText.textContent = cleanAssignmentLabel(col);
