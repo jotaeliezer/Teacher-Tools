@@ -544,9 +544,9 @@
             // Stay in refine mode and load the new student's comment
             prefillBuilderFromRow(idx);
             builderRefineBasicDraft = existingText;
-            setBuilderAiCreatedOutputText(existingText, 'instant');
+            setBuilderReportOutputText(existingText, 'instant');
             showRefineBanner();
-            status('Comment loaded for this student. Adjust selections and click Refine Comment.');
+            status('Comment loaded for this student. Adjust selections and click Refine.');
           } else {
             // No basic comment for this student — exit refine mode
             exitRefineBasicMode();
@@ -5660,6 +5660,9 @@ function getPerformanceToneLine(coreLevel, context){
       builderModeAdvancedBtn.classList.toggle('primary', next === 'advanced');
       builderModeAdvancedBtn.classList.toggle('active', next === 'advanced');
     }
+    if (next === 'advanced'){
+      syncAdvancedBuilderUi();
+    }
     if (next === 'basic'){
       renderBasicGeneratedComments(activeContext?.id || null);
       updateBasicGeneratorStatus('Select a term and click Bulk Generate.');
@@ -7176,8 +7179,8 @@ function getPerformanceToneLine(coreLevel, context){
     setBuilderGeneratorMode('advanced');
     // Select the correct student (this rebuilds both assignment lists)
     prefillBuilderFromRow(rowIndex);
-    // Place the comment in the AI output box
-    setBuilderAiCreatedOutputText(String(commentText || ''), 'instant');
+    // Place the imported basic comment in the main advanced output box
+    setBuilderReportOutputText(String(commentText || ''), 'instant');
     // Enter refine mode
     builderRefineBasicDraft = String(commentText || '');
     showRefineBanner();
@@ -7195,26 +7198,38 @@ function getPerformanceToneLine(coreLevel, context){
     if (builderAdvancedModePanel){
       builderAdvancedModePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    status('Comment loaded into Advanced Generator. Adjust selections and click Refine Comment.');
+    status('Comment loaded into Advanced Generator. Adjust selections and click Refine.');
+  }
+
+  function syncAdvancedBuilderUi(){
+    if (builderOutputWrap){
+      builderOutputWrap.style.display = '';
+    }
+    if (builderAiOutputWrap){
+      builderAiOutputWrap.style.display = 'none';
+    }
+    if (builderCreateAiBtn){
+      builderCreateAiBtn.textContent = builderRefineBasicDraft ? 'Refine' : 'Generate';
+    }
   }
 
   function showRefineBanner(){
     if (!builderRefineBanner) return;
     builderRefineBanner.style.display = 'flex';
-    // Update the Create button label to "Refine Comment"
-    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Refine Comment';
+    syncAdvancedBuilderUi();
   }
 
-  function exitRefineBasicMode(){
+  function exitRefineBasicMode(options = {}){
+    const silent = !!options.silent;
     builderRefineBasicDraft = null;
     if (builderRefineBanner) builderRefineBanner.style.display = 'none';
-    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Create Comment';
-    status('Refine mode cancelled.');
+    syncAdvancedBuilderUi();
+    if (!silent) status('Refine mode cancelled.');
   }
 
   // ── Payload for refine-basic mode ─────────────────────────────────────────
   function buildBuilderRefineBasicPayload(){
-    const draft = String(builderRefineBasicDraft || '').trim();
+    const draft = String(builderReportOutput?.value || builderRefineBasicDraft || '').trim();
     const studentRow = rows[builderSelectedRowIndex] || null;
     const firstName = getFirstNameFromRow(studentRow, builderSelectedRowIndex);
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
@@ -7245,6 +7260,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
 
   function shouldAutoGenerateBuilderReport(){
+    if (builderRefineBasicDraft) return false;
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
     if (gradeGroup === 'elem'){
       return Boolean(builderStudentNameInput?.value.trim());
@@ -9419,8 +9435,10 @@ function varySentenceOpenings(text, studentName){
       builderAiCreatedOutput.classList.remove('builder-output-fade');
     }
   }
-  function buildBuilderAiCreatePayload(){
+  function buildBuilderAdvancedGeneratePayload(draft){
     const studentRow = rows[builderSelectedRowIndex] || null;
+    const firstName = getFirstNameFromRow(studentRow, builderSelectedRowIndex);
+    const fullName = getRowLabel(builderSelectedRowIndex) || buildStudentName(studentRow) || builderStudentNameInput?.value.trim() || firstName;
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
     const finalGradeText = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
@@ -9432,6 +9450,9 @@ function varySentenceOpenings(text, studentName){
     const selectedComments = getBuilderSelectedComments();
     const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const classFirstNames = rows
+      .map((row, idx) => getFirstNameFromRow(row, idx))
+      .filter(Boolean);
     // Check if mark should be omitted (very low compared to class average)
     const performanceLevel = builderCorePerformanceSelect?.value || '';
     const studentGradeVal = finalGradeMeta?.value ?? null;
@@ -9440,9 +9461,11 @@ function varySentenceOpenings(text, studentName){
       ? (studentGradeVal != null && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10)))
       : false;
     return {
-      reviseMode: 'create',
+      reviseMode: 'advanced_generate',
+      draft: String(draft || '').trim(),
       basicStructure: normalizeBasicStructure(commentOrderMode),
-      studentName: builderStudentNameInput?.value.trim() || '',
+      studentName: fullName,
+      studentFirstName: firstName,
       pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
       gradeGroup: builderGradeGroupSelect?.value || 'middle',
       performanceLevel,
@@ -9453,7 +9476,9 @@ function varySentenceOpenings(text, studentName){
       futureAssignments,
       lateAssignments,
       selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
-      customComment: builderCustomCommentInput?.value.trim() || ''
+      customComment: builderCustomCommentInput?.value.trim() || '',
+      classFirstNames,
+      allowedAssignmentLabels: assignmentFacts.map(item => item.label).filter(Boolean)
     };
   }
   function closeCreateConfirmModal(){
@@ -9479,22 +9504,28 @@ function varySentenceOpenings(text, studentName){
     if (!endpoint) return;
     const studentName = builderStudentNameInput?.value.trim();
     if (!studentName){
-      status('Provide a student name before using Create.');
+      status('Provide a student name before using Generate.');
       return;
     }
-    // Refine mode: use a minimal-edit prompt based on the basic comment draft
     const isRefineMode = !!builderRefineBasicDraft;
-    const payload = isRefineMode ? buildBuilderRefineBasicPayload() : buildBuilderAiCreatePayload();
-    const originalLabel = builderCreateAiBtn?.textContent || 'Create Comment';
+    if (!isRefineMode){
+      builderGenerateReport();
+      const draft = String(builderLastFullOutput || builderReportOutput?.value || '').trim();
+      if (!draft || draft === 'Provide a student name.' || draft === 'Select a term first.' || draft === 'Select a core performance level.' || draft === 'Template not available for this selection.'){
+        return;
+      }
+    }
+    const payload = isRefineMode
+      ? buildBuilderRefineBasicPayload()
+      : buildBuilderAdvancedGeneratePayload(String(builderLastFullOutput || builderReportOutput?.value || '').trim());
     try {
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = true;
-        builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Creating...';
+        builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Generating...';
       }
-      // Show spinner over the output box and clear it while waiting
       if (builderAiSpinner) builderAiSpinner.style.display = 'flex';
-      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '0.25';
-      status(isRefineMode ? 'Refining comment with AI...' : 'Creating new comment with AI...');
+      if (builderReportOutput) builderReportOutput.style.opacity = '0.45';
+      status(isRefineMode ? 'Refining comment with AI...' : 'Generating comment with AI...');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -9513,33 +9544,18 @@ function varySentenceOpenings(text, studentName){
       }
       const modelUsed = String(data?.modelUsed || '').trim();
       const polished = polishGrammar(cleanFluency(aiText));
-      const termLabelValue = (builderTermSelector?.value || '').trim();
-      let finalOutput;
-      if (isRefineMode){
-        // Refine mode: the refined comment already preserves its own term label from the draft
-        finalOutput = polished;
-      } else if (termLabelValue){
-        finalOutput = `${termLabelValue}\n\n${polished}`;
-      } else {
-        finalOutput = `${polished}\n\n[Add term label here]`;
-        status('No term selected — add the term label to the top of the comment manually.');
-      }
-      setBuilderAiCreatedOutputText(finalOutput, 'create');
-      const action = isRefineMode ? 'refined' : 'created';
-      if (termLabelValue || isRefineMode){
-        status(modelUsed ? `AI comment ${action} (${modelUsed}).` : `AI comment ${action}.`);
-      }
-      // Exit refine mode after a successful refinement so next click is a fresh Create
-      if (isRefineMode) exitRefineBasicMode();
+      setBuilderReportOutputText(polished, 'revise');
+      status(modelUsed ? `AI comment ${isRefineMode ? 'refined' : 'generated'} (${modelUsed}).` : `AI comment ${isRefineMode ? 'refined' : 'generated'}.`);
+      if (isRefineMode) exitRefineBasicMode({ silent: true });
     } catch(err){
       console.error(err);
-      status('Could not reach AI API.');
+      status(isRefineMode ? 'Could not reach AI API. Keeping the imported basic draft.' : 'Could not reach AI API. Keeping the local draft.');
     } finally {
       if (builderAiSpinner) builderAiSpinner.style.display = 'none';
-      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '';
+      if (builderReportOutput) builderReportOutput.style.opacity = '';
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = false;
-        builderCreateAiBtn.textContent = originalLabel;
+        syncAdvancedBuilderUi();
       }
     }
   }
@@ -9575,7 +9591,7 @@ function varySentenceOpenings(text, studentName){
       return current;
     }
     const entered = window.prompt(
-      'Paste your deployed Revise API URL (example: https://teacher-tools-api.vercel.app).',
+      'Paste your deployed AI API URL (example: https://teacher-tools-api.vercel.app).',
       builderAiEndpoint || ''
     );
     if (entered == null) return '';

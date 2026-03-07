@@ -69,6 +69,9 @@
   // Bulk assignment modal selections — set when the teacher confirms the two-step modal
   let bulkSelectedAssignCols = [];
   let bulkSelectedUpcomingCols = [];
+  let bulkAssignTargetRowIndex = null;
+  let bulkAssignPreviousAssignCols = null;
+  let bulkAssignPreviousUpcomingCols = null;
   // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
   let builderRefineBasicDraft = null;
 
@@ -541,9 +544,9 @@
             // Stay in refine mode and load the new student's comment
             prefillBuilderFromRow(idx);
             builderRefineBasicDraft = existingText;
-            setBuilderAiCreatedOutputText(existingText, 'instant');
+            setBuilderReportOutputText(existingText, 'instant');
             showRefineBanner();
-            status('Comment loaded for this student. Adjust selections and click Refine Comment.');
+            status('Comment loaded for this student. Adjust selections and click Refine.');
           } else {
             // No basic comment for this student — exit refine mode
             exitRefineBasicMode();
@@ -594,7 +597,16 @@
     builderBasicBulkGenerateBtn.addEventListener('click', showBulkAssignModal);
   }
   if (bulkAssignCancelBtn){
-    bulkAssignCancelBtn.addEventListener('click', () => { if (bulkAssignModal) bulkAssignModal.style.display = 'none'; });
+    bulkAssignCancelBtn.addEventListener('click', () => {
+      if (bulkAssignTargetRowIndex != null){
+        if (Array.isArray(bulkAssignPreviousAssignCols)) bulkSelectedAssignCols = [...bulkAssignPreviousAssignCols];
+        if (Array.isArray(bulkAssignPreviousUpcomingCols)) bulkSelectedUpcomingCols = [...bulkAssignPreviousUpcomingCols];
+      }
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+      bulkAssignTargetRowIndex = null;
+      if (bulkAssignModal) bulkAssignModal.style.display = 'none';
+    });
   }
   if (bulkAssignStep1Btn){
     bulkAssignStep1Btn.addEventListener('click', handleBulkAssignContinue);
@@ -693,6 +705,13 @@
       toggleBtn.setAttribute('aria-label', nextExpanded ? 'Collapse comment' : 'Expand comment');
     });
     builderBasicResultsEl.addEventListener('click', (e) => {
+      const markToastBtn = e.target.closest('button[data-basic-mark-omitted]');
+      if (markToastBtn){
+        const rowIndex = Number(markToastBtn.dataset.basicMarkOmitted);
+        if (Number.isNaN(rowIndex) || !activeContext) return;
+        openBasicMarkOmittedAssignmentModal(rowIndex);
+        return;
+      }
       const pronounToastBtn = e.target.closest('button[data-basic-pronoun-toast]');
       if (pronounToastBtn){
         const rowIndex = Number(pronounToastBtn.dataset.basicPronounToast);
@@ -5641,6 +5660,9 @@ function getPerformanceToneLine(coreLevel, context){
       builderModeAdvancedBtn.classList.toggle('primary', next === 'advanced');
       builderModeAdvancedBtn.classList.toggle('active', next === 'advanced');
     }
+    if (next === 'advanced'){
+      syncAdvancedBuilderUi();
+    }
     if (next === 'basic'){
       renderBasicGeneratedComments(activeContext?.id || null);
       updateBasicGeneratorStatus('Select a term and click Bulk Generate.');
@@ -6181,9 +6203,11 @@ function getPerformanceToneLine(coreLevel, context){
       .filter(Boolean)
       .slice(0, 120);
     // Use teacher-selected assignments (2 of up to 3 chosen in the modal, picked at random per student)
-    const assignmentFacts = computeBulkAssignmentFacts(row);
+    const selectedAssignCols = Array.isArray(options.customAssignCols) ? options.customAssignCols : bulkSelectedAssignCols;
+    const selectedUpcomingCols = Array.isArray(options.customUpcomingCols) ? options.customUpcomingCols : bulkSelectedUpcomingCols;
+    const assignmentFacts = computeBulkAssignmentFacts(row, selectedAssignCols);
     // Upcoming tests are the ones the teacher flagged in the modal
-    const upcomingTests = bulkSelectedUpcomingCols
+    const upcomingTests = selectedUpcomingCols
       .map(col => cleanAssignmentLabel(col))
       .filter(Boolean);
     const allowedAssignmentLabels = [
@@ -6223,7 +6247,8 @@ function getPerformanceToneLine(coreLevel, context){
       assignmentFacts,
       upcomingTests,
       allowedAssignmentLabels,
-      classFirstNames
+      classFirstNames,
+      customAssignmentSelection: !!options.customAssignmentSelection
     };
   }
   async function requestBasicComment(endpoint, payload){
@@ -6249,6 +6274,85 @@ function getPerformanceToneLine(coreLevel, context){
   async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint, options = {}){
     const payload = buildBasicBulkPayload(rowIndex, termLabel, options);
     return requestBasicComment(endpoint, payload);
+  }
+  async function applyBasicCustomSelectionsAndRegenerate(rowIndex, assignCols, upcomingCols){
+    if (!activeContext || !rows.length) return;
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+    const rowKey = String(rowIndex);
+    const existingEntry = contextStore[rowKey] || {};
+    const termLabel = String(existingEntry.termLabel || builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term before updating this comment.');
+      return;
+    }
+    const previousText = String(existingEntry.text || '');
+    const nextAssignCols = Array.isArray(assignCols) ? [...assignCols] : [];
+    const nextUpcomingCols = Array.isArray(upcomingCols) ? [...upcomingCols] : [];
+    contextStore[rowKey] = {
+      ...existingEntry,
+      customAssignCols: nextAssignCols,
+      customUpcomingCols: nextUpcomingCols,
+      generating: true,
+      pendingText: '',
+      text: '',
+      expanded: true,
+      error: '',
+      termLabel
+    };
+    persistBasicGeneratedComments();
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+    const studentName = getRowLabel(rowIndex);
+    updateBasicGeneratorStatus(`Updating assignment evidence for ${studentName}...`);
+    try{
+      const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint, {
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        customAssignmentSelection: true
+      });
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        pendingText: result.text,
+        termLabel,
+        updatedAt: Date.now(),
+        modelUsed: result.modelUsed,
+        expanded: true,
+        error: ''
+      };
+      persistBasicGeneratedComments();
+      animateBasicCommentIntoCard(activeContext.id, rowIndex, result.text, () => {
+        const latestStore = getBasicCommentsStoreForContext(activeContext.id, true);
+        const latestEntry = latestStore[rowKey] || {};
+        latestStore[rowKey] = {
+          ...latestEntry,
+          text: result.text,
+          pendingText: '',
+          generating: false,
+          expanded: true,
+          error: ''
+        };
+        persistBasicGeneratedComments();
+        replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      });
+      updateBasicGeneratorStatus(`Updated ${studentName}'s comment with the selected assignments/tests.`);
+      return;
+    }catch(err){
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        text: previousText,
+        pendingText: '',
+        generating: false,
+        error: String(err?.message || 'No valid output returned')
+      };
+      persistBasicGeneratedComments();
+      replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      updateBasicGeneratorStatus(`Could not update ${studentName}'s comment.`);
+    }
   }
   function getBasicRunStatus(completed, total, successCount){
     return `${completed}/${total} generated • ${successCount} success`;
@@ -6298,7 +6402,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
 
   // ── Bulk Assignment Selection Modal ──────────────────────────────────────
-  function showBulkAssignModal(){
+  function showBulkAssignModal(options = {}){
     if (!activeContext || !rows.length){
       updateBasicGeneratorStatus('Load class data first.');
       return;
@@ -6308,12 +6412,33 @@ function getPerformanceToneLine(coreLevel, context){
       updateBasicGeneratorStatus('Select a term first.');
       return;
     }
+    bulkAssignTargetRowIndex = Number.isInteger(options.rowIndex) ? options.rowIndex : null;
+    if (bulkAssignTargetRowIndex != null){
+      bulkAssignPreviousAssignCols = [...bulkSelectedAssignCols];
+      bulkAssignPreviousUpcomingCols = [...bulkSelectedUpcomingCols];
+      const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+      const entry = contextStore[String(bulkAssignTargetRowIndex)] || {};
+      bulkSelectedAssignCols = Array.isArray(entry.customAssignCols) && entry.customAssignCols.length
+        ? entry.customAssignCols.filter(Boolean)
+        : [...bulkAssignPreviousAssignCols];
+      bulkSelectedUpcomingCols = Array.isArray(entry.customUpcomingCols) && entry.customUpcomingCols.length
+        ? entry.customUpcomingCols.filter(Boolean)
+        : [...bulkAssignPreviousUpcomingCols];
+    } else {
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+    }
     if (bulkAssignSearch) bulkAssignSearch.value = '';
     populateBulkAssignList();
     if (bulkAssignStep1) bulkAssignStep1.style.display = '';
     if (bulkAssignStep2) bulkAssignStep2.style.display = 'none';
     if (bulkAssignWarning) bulkAssignWarning.style.display = 'none';
     if (bulkAssignModal) bulkAssignModal.style.display = 'flex';
+  }
+  function openBasicMarkOmittedAssignmentModal(rowIndex){
+    if (!activeContext || Number.isNaN(Number(rowIndex))) return;
+    showBulkAssignModal({ rowIndex: Number(rowIndex) });
+    updateBasicGeneratorStatus(`Select assignments/tests to strengthen ${getRowLabel(Number(rowIndex))}'s comment.`);
   }
 
   function populateBulkAssignList(){
@@ -6451,6 +6576,18 @@ function getPerformanceToneLine(coreLevel, context){
     const checked = Array.from(bulkUpcomingList.querySelectorAll('input[type="checkbox"]:checked'));
     bulkSelectedUpcomingCols = checked.map(cb => cb.dataset.col).filter(Boolean);
     if (bulkAssignModal) bulkAssignModal.style.display = 'none';
+    if (bulkAssignTargetRowIndex != null){
+      const targetRowIndex = bulkAssignTargetRowIndex;
+      const customAssignCols = [...bulkSelectedAssignCols];
+      const customUpcomingCols = [...bulkSelectedUpcomingCols];
+      if (Array.isArray(bulkAssignPreviousAssignCols)) bulkSelectedAssignCols = [...bulkAssignPreviousAssignCols];
+      if (Array.isArray(bulkAssignPreviousUpcomingCols)) bulkSelectedUpcomingCols = [...bulkAssignPreviousUpcomingCols];
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+      bulkAssignTargetRowIndex = null;
+      applyBasicCustomSelectionsAndRegenerate(targetRowIndex, customAssignCols, customUpcomingCols);
+      return;
+    }
     runBasicBulkGenerate();
   }
 
@@ -6527,10 +6664,10 @@ function getPerformanceToneLine(coreLevel, context){
     }catch(e){ /* Web Audio API unavailable */ }
   }
 
-  function computeBulkAssignmentFacts(row){
-    if (!row || !bulkSelectedAssignCols.length) return [];
+  function computeBulkAssignmentFacts(row, selectedCols = bulkSelectedAssignCols){
+    if (!row || !Array.isArray(selectedCols) || !selectedCols.length) return [];
     // Randomly pick up to 2 of the user-selected columns for variety across students
-    const shuffled = [...bulkSelectedAssignCols].sort(() => Math.random() - 0.5);
+    const shuffled = [...selectedCols].sort(() => Math.random() - 0.5);
     const picked = shuffled.slice(0, Math.min(2, shuffled.length));
     return picked.map(col => {
       const rawValue = row[col];
@@ -6834,10 +6971,12 @@ function getPerformanceToneLine(coreLevel, context){
     const flagWrap = document.createElement('div');
     flagWrap.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center;';
     if (isMarkOmitted){
-      const b = document.createElement('span');
+      const b = document.createElement('button');
+      b.type = 'button';
       b.className = 'basic-flag-badge basic-flag-badge--nomark';
+      b.dataset.basicMarkOmitted = String(rowIndex);
       b.textContent = '\u26A0 Mark omitted';
-      b.title = 'Mark was omitted because this student is significantly below the class average. Review comment.';
+      b.title = 'Mark was omitted because this student is significantly below the class average. Click to choose assignments/tests for this student.';
       flagWrap.appendChild(b);
     }
     if (isNeutralPronoun){
@@ -7040,8 +7179,8 @@ function getPerformanceToneLine(coreLevel, context){
     setBuilderGeneratorMode('advanced');
     // Select the correct student (this rebuilds both assignment lists)
     prefillBuilderFromRow(rowIndex);
-    // Place the comment in the AI output box
-    setBuilderAiCreatedOutputText(String(commentText || ''), 'instant');
+    // Place the imported basic comment in the main advanced output box
+    setBuilderReportOutputText(String(commentText || ''), 'instant');
     // Enter refine mode
     builderRefineBasicDraft = String(commentText || '');
     showRefineBanner();
@@ -7059,26 +7198,38 @@ function getPerformanceToneLine(coreLevel, context){
     if (builderAdvancedModePanel){
       builderAdvancedModePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    status('Comment loaded into Advanced Generator. Adjust selections and click Refine Comment.');
+    status('Comment loaded into Advanced Generator. Adjust selections and click Refine.');
+  }
+
+  function syncAdvancedBuilderUi(){
+    if (builderOutputWrap){
+      builderOutputWrap.style.display = '';
+    }
+    if (builderAiOutputWrap){
+      builderAiOutputWrap.style.display = 'none';
+    }
+    if (builderCreateAiBtn){
+      builderCreateAiBtn.textContent = builderRefineBasicDraft ? 'Refine' : 'Generate';
+    }
   }
 
   function showRefineBanner(){
     if (!builderRefineBanner) return;
     builderRefineBanner.style.display = 'flex';
-    // Update the Create button label to "Refine Comment"
-    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Refine Comment';
+    syncAdvancedBuilderUi();
   }
 
-  function exitRefineBasicMode(){
+  function exitRefineBasicMode(options = {}){
+    const silent = !!options.silent;
     builderRefineBasicDraft = null;
     if (builderRefineBanner) builderRefineBanner.style.display = 'none';
-    if (builderCreateAiBtn) builderCreateAiBtn.textContent = 'Create Comment';
-    status('Refine mode cancelled.');
+    syncAdvancedBuilderUi();
+    if (!silent) status('Refine mode cancelled.');
   }
 
   // ── Payload for refine-basic mode ─────────────────────────────────────────
   function buildBuilderRefineBasicPayload(){
-    const draft = String(builderRefineBasicDraft || '').trim();
+    const draft = String(builderReportOutput?.value || builderRefineBasicDraft || '').trim();
     const studentRow = rows[builderSelectedRowIndex] || null;
     const firstName = getFirstNameFromRow(studentRow, builderSelectedRowIndex);
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
@@ -7109,6 +7260,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
 
   function shouldAutoGenerateBuilderReport(){
+    if (builderRefineBasicDraft) return false;
     const gradeGroup = builderGradeGroupSelect?.value || 'middle';
     if (gradeGroup === 'elem'){
       return Boolean(builderStudentNameInput?.value.trim());
@@ -9283,8 +9435,10 @@ function varySentenceOpenings(text, studentName){
       builderAiCreatedOutput.classList.remove('builder-output-fade');
     }
   }
-  function buildBuilderAiCreatePayload(){
+  function buildBuilderAdvancedGeneratePayload(draft){
     const studentRow = rows[builderSelectedRowIndex] || null;
+    const firstName = getFirstNameFromRow(studentRow, builderSelectedRowIndex);
+    const fullName = getRowLabel(builderSelectedRowIndex) || buildStudentName(studentRow) || builderStudentNameInput?.value.trim() || firstName;
     const gradeColumn = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
     const finalGradeMeta = studentRow && gradeColumn ? deriveMarkMeta(studentRow[gradeColumn], gradeColumn) : null;
     const finalGradeText = finalGradeMeta ? formatMarkText(finalGradeMeta, studentRow[gradeColumn]) : '';
@@ -9296,6 +9450,9 @@ function varySentenceOpenings(text, studentName){
     const selectedComments = getBuilderSelectedComments();
     const futureAssignments = getSelectedBuilderFutureAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
     const lateAssignments = getSelectedBuilderLateAssignments().map(col => cleanAssignmentLabel(col)).filter(Boolean);
+    const classFirstNames = rows
+      .map((row, idx) => getFirstNameFromRow(row, idx))
+      .filter(Boolean);
     // Check if mark should be omitted (very low compared to class average)
     const performanceLevel = builderCorePerformanceSelect?.value || '';
     const studentGradeVal = finalGradeMeta?.value ?? null;
@@ -9304,9 +9461,11 @@ function varySentenceOpenings(text, studentName){
       ? (studentGradeVal != null && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10)))
       : false;
     return {
-      reviseMode: 'create',
+      reviseMode: 'advanced_generate',
+      draft: String(draft || '').trim(),
       basicStructure: normalizeBasicStructure(commentOrderMode),
-      studentName: builderStudentNameInput?.value.trim() || '',
+      studentName: fullName,
+      studentFirstName: firstName,
       pronoun: builderPronounFemaleInput?.checked ? 'she' : 'he',
       gradeGroup: builderGradeGroupSelect?.value || 'middle',
       performanceLevel,
@@ -9317,7 +9476,9 @@ function varySentenceOpenings(text, studentName){
       futureAssignments,
       lateAssignments,
       selectedComments: selectedComments.map(item => ({ category: item.section, text: item.text })),
-      customComment: builderCustomCommentInput?.value.trim() || ''
+      customComment: builderCustomCommentInput?.value.trim() || '',
+      classFirstNames,
+      allowedAssignmentLabels: assignmentFacts.map(item => item.label).filter(Boolean)
     };
   }
   function closeCreateConfirmModal(){
@@ -9343,22 +9504,28 @@ function varySentenceOpenings(text, studentName){
     if (!endpoint) return;
     const studentName = builderStudentNameInput?.value.trim();
     if (!studentName){
-      status('Provide a student name before using Create.');
+      status('Provide a student name before using Generate.');
       return;
     }
-    // Refine mode: use a minimal-edit prompt based on the basic comment draft
     const isRefineMode = !!builderRefineBasicDraft;
-    const payload = isRefineMode ? buildBuilderRefineBasicPayload() : buildBuilderAiCreatePayload();
-    const originalLabel = builderCreateAiBtn?.textContent || 'Create Comment';
+    if (!isRefineMode){
+      builderGenerateReport();
+      const draft = String(builderLastFullOutput || builderReportOutput?.value || '').trim();
+      if (!draft || draft === 'Provide a student name.' || draft === 'Select a term first.' || draft === 'Select a core performance level.' || draft === 'Template not available for this selection.'){
+        return;
+      }
+    }
+    const payload = isRefineMode
+      ? buildBuilderRefineBasicPayload()
+      : buildBuilderAdvancedGeneratePayload(String(builderLastFullOutput || builderReportOutput?.value || '').trim());
     try {
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = true;
-        builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Creating...';
+        builderCreateAiBtn.textContent = isRefineMode ? 'Refining...' : 'Generating...';
       }
-      // Show spinner over the output box and clear it while waiting
       if (builderAiSpinner) builderAiSpinner.style.display = 'flex';
-      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '0.25';
-      status(isRefineMode ? 'Refining comment with AI...' : 'Creating new comment with AI...');
+      if (builderReportOutput) builderReportOutput.style.opacity = '0.45';
+      status(isRefineMode ? 'Refining comment with AI...' : 'Generating comment with AI...');
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -9377,33 +9544,18 @@ function varySentenceOpenings(text, studentName){
       }
       const modelUsed = String(data?.modelUsed || '').trim();
       const polished = polishGrammar(cleanFluency(aiText));
-      const termLabelValue = (builderTermSelector?.value || '').trim();
-      let finalOutput;
-      if (isRefineMode){
-        // Refine mode: the refined comment already preserves its own term label from the draft
-        finalOutput = polished;
-      } else if (termLabelValue){
-        finalOutput = `${termLabelValue}\n\n${polished}`;
-      } else {
-        finalOutput = `${polished}\n\n[Add term label here]`;
-        status('No term selected — add the term label to the top of the comment manually.');
-      }
-      setBuilderAiCreatedOutputText(finalOutput, 'create');
-      const action = isRefineMode ? 'refined' : 'created';
-      if (termLabelValue || isRefineMode){
-        status(modelUsed ? `AI comment ${action} (${modelUsed}).` : `AI comment ${action}.`);
-      }
-      // Exit refine mode after a successful refinement so next click is a fresh Create
-      if (isRefineMode) exitRefineBasicMode();
+      setBuilderReportOutputText(polished, 'revise');
+      status(modelUsed ? `AI comment ${isRefineMode ? 'refined' : 'generated'} (${modelUsed}).` : `AI comment ${isRefineMode ? 'refined' : 'generated'}.`);
+      if (isRefineMode) exitRefineBasicMode({ silent: true });
     } catch(err){
       console.error(err);
-      status('Could not reach AI API.');
+      status(isRefineMode ? 'Could not reach AI API. Keeping the imported basic draft.' : 'Could not reach AI API. Keeping the local draft.');
     } finally {
       if (builderAiSpinner) builderAiSpinner.style.display = 'none';
-      if (builderAiCreatedOutput) builderAiCreatedOutput.style.opacity = '';
+      if (builderReportOutput) builderReportOutput.style.opacity = '';
       if (builderCreateAiBtn){
         builderCreateAiBtn.disabled = false;
-        builderCreateAiBtn.textContent = originalLabel;
+        syncAdvancedBuilderUi();
       }
     }
   }
@@ -9439,7 +9591,7 @@ function varySentenceOpenings(text, studentName){
       return current;
     }
     const entered = window.prompt(
-      'Paste your deployed Revise API URL (example: https://teacher-tools-api.vercel.app).',
+      'Paste your deployed AI API URL (example: https://teacher-tools-api.vercel.app).',
       builderAiEndpoint || ''
     );
     if (entered == null) return '';
