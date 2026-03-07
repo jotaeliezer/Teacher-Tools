@@ -5729,10 +5729,7 @@ function getPerformanceToneLine(coreLevel, context){
     if (!contextKey) return null;
     if (!basicCommentAnimationStateByContext[contextKey] && create){
       basicCommentAnimationStateByContext[contextKey] = {
-        order: [],
-        pending: {},
-        nextIndex: 0,
-        activeRowIndex: null,
+        activeAnimations: 0,
         pendingRequests: 0,
         pingAfterComplete: false
       };
@@ -5741,10 +5738,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function resetBasicCommentAnimationState(contextId, order = [], options = {}){
     const state = getBasicCommentAnimationState(contextId, true);
-    state.order = Array.isArray(order) ? [...order] : [];
-    state.pending = {};
-    state.nextIndex = 0;
-    state.activeRowIndex = null;
+    state.activeAnimations = 0;
     state.pendingRequests = Number.isFinite(options.pendingRequests) ? Math.max(0, Number(options.pendingRequests)) : 0;
     state.pingAfterComplete = !!options.pingAfterComplete;
     return state;
@@ -5762,8 +5756,7 @@ function getPerformanceToneLine(coreLevel, context){
   function maybeFinishBasicCommentAnimationRun(contextId){
     const state = getBasicCommentAnimationState(contextId);
     if (!state) return;
-    const doneWithQueue = state.nextIndex >= state.order.length && !Object.keys(state.pending).length;
-    if (state.pendingRequests === 0 && state.activeRowIndex == null && doneWithQueue){
+    if (state.pendingRequests === 0 && state.activeAnimations === 0){
       if (state.pingAfterComplete){
         playCompletionPing();
       }
@@ -5797,60 +5790,28 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function queueBasicCommentAnimation(contextId, rowIndex, text){
     const state = getBasicCommentAnimationState(contextId, true);
-    const key = String(rowIndex);
-    state.pending[key] = String(text || '');
-    if (!state.order.includes(rowIndex)){
-      state.order.push(rowIndex);
-    }
-    drainBasicCommentAnimationQueue(contextId);
+    state.activeAnimations += 1;
+    animateBasicCommentIntoCard(contextId, rowIndex, text, () => {
+      const contextStore = getBasicCommentsStoreForContext(contextId, true);
+      const entry = contextStore[String(rowIndex)] || {};
+      contextStore[String(rowIndex)] = {
+        ...entry,
+        text: String(text || ''),
+        pendingText: '',
+        generating: false,
+        expanded: true,
+        error: ''
+      };
+      persistBasicGeneratedComments();
+      replaceBasicGeneratedCommentCard(contextId, rowIndex);
+      const nextState = getBasicCommentAnimationState(contextId);
+      if (nextState){
+        nextState.activeAnimations = Math.max(0, nextState.activeAnimations - 1);
+      }
+      maybeFinishBasicCommentAnimationRun(contextId);
+    });
   }
   function skipBasicCommentAnimationRow(contextId, rowIndex){
-    const state = getBasicCommentAnimationState(contextId);
-    if (!state) return;
-    const key = String(rowIndex);
-    state.pending[key] = null;
-    if (!state.order.includes(rowIndex)){
-      state.order.push(rowIndex);
-    }
-    drainBasicCommentAnimationQueue(contextId);
-  }
-  function drainBasicCommentAnimationQueue(contextId){
-    const state = getBasicCommentAnimationState(contextId);
-    if (!state || state.activeRowIndex != null) return;
-    while (state.nextIndex < state.order.length){
-      const rowIndex = state.order[state.nextIndex];
-      const key = String(rowIndex);
-      if (!Object.prototype.hasOwnProperty.call(state.pending, key)){
-        break;
-      }
-      const nextValue = state.pending[key];
-      delete state.pending[key];
-      state.nextIndex += 1;
-      if (nextValue == null){
-        continue;
-      }
-      const text = String(nextValue || '');
-      state.activeRowIndex = rowIndex;
-      animateBasicCommentIntoCard(contextId, rowIndex, text, () => {
-        const contextStore = getBasicCommentsStoreForContext(contextId, true);
-        const entry = contextStore[String(rowIndex)] || {};
-        contextStore[String(rowIndex)] = {
-          ...entry,
-          text,
-          pendingText: '',
-          generating: false,
-          expanded: true,
-          error: ''
-        };
-        persistBasicGeneratedComments();
-        replaceBasicGeneratedCommentCard(contextId, rowIndex);
-        const nextState = getBasicCommentAnimationState(contextId);
-        if (nextState) nextState.activeRowIndex = null;
-        maybeFinishBasicCommentAnimationRun(contextId);
-        drainBasicCommentAnimationQueue(contextId);
-      });
-      return;
-    }
     maybeFinishBasicCommentAnimationRun(contextId);
   }
   function animateBasicCommentTextarea(textarea, overlay, text, expanded, onDone = null){
@@ -7102,6 +7063,14 @@ function getPerformanceToneLine(coreLevel, context){
     } else {
       builderBasicResultsEl.appendChild(nextCard);
     }
+    const textarea = nextCard.querySelector(`textarea[data-basic-row-index="${rowIndex}"]`);
+    if (textarea){
+      const contextStore = getBasicCommentsStoreForContext(contextId, true);
+      const entry = contextStore[String(rowIndex)] || {};
+      requestAnimationFrame(() => {
+        syncBasicCommentTextareaState(textarea, shouldExpandBasicComment(entry));
+      });
+    }
     return nextCard;
   }
   function renderBasicGeneratedComments(contextId){
@@ -7118,7 +7087,16 @@ function getPerformanceToneLine(coreLevel, context){
     }
     builderBasicResultsEl.innerHTML = '';
     indices.forEach((rowIndex) => {
-      builderBasicResultsEl.appendChild(buildBasicGeneratedCommentCard(id, rowIndex));
+      const card = buildBasicGeneratedCommentCard(id, rowIndex);
+      builderBasicResultsEl.appendChild(card);
+      const textarea = card.querySelector(`textarea[data-basic-row-index="${rowIndex}"]`);
+      if (textarea){
+        const contextStore = getBasicCommentsStoreForContext(id, true);
+        const entry = contextStore[String(rowIndex)] || {};
+        requestAnimationFrame(() => {
+          syncBasicCommentTextareaState(textarea, shouldExpandBasicComment(entry));
+        });
+      }
     });
   }
 
