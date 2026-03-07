@@ -1827,6 +1827,17 @@
       background:#fff3cd;
       color:#7a4f00;
       border:1px solid #f0c040;
+      cursor:pointer;
+      transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    }
+    .basic-flag-badge--nomark:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 12px rgba(122,79,0,.16);
+      filter:saturate(1.05);
+    }
+    .basic-flag-badge--nomark:focus-visible{
+      outline:2px solid #c08200;
+      outline-offset:2px;
     }
     .basic-flag-badge--pronoun{
       background:#e8eaf6;
@@ -1890,6 +1901,10 @@
       display:flex;
       gap:6px;
       flex-wrap:wrap;
+    }
+    .basic-comment-card.is-generating{
+      border-color:#d7dae3;
+      box-shadow:0 8px 24px rgba(15, 23, 42, .08);
     }
     .basic-comment-toggle{
       min-width:36px;
@@ -1987,6 +2002,12 @@
         opacity:1;
         transform:translateY(0);
       }
+    }
+    .basic-card-writing-status{
+      margin-top:8px;
+      font-size:12px;
+      font-weight:700;
+      color:#667085;
     }
     .basic-comment-error{
       font-size:12px;
@@ -2494,6 +2515,11 @@
       border-color:#6a2e2e;
       color:#ffc2c2;
     }
+    body.dark-mode .basic-flag-badge--nomark{
+      background:#4a3b12;
+      border-color:#9e7a1a;
+      color:#ffe29a;
+    }
     body.dark-mode .basic-comment-textarea{
       background:#0f1522;
       color:#f4f6ff;
@@ -2503,6 +2529,9 @@
       color:#f4f6ff;
       background:#0f1522;
       border-color:#2c3240;
+    }
+    body.dark-mode .basic-card-writing-status{
+      color:#cbd5e1;
     }
     body.dark-mode .basic-comment-error{
       color:#ff8a80;

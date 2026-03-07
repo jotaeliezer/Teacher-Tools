@@ -63,12 +63,15 @@
   let builderOutputCrossfadeToken = 0;
   let builderGeneratorMode = 'basic';
   let basicGeneratedCommentsByContext = (basicSavedComments && typeof basicSavedComments === 'object') ? basicSavedComments : {};
-  let basicCommentAnimationQueueByContext = {};
+  let basicCommentAnimationStateByContext = {};
   let basicBulkGenerationToken = 0;
   const BASIC_BULK_CONCURRENCY = 2;
   // Bulk assignment modal selections — set when the teacher confirms the two-step modal
   let bulkSelectedAssignCols = [];
   let bulkSelectedUpcomingCols = [];
+  let bulkAssignTargetRowIndex = null;
+  let bulkAssignPreviousAssignCols = null;
+  let bulkAssignPreviousUpcomingCols = null;
   // Refine-mode: set when the user clicks Edit on a basic comment to bring it into the advanced panel
   let builderRefineBasicDraft = null;
 
@@ -594,7 +597,16 @@
     builderBasicBulkGenerateBtn.addEventListener('click', showBulkAssignModal);
   }
   if (bulkAssignCancelBtn){
-    bulkAssignCancelBtn.addEventListener('click', () => { if (bulkAssignModal) bulkAssignModal.style.display = 'none'; });
+    bulkAssignCancelBtn.addEventListener('click', () => {
+      if (bulkAssignTargetRowIndex != null){
+        if (Array.isArray(bulkAssignPreviousAssignCols)) bulkSelectedAssignCols = [...bulkAssignPreviousAssignCols];
+        if (Array.isArray(bulkAssignPreviousUpcomingCols)) bulkSelectedUpcomingCols = [...bulkAssignPreviousUpcomingCols];
+      }
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+      bulkAssignTargetRowIndex = null;
+      if (bulkAssignModal) bulkAssignModal.style.display = 'none';
+    });
   }
   if (bulkAssignStep1Btn){
     bulkAssignStep1Btn.addEventListener('click', handleBulkAssignContinue);
@@ -664,6 +676,13 @@
       status('Basic comment copied.');
     });
     builderBasicResultsEl.addEventListener('click', (e) => {
+      const retryBtn = e.target.closest('button[data-basic-retry]');
+      if (!retryBtn) return;
+      const rowIndex = Number(retryBtn.dataset.basicRetry);
+      if (Number.isNaN(rowIndex)) return;
+      retryBasicGeneratedComment(rowIndex);
+    });
+    builderBasicResultsEl.addEventListener('click', (e) => {
       const toggleBtn = e.target.closest('button[data-basic-toggle-expand]');
       if (!toggleBtn || !activeContext) return;
       const rowIndex = Number(toggleBtn.dataset.basicToggleExpand);
@@ -686,6 +705,13 @@
       toggleBtn.setAttribute('aria-label', nextExpanded ? 'Collapse comment' : 'Expand comment');
     });
     builderBasicResultsEl.addEventListener('click', (e) => {
+      const markToastBtn = e.target.closest('button[data-basic-mark-omitted]');
+      if (markToastBtn){
+        const rowIndex = Number(markToastBtn.dataset.basicMarkOmitted);
+        if (Number.isNaN(rowIndex) || !activeContext) return;
+        openBasicMarkOmittedAssignmentModal(rowIndex);
+        return;
+      }
       const pronounToastBtn = e.target.closest('button[data-basic-pronoun-toast]');
       if (pronounToastBtn){
         const rowIndex = Number(pronounToastBtn.dataset.basicPronounToast);
@@ -5690,33 +5716,144 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function shouldExpandBasicComment(entry){
     if (!entry) return false;
+    if (entry.generating) return true;
     const hasText = !!String(entry.text || '').trim();
     if (!hasText) return false;
     return entry.expanded !== false;
   }
-  function queueBasicCommentAnimation(contextId, rowIndex, text){
-    if (!contextId) return;
-    const contextKey = String(contextId);
-    if (!basicCommentAnimationQueueByContext[contextKey]){
-      basicCommentAnimationQueueByContext[contextKey] = {};
-    }
-    basicCommentAnimationQueueByContext[contextKey][String(rowIndex)] = String(text || '');
-  }
-  function consumeBasicCommentAnimation(contextId, rowIndex){
+  function getBasicCommentAnimationState(contextId, create = false){
     const contextKey = String(contextId || '');
-    const queue = basicCommentAnimationQueueByContext[contextKey];
-    if (!queue) return '';
-    const key = String(rowIndex);
-    const text = queue[key] || '';
-    delete queue[key];
-    if (!Object.keys(queue).length){
-      delete basicCommentAnimationQueueByContext[contextKey];
+    if (!contextKey) return null;
+    if (!basicCommentAnimationStateByContext[contextKey] && create){
+      basicCommentAnimationStateByContext[contextKey] = {
+        order: [],
+        pending: {},
+        nextIndex: 0,
+        activeRowIndex: null,
+        pendingRequests: 0,
+        pingAfterComplete: false
+      };
     }
-    return text;
+    return basicCommentAnimationStateByContext[contextKey] || null;
   }
-  function animateBasicCommentTextarea(textarea, overlay, text, expanded){
+  function resetBasicCommentAnimationState(contextId, order = [], options = {}){
+    const state = getBasicCommentAnimationState(contextId, true);
+    state.order = Array.isArray(order) ? [...order] : [];
+    state.pending = {};
+    state.nextIndex = 0;
+    state.activeRowIndex = null;
+    state.pendingRequests = Number.isFinite(options.pendingRequests) ? Math.max(0, Number(options.pendingRequests)) : 0;
+    state.pingAfterComplete = !!options.pingAfterComplete;
+    return state;
+  }
+  function clearBasicCommentAnimationState(contextId){
+    const contextKey = String(contextId || '');
+    if (!contextKey) return;
+    delete basicCommentAnimationStateByContext[contextKey];
+  }
+  function markBasicCommentAnimationRequestFinished(contextId){
+    const state = getBasicCommentAnimationState(contextId);
+    if (!state) return;
+    state.pendingRequests = Math.max(0, state.pendingRequests - 1);
+  }
+  function maybeFinishBasicCommentAnimationRun(contextId){
+    const state = getBasicCommentAnimationState(contextId);
+    if (!state) return;
+    const doneWithQueue = state.nextIndex >= state.order.length && !Object.keys(state.pending).length;
+    if (state.pendingRequests === 0 && state.activeRowIndex == null && doneWithQueue){
+      if (state.pingAfterComplete){
+        playCompletionPing();
+      }
+      clearBasicCommentAnimationState(contextId);
+    }
+  }
+  function getBasicCommentCardElements(rowIndex){
+    if (!builderBasicResultsEl) return null;
+    const card = builderBasicResultsEl.querySelector(`[data-basic-card-row="${rowIndex}"]`);
+    if (!card) return null;
+    return {
+      card,
+      textarea: card.querySelector(`textarea[data-basic-row-index="${rowIndex}"]`),
+      overlay: card.querySelector('.basic-comment-textarea-overlay'),
+      statusEl: card.querySelector('.basic-card-writing-status')
+    };
+  }
+  function animateBasicCommentIntoCard(contextId, rowIndex, text, onDone = null){
+    let refs = getBasicCommentCardElements(rowIndex);
+    if (!refs){
+      replaceBasicGeneratedCommentCard(contextId, rowIndex);
+      refs = getBasicCommentCardElements(rowIndex);
+    }
+    if (!refs?.textarea || !refs?.overlay){
+      if (typeof onDone === 'function') onDone();
+      return;
+    }
+    refs.card.classList.add('is-generating');
+    if (refs.statusEl) refs.statusEl.textContent = 'Writing...';
+    animateBasicCommentTextarea(refs.textarea, refs.overlay, text, true, onDone);
+  }
+  function queueBasicCommentAnimation(contextId, rowIndex, text){
+    const state = getBasicCommentAnimationState(contextId, true);
+    const key = String(rowIndex);
+    state.pending[key] = String(text || '');
+    if (!state.order.includes(rowIndex)){
+      state.order.push(rowIndex);
+    }
+    drainBasicCommentAnimationQueue(contextId);
+  }
+  function skipBasicCommentAnimationRow(contextId, rowIndex){
+    const state = getBasicCommentAnimationState(contextId);
+    if (!state) return;
+    const key = String(rowIndex);
+    state.pending[key] = null;
+    if (!state.order.includes(rowIndex)){
+      state.order.push(rowIndex);
+    }
+    drainBasicCommentAnimationQueue(contextId);
+  }
+  function drainBasicCommentAnimationQueue(contextId){
+    const state = getBasicCommentAnimationState(contextId);
+    if (!state || state.activeRowIndex != null) return;
+    while (state.nextIndex < state.order.length){
+      const rowIndex = state.order[state.nextIndex];
+      const key = String(rowIndex);
+      if (!Object.prototype.hasOwnProperty.call(state.pending, key)){
+        break;
+      }
+      const nextValue = state.pending[key];
+      delete state.pending[key];
+      state.nextIndex += 1;
+      if (nextValue == null){
+        continue;
+      }
+      const text = String(nextValue || '');
+      state.activeRowIndex = rowIndex;
+      animateBasicCommentIntoCard(contextId, rowIndex, text, () => {
+        const contextStore = getBasicCommentsStoreForContext(contextId, true);
+        const entry = contextStore[String(rowIndex)] || {};
+        contextStore[String(rowIndex)] = {
+          ...entry,
+          text,
+          pendingText: '',
+          generating: false,
+          expanded: true,
+          error: ''
+        };
+        persistBasicGeneratedComments();
+        replaceBasicGeneratedCommentCard(contextId, rowIndex);
+        const nextState = getBasicCommentAnimationState(contextId);
+        if (nextState) nextState.activeRowIndex = null;
+        maybeFinishBasicCommentAnimationRun(contextId);
+        drainBasicCommentAnimationQueue(contextId);
+      });
+      return;
+    }
+    maybeFinishBasicCommentAnimationRun(contextId);
+  }
+  function animateBasicCommentTextarea(textarea, overlay, text, expanded, onDone = null){
     if (!textarea || !overlay){
       if (textarea) syncBasicCommentTextareaState(textarea, expanded);
+      if (typeof onDone === 'function') onDone();
       return;
     }
     const source = String(text || '');
@@ -5726,7 +5863,7 @@ function getPerformanceToneLine(coreLevel, context){
     overlay.hidden = false;
     overlay.classList.add('is-visible');
     textarea.classList.add('is-animating');
-    textarea.value = source;
+    textarea.value = '';
     syncBasicCommentTextareaState(textarea, expanded);
     let index = 0;
     const charsPerStep = 3;
@@ -5734,6 +5871,8 @@ function getPerformanceToneLine(coreLevel, context){
     const step = () => {
       if (overlay.dataset.animToken !== token) return;
       const end = Math.min(index + charsPerStep, source.length);
+      textarea.value = source.slice(0, end);
+      syncBasicCommentTextareaState(textarea, expanded);
       for (; index < end; index += 1){
         const span = document.createElement('span');
         span.className = 'basic-comment-char';
@@ -5747,7 +5886,9 @@ function getPerformanceToneLine(coreLevel, context){
       textarea.classList.remove('is-animating');
       overlay.classList.remove('is-visible');
       overlay.hidden = true;
+      textarea.value = source;
       syncBasicCommentTextareaState(textarea, expanded);
+      if (typeof onDone === 'function') onDone();
     };
     step();
   }
@@ -6059,9 +6200,11 @@ function getPerformanceToneLine(coreLevel, context){
       .filter(Boolean)
       .slice(0, 120);
     // Use teacher-selected assignments (2 of up to 3 chosen in the modal, picked at random per student)
-    const assignmentFacts = computeBulkAssignmentFacts(row);
+    const selectedAssignCols = Array.isArray(options.customAssignCols) ? options.customAssignCols : bulkSelectedAssignCols;
+    const selectedUpcomingCols = Array.isArray(options.customUpcomingCols) ? options.customUpcomingCols : bulkSelectedUpcomingCols;
+    const assignmentFacts = computeBulkAssignmentFacts(row, selectedAssignCols);
     // Upcoming tests are the ones the teacher flagged in the modal
-    const upcomingTests = bulkSelectedUpcomingCols
+    const upcomingTests = selectedUpcomingCols
       .map(col => cleanAssignmentLabel(col))
       .filter(Boolean);
     const allowedAssignmentLabels = [
@@ -6101,7 +6244,8 @@ function getPerformanceToneLine(coreLevel, context){
       assignmentFacts,
       upcomingTests,
       allowedAssignmentLabels,
-      classFirstNames
+      classFirstNames,
+      customAssignmentSelection: !!options.customAssignmentSelection
     };
   }
   async function requestBasicComment(endpoint, payload){
@@ -6127,6 +6271,85 @@ function getPerformanceToneLine(coreLevel, context){
   async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint, options = {}){
     const payload = buildBasicBulkPayload(rowIndex, termLabel, options);
     return requestBasicComment(endpoint, payload);
+  }
+  async function applyBasicCustomSelectionsAndRegenerate(rowIndex, assignCols, upcomingCols){
+    if (!activeContext || !rows.length) return;
+    const endpoint = ensureBuilderAiEndpoint();
+    if (!endpoint) return;
+    const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+    const rowKey = String(rowIndex);
+    const existingEntry = contextStore[rowKey] || {};
+    const termLabel = String(existingEntry.termLabel || builderBasicTermSelector?.value || '').trim();
+    if (!termLabel){
+      updateBasicGeneratorStatus('Select a term before updating this comment.');
+      return;
+    }
+    const previousText = String(existingEntry.text || '');
+    const nextAssignCols = Array.isArray(assignCols) ? [...assignCols] : [];
+    const nextUpcomingCols = Array.isArray(upcomingCols) ? [...upcomingCols] : [];
+    contextStore[rowKey] = {
+      ...existingEntry,
+      customAssignCols: nextAssignCols,
+      customUpcomingCols: nextUpcomingCols,
+      generating: true,
+      pendingText: '',
+      text: '',
+      expanded: true,
+      error: '',
+      termLabel
+    };
+    persistBasicGeneratedComments();
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+    const studentName = getRowLabel(rowIndex);
+    updateBasicGeneratorStatus(`Updating assignment evidence for ${studentName}...`);
+    try{
+      const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint, {
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        customAssignmentSelection: true
+      });
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        pendingText: result.text,
+        termLabel,
+        updatedAt: Date.now(),
+        modelUsed: result.modelUsed,
+        expanded: true,
+        error: ''
+      };
+      persistBasicGeneratedComments();
+      animateBasicCommentIntoCard(activeContext.id, rowIndex, result.text, () => {
+        const latestStore = getBasicCommentsStoreForContext(activeContext.id, true);
+        const latestEntry = latestStore[rowKey] || {};
+        latestStore[rowKey] = {
+          ...latestEntry,
+          text: result.text,
+          pendingText: '',
+          generating: false,
+          expanded: true,
+          error: ''
+        };
+        persistBasicGeneratedComments();
+        replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      });
+      updateBasicGeneratorStatus(`Updated ${studentName}'s comment with the selected assignments/tests.`);
+      return;
+    }catch(err){
+      contextStore[rowKey] = {
+        ...contextStore[rowKey],
+        customAssignCols: nextAssignCols,
+        customUpcomingCols: nextUpcomingCols,
+        text: previousText,
+        pendingText: '',
+        generating: false,
+        error: String(err?.message || 'No valid output returned')
+      };
+      persistBasicGeneratedComments();
+      replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      updateBasicGeneratorStatus(`Could not update ${studentName}'s comment.`);
+    }
   }
   function getBasicRunStatus(completed, total, successCount){
     return `${completed}/${total} generated • ${successCount} success`;
@@ -6176,7 +6399,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
 
   // ── Bulk Assignment Selection Modal ──────────────────────────────────────
-  function showBulkAssignModal(){
+  function showBulkAssignModal(options = {}){
     if (!activeContext || !rows.length){
       updateBasicGeneratorStatus('Load class data first.');
       return;
@@ -6186,12 +6409,33 @@ function getPerformanceToneLine(coreLevel, context){
       updateBasicGeneratorStatus('Select a term first.');
       return;
     }
+    bulkAssignTargetRowIndex = Number.isInteger(options.rowIndex) ? options.rowIndex : null;
+    if (bulkAssignTargetRowIndex != null){
+      bulkAssignPreviousAssignCols = [...bulkSelectedAssignCols];
+      bulkAssignPreviousUpcomingCols = [...bulkSelectedUpcomingCols];
+      const contextStore = getBasicCommentsStoreForContext(activeContext.id, true);
+      const entry = contextStore[String(bulkAssignTargetRowIndex)] || {};
+      bulkSelectedAssignCols = Array.isArray(entry.customAssignCols) && entry.customAssignCols.length
+        ? entry.customAssignCols.filter(Boolean)
+        : [...bulkAssignPreviousAssignCols];
+      bulkSelectedUpcomingCols = Array.isArray(entry.customUpcomingCols) && entry.customUpcomingCols.length
+        ? entry.customUpcomingCols.filter(Boolean)
+        : [...bulkAssignPreviousUpcomingCols];
+    } else {
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+    }
     if (bulkAssignSearch) bulkAssignSearch.value = '';
     populateBulkAssignList();
     if (bulkAssignStep1) bulkAssignStep1.style.display = '';
     if (bulkAssignStep2) bulkAssignStep2.style.display = 'none';
     if (bulkAssignWarning) bulkAssignWarning.style.display = 'none';
     if (bulkAssignModal) bulkAssignModal.style.display = 'flex';
+  }
+  function openBasicMarkOmittedAssignmentModal(rowIndex){
+    if (!activeContext || Number.isNaN(Number(rowIndex))) return;
+    showBulkAssignModal({ rowIndex: Number(rowIndex) });
+    updateBasicGeneratorStatus(`Select assignments/tests to strengthen ${getRowLabel(Number(rowIndex))}'s comment.`);
   }
 
   function populateBulkAssignList(){
@@ -6329,6 +6573,18 @@ function getPerformanceToneLine(coreLevel, context){
     const checked = Array.from(bulkUpcomingList.querySelectorAll('input[type="checkbox"]:checked'));
     bulkSelectedUpcomingCols = checked.map(cb => cb.dataset.col).filter(Boolean);
     if (bulkAssignModal) bulkAssignModal.style.display = 'none';
+    if (bulkAssignTargetRowIndex != null){
+      const targetRowIndex = bulkAssignTargetRowIndex;
+      const customAssignCols = [...bulkSelectedAssignCols];
+      const customUpcomingCols = [...bulkSelectedUpcomingCols];
+      if (Array.isArray(bulkAssignPreviousAssignCols)) bulkSelectedAssignCols = [...bulkAssignPreviousAssignCols];
+      if (Array.isArray(bulkAssignPreviousUpcomingCols)) bulkSelectedUpcomingCols = [...bulkAssignPreviousUpcomingCols];
+      bulkAssignPreviousAssignCols = null;
+      bulkAssignPreviousUpcomingCols = null;
+      bulkAssignTargetRowIndex = null;
+      applyBasicCustomSelectionsAndRegenerate(targetRowIndex, customAssignCols, customUpcomingCols);
+      return;
+    }
     runBasicBulkGenerate();
   }
 
@@ -6405,10 +6661,10 @@ function getPerformanceToneLine(coreLevel, context){
     }catch(e){ /* Web Audio API unavailable */ }
   }
 
-  function computeBulkAssignmentFacts(row){
-    if (!row || !bulkSelectedAssignCols.length) return [];
+  function computeBulkAssignmentFacts(row, selectedCols = bulkSelectedAssignCols){
+    if (!row || !Array.isArray(selectedCols) || !selectedCols.length) return [];
     // Randomly pick up to 2 of the user-selected columns for variety across students
-    const shuffled = [...bulkSelectedAssignCols].sort(() => Math.random() - 0.5);
+    const shuffled = [...selectedCols].sort(() => Math.random() - 0.5);
     const picked = shuffled.slice(0, Math.min(2, shuffled.length));
     return picked.map(col => {
       const rawValue = row[col];
@@ -6443,6 +6699,10 @@ function getPerformanceToneLine(coreLevel, context){
     const runToken = ++basicBulkGenerationToken;
     const contextId = activeContext.id;
     const contextStore = getBasicCommentsStoreForContext(contextId, true);
+    resetBasicCommentAnimationState(contextId, indices, {
+      pendingRequests: indices.length,
+      pingAfterComplete: true
+    });
     let completed = 0;
     let successCount = 0;
     let failureCount = 0;
@@ -6450,6 +6710,20 @@ function getPerformanceToneLine(coreLevel, context){
       builderBasicBulkGenerateBtn.disabled = true;
       builderBasicBulkGenerateBtn.textContent = 'Generating...';
     }
+    indices.forEach((rowIndex) => {
+      const key = String(rowIndex);
+      const existingEntry = contextStore[key] || {};
+      contextStore[key] = {
+        ...existingEntry,
+        generating: true,
+        pendingText: '',
+        text: '',
+        termLabel,
+        error: '',
+        expanded: true
+      };
+    });
+    persistBasicGeneratedComments();
     updateBasicGeneratorStatus(getBasicRunStatus(0, indices.length, 0));
     renderBasicGeneratedComments(contextId);
     const queue = [...indices];
@@ -6460,51 +6734,44 @@ function getPerformanceToneLine(coreLevel, context){
         const rowIndex = queue.shift();
         if (rowIndex == null) return;
         const key = String(rowIndex);
-        const existingEntry = contextStore[key] || {};
-        // Mark this student as generating and show spinner in their card
-        contextStore[key] = {
-          ...existingEntry,
-          generating: true,
-          text: '',
-          termLabel,
-          error: ''
-        };
-        if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
-          renderBasicGeneratedComments(contextId);
-        }
         try{
           const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
           contextStore[key] = {
             ...contextStore[key],
-            text: result.text,
+            pendingText: result.text,
             termLabel,
             updatedAt: Date.now(),
             modelUsed: result.modelUsed,
             expanded: true,
-            generating: false,
             error: ''
           };
+          persistBasicGeneratedComments();
           queueBasicCommentAnimation(contextId, rowIndex, result.text);
           successCount += 1;
-          playCompletionPing();
         }catch(err){
           failureCount += 1;
           contextStore[key] = {
             ...contextStore[key],
             text: '',
+            pendingText: '',
             termLabel,
             updatedAt: Date.now(),
             modelUsed: '',
             generating: false,
             error: String(err?.message || 'No valid output returned')
           };
+          persistBasicGeneratedComments();
+          if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
+            replaceBasicGeneratedCommentCard(contextId, rowIndex);
+          }
+          skipBasicCommentAnimationRow(contextId, rowIndex);
         }
         completed += 1;
-        persistBasicGeneratedComments();
+        markBasicCommentAnimationRequestFinished(contextId);
         if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
-          renderBasicGeneratedComments(contextId);
           updateBasicGeneratorStatus(getBasicRunStatus(completed, indices.length, successCount));
         }
+        maybeFinishBasicCommentAnimationRun(contextId);
       }
     });
     await Promise.all(workers);
@@ -6534,30 +6801,50 @@ function getPerformanceToneLine(coreLevel, context){
     contextStore[rowKey] = {
       ...existingEntry,
       generating: true,
+      pendingText: '',
       text: '',
       error: '',
-      termLabel
+      termLabel,
+      expanded: true
     };
     persistBasicGeneratedComments();
-    renderBasicGeneratedComments(activeContext.id);
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
     try{
       const result = await runBasicGenerateForStudent(rowIndex, termLabel, endpoint);
       contextStore[rowKey] = {
         ...contextStore[rowKey],
-        text: result.text,
+        pendingText: result.text,
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
         expanded: true,
-        generating: false,
         error: ''
       };
-      queueBasicCommentAnimation(activeContext.id, rowIndex, result.text);
+      persistBasicGeneratedComments();
+      animateBasicCommentIntoCard(activeContext.id, rowIndex, result.text, () => {
+        const latestStore = getBasicCommentsStoreForContext(activeContext.id, true);
+        const latestEntry = latestStore[rowKey] || {};
+        latestStore[rowKey] = {
+          ...latestEntry,
+          text: result.text,
+          pendingText: '',
+          termLabel,
+          updatedAt: Date.now(),
+          modelUsed: result.modelUsed,
+          expanded: true,
+          generating: false,
+          error: ''
+        };
+        persistBasicGeneratedComments();
+        replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      });
       updateBasicGeneratorStatus('Retry completed.');
+      return;
     }catch(err){
       contextStore[rowKey] = {
         ...(contextStore[rowKey] || {}),
         text: '',
+        pendingText: '',
         termLabel,
         updatedAt: Date.now(),
         generating: false,
@@ -6566,13 +6853,13 @@ function getPerformanceToneLine(coreLevel, context){
       updateBasicGeneratorStatus('Retry failed for one student.');
     }
     persistBasicGeneratedComments();
-    renderBasicGeneratedComments(activeContext.id);
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
   }
   async function regenerateBasicCommentPronoun(rowIndex, pronounOverride){
     if (!activeContext || !rows.length) return;
     const normalized = normalizeBasicPronounValue(pronounOverride);
     if (!normalized || normalized === 'they'){
-      updateBasicGeneratorStatus('Choose either 👦🏻 or 👧🏻 to regenerate pronouns.');
+      updateBasicGeneratorStatus('Choose either \u{1F466}\u{1F3FB} or \u{1F467}\u{1F3FB} to regenerate pronouns.');
       return;
     }
     const endpoint = ensureBuilderAiEndpoint();
@@ -6590,12 +6877,14 @@ function getPerformanceToneLine(coreLevel, context){
       ...existingEntry,
       pronounOverride: normalized,
       generating: true,
+      pendingText: '',
       text: '',
+      expanded: true,
       error: '',
       termLabel
     };
     persistBasicGeneratedComments();
-    renderBasicGeneratedComments(activeContext.id);
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
     const studentName = getRowLabel(rowIndex);
     updateBasicGeneratorStatus(`Updating pronouns for ${studentName}...`);
     try{
@@ -6603,21 +6892,40 @@ function getPerformanceToneLine(coreLevel, context){
       contextStore[rowKey] = {
         ...contextStore[rowKey],
         pronounOverride: normalized,
-        text: result.text,
+        pendingText: result.text,
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
         expanded: true,
-        generating: false,
         error: ''
       };
-      queueBasicCommentAnimation(activeContext.id, rowIndex, result.text);
+      persistBasicGeneratedComments();
+      animateBasicCommentIntoCard(activeContext.id, rowIndex, result.text, () => {
+        const latestStore = getBasicCommentsStoreForContext(activeContext.id, true);
+        const latestEntry = latestStore[rowKey] || {};
+        latestStore[rowKey] = {
+          ...latestEntry,
+          pronounOverride: normalized,
+          text: result.text,
+          pendingText: '',
+          termLabel,
+          updatedAt: Date.now(),
+          modelUsed: result.modelUsed,
+          expanded: true,
+          generating: false,
+          error: ''
+        };
+        persistBasicGeneratedComments();
+        replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+      });
       updateBasicGeneratorStatus(`Pronouns updated for ${studentName}.`);
+      return;
     }catch(err){
       contextStore[rowKey] = {
         ...contextStore[rowKey],
         pronounOverride: normalized,
         text: previousText,
+        pendingText: '',
         termLabel,
         updatedAt: Date.now(),
         generating: false,
@@ -6626,184 +6934,188 @@ function getPerformanceToneLine(coreLevel, context){
       updateBasicGeneratorStatus(`Pronoun update failed for ${studentName}.`);
     }
     persistBasicGeneratedComments();
-    renderBasicGeneratedComments(activeContext.id);
+    replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
+  }
+  function buildBasicGeneratedCommentCard(contextId, rowIndex){
+    const contextStore = getBasicCommentsStoreForContext(contextId, true);
+    const row = rows[rowIndex];
+    const name = getRowLabel(rowIndex);
+    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
+    const classGradeAvg = gradeCol ? getColumnClassAverage(gradeCol) : null;
+    const markMeta = gradeCol ? deriveMarkMeta(row?.[gradeCol], gradeCol) : null;
+    const markClass = markMeta ? markMeta.className : 'mark-low';
+    const entry = contextStore[String(rowIndex)] || {};
+    const performanceCode = getRowPerformanceLevel(row);
+    const studentGradeVal = markMeta?.value ?? null;
+    const isMarkOmitted = performanceCode === 'needs_support'
+      && studentGradeVal != null
+      && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
+    const detectedTheyThem = shouldShowTheyThemToast(entry.text);
+    const isNeutralPronoun = detectedTheyThem && !entry.generating;
+    const card = document.createElement('div');
+    card.className = 'basic-comment-card';
+    card.dataset.basicCardRow = String(rowIndex);
+    if (entry.generating) card.classList.add('is-generating');
+    if (isMarkOmitted || isNeutralPronoun) card.classList.add('basic-comment-card--flagged');
+
+    const header = document.createElement('div');
+    header.className = 'basic-comment-card-header';
+    const title = document.createElement('strong');
+    title.className = 'basic-comment-name';
+    title.classList.add(markClass);
+    title.textContent = name;
+
+    const flagWrap = document.createElement('div');
+    flagWrap.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center;';
+    if (isMarkOmitted){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'basic-flag-badge basic-flag-badge--nomark';
+      b.dataset.basicMarkOmitted = String(rowIndex);
+      b.textContent = '\u26A0 Mark omitted';
+      b.title = 'Mark was omitted because this student is significantly below the class average. Click to choose assignments/tests for this student.';
+      flagWrap.appendChild(b);
+    }
+    if (isNeutralPronoun){
+      const toastBtn = document.createElement('button');
+      toastBtn.type = 'button';
+      toastBtn.className = 'basic-flag-badge basic-flag-badge--pronoun basic-pronoun-toast';
+      toastBtn.dataset.basicPronounToast = String(rowIndex);
+      toastBtn.setAttribute('aria-expanded', 'false');
+      toastBtn.textContent = '\u{1F464} They/Them';
+      toastBtn.title = 'This comment uses they/them. Click to pick \u{1F466}\u{1F3FB} or \u{1F467}\u{1F3FB} and regenerate with gendered pronouns.';
+      flagWrap.appendChild(toastBtn);
+
+      const chooser = document.createElement('div');
+      chooser.className = 'basic-pronoun-chooser';
+      chooser.dataset.basicPronounChooser = String(rowIndex);
+      chooser.hidden = true;
+
+      const boyBtn = document.createElement('button');
+      boyBtn.type = 'button';
+      boyBtn.className = 'basic-pronoun-choice';
+      boyBtn.dataset.basicPronounSelect = 'he';
+      boyBtn.dataset.basicPronounRow = String(rowIndex);
+      boyBtn.textContent = '\u{1F466}\u{1F3FB}?';
+      boyBtn.title = 'Regenerate this comment with he/him pronouns';
+      chooser.appendChild(boyBtn);
+
+      const girlBtn = document.createElement('button');
+      girlBtn.type = 'button';
+      girlBtn.className = 'basic-pronoun-choice';
+      girlBtn.dataset.basicPronounSelect = 'she';
+      girlBtn.dataset.basicPronounRow = String(rowIndex);
+      girlBtn.textContent = '\u{1F467}\u{1F3FB}?';
+      girlBtn.title = 'Regenerate this comment with she/her pronouns';
+      chooser.appendChild(girlBtn);
+
+      flagWrap.appendChild(chooser);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'basic-comment-card-actions';
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn';
+    copyBtn.type = 'button';
+    copyBtn.dataset.basicCopy = String(rowIndex);
+    copyBtn.textContent = 'Copy';
+    copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
+    actions.appendChild(copyBtn);
+
+    const isExpanded = shouldExpandBasicComment(entry);
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn basic-comment-toggle';
+    toggleBtn.type = 'button';
+    toggleBtn.dataset.basicToggleExpand = String(rowIndex);
+    toggleBtn.textContent = isExpanded ? '^' : 'v';
+    toggleBtn.title = isExpanded ? 'Collapse comment' : 'Expand comment';
+    toggleBtn.setAttribute('aria-label', isExpanded ? 'Collapse comment' : 'Expand comment');
+    toggleBtn.disabled = entry.generating || !String(entry.text || entry.pendingText || '').trim();
+    actions.appendChild(toggleBtn);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn';
+    editBtn.type = 'button';
+    editBtn.textContent = 'Edit';
+    editBtn.disabled = entry.generating || !String(entry.text || '').trim();
+    editBtn.title = 'Open in Advanced Generator to refine pronouns and assignments';
+    editBtn.addEventListener('click', () => {
+      const currentText = card.querySelector('textarea[data-basic-row-index]')?.value || String(entry.text || '');
+      if (!currentText.trim()) return;
+      editBasicCommentInAdvanced(rowIndex, currentText);
+    });
+    actions.appendChild(editBtn);
+
+    if (entry.error){
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'btn warn';
+      retryBtn.type = 'button';
+      retryBtn.dataset.basicRetry = String(rowIndex);
+      retryBtn.textContent = 'Retry';
+      actions.appendChild(retryBtn);
+    }
+
+    header.appendChild(title);
+    if (flagWrap.children.length) header.appendChild(flagWrap);
+    header.appendChild(actions);
+    card.appendChild(header);
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'basic-comment-textarea-wrap';
+    const textarea = document.createElement('textarea');
+    textarea.className = 'basic-comment-textarea';
+    textarea.dataset.basicRowIndex = String(rowIndex);
+    textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
+    textarea.value = String(entry.text || '');
+    textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
+    textarea.readOnly = !!entry.generating;
+    const overlay = document.createElement('div');
+    overlay.className = 'basic-comment-textarea-overlay';
+    overlay.hidden = true;
+    textWrap.appendChild(textarea);
+    textWrap.appendChild(overlay);
+    card.appendChild(textWrap);
+    syncBasicCommentTextareaState(textarea, isExpanded);
+
+    if (entry.generating){
+      const statusEl = document.createElement('div');
+      statusEl.className = 'basic-card-writing-status';
+      statusEl.textContent = String(entry.pendingText || '').trim() ? 'Writing...' : 'Generating...';
+      card.appendChild(statusEl);
+    }else if (entry.error){
+      const error = document.createElement('div');
+      error.className = 'basic-comment-error';
+      error.textContent = `Error: ${entry.error}`;
+      card.appendChild(error);
+    }
+    return card;
+  }
+  function replaceBasicGeneratedCommentCard(contextId, rowIndex){
+    if (!builderBasicResultsEl) return null;
+    const nextCard = buildBasicGeneratedCommentCard(contextId, rowIndex);
+    const existingCard = builderBasicResultsEl.querySelector(`[data-basic-card-row="${rowIndex}"]`);
+    if (existingCard?.parentNode){
+      existingCard.parentNode.replaceChild(nextCard, existingCard);
+    } else {
+      builderBasicResultsEl.appendChild(nextCard);
+    }
+    return nextCard;
   }
   function renderBasicGeneratedComments(contextId){
     if (!builderBasicResultsEl) return;
     const id = contextId != null ? contextId : activeContext?.id;
     if (!id || !rows.length){
-      builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No class data loaded.</div>';
+      builderBasicResultsEl.innerHTML = '<div class="muted" style="font-size:12px;">No class data loaded.</div>';
       return;
     }
     const indices = getBasicSortedCommentRowIndices(getVisibleCommentRowIndices());
     if (!indices.length){
-      builderBasicResultsEl.innerHTML = '<div class=\"muted\" style=\"font-size:12px;\">No students in the current filtered view.</div>';
+      builderBasicResultsEl.innerHTML = '<div class="muted" style="font-size:12px;">No students in the current filtered view.</div>';
       return;
     }
-    const contextStore = getBasicCommentsStoreForContext(id, true);
     builderBasicResultsEl.innerHTML = '';
-    const gradeCol = commentConfig.gradeColumn || FINAL_GRADE_COLUMN;
-    const classGradeAvg = gradeCol ? getColumnClassAverage(gradeCol) : null;
     indices.forEach((rowIndex) => {
-      const row = rows[rowIndex];
-      const name = getRowLabel(rowIndex);
-      // Use the same mark-high/mid/low classification as the student dropdown
-      const markMeta = gradeCol ? deriveMarkMeta(row?.[gradeCol], gradeCol) : null;
-      const markClass = markMeta ? markMeta.className : 'mark-low';
-      const entry = contextStore[String(rowIndex)] || {};
-      // Compute flags for highlighting
-      const performanceCode = getRowPerformanceLevel(row);
-      const studentGradeVal = markMeta?.value ?? null;
-      const isMarkOmitted = performanceCode === 'needs_support'
-        && studentGradeVal != null
-        && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
-      const detectedTheyThem = shouldShowTheyThemToast(entry.text);
-      const isNeutralPronoun = detectedTheyThem && !entry.generating;
-      const card = document.createElement('div');
-      card.className = 'basic-comment-card';
-      if (isMarkOmitted || isNeutralPronoun) card.classList.add('basic-comment-card--flagged');
-      const header = document.createElement('div');
-      header.className = 'basic-comment-card-header';
-      const title = document.createElement('strong');
-      title.className = 'basic-comment-name';
-      title.classList.add(markClass);
-      title.textContent = name;
-      // Flag badges
-      const flagWrap = document.createElement('div');
-      flagWrap.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; align-items:center;';
-      if (isMarkOmitted){
-        const b = document.createElement('span');
-        b.className = 'basic-flag-badge basic-flag-badge--nomark';
-        b.textContent = '⚠ Mark omitted';
-        b.title = 'Mark was omitted because this student is significantly below the class average. Review comment.';
-        flagWrap.appendChild(b);
-      }
-      if (isNeutralPronoun){
-        const toastBtn = document.createElement('button');
-        toastBtn.type = 'button';
-        toastBtn.className = 'basic-flag-badge basic-flag-badge--pronoun basic-pronoun-toast';
-        toastBtn.dataset.basicPronounToast = String(rowIndex);
-        toastBtn.setAttribute('aria-expanded', 'false');
-        toastBtn.textContent = '👤 They/Them';
-        toastBtn.title = 'This comment uses they/them. Click to pick 👦🏻 or 👧🏻 and regenerate with gendered pronouns.';
-        flagWrap.appendChild(toastBtn);
-
-        const chooser = document.createElement('div');
-        chooser.className = 'basic-pronoun-chooser';
-        chooser.dataset.basicPronounChooser = String(rowIndex);
-        chooser.hidden = true;
-
-        const boyBtn = document.createElement('button');
-        boyBtn.type = 'button';
-        boyBtn.className = 'basic-pronoun-choice';
-        boyBtn.dataset.basicPronounSelect = 'he';
-        boyBtn.dataset.basicPronounRow = String(rowIndex);
-        boyBtn.textContent = '👦🏻?';
-        boyBtn.title = 'Regenerate this comment with he/him pronouns';
-        chooser.appendChild(boyBtn);
-
-        const girlBtn = document.createElement('button');
-        girlBtn.type = 'button';
-        girlBtn.className = 'basic-pronoun-choice';
-        girlBtn.dataset.basicPronounSelect = 'she';
-        girlBtn.dataset.basicPronounRow = String(rowIndex);
-        girlBtn.textContent = '👧🏻?';
-        girlBtn.title = 'Regenerate this comment with she/her pronouns';
-        chooser.appendChild(girlBtn);
-
-        flagWrap.appendChild(chooser);
-      }
-      const actions = document.createElement('div');
-      actions.className = 'basic-comment-card-actions';
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'btn';
-      copyBtn.type = 'button';
-      copyBtn.dataset.basicCopy = String(rowIndex);
-      copyBtn.textContent = 'Copy';
-      copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
-      actions.appendChild(copyBtn);
-      const toggleBtn = document.createElement('button');
-      const isExpanded = shouldExpandBasicComment(entry);
-      toggleBtn.className = 'btn basic-comment-toggle';
-      toggleBtn.type = 'button';
-      toggleBtn.dataset.basicToggleExpand = String(rowIndex);
-      toggleBtn.textContent = isExpanded ? '^' : 'v';
-      toggleBtn.title = isExpanded ? 'Collapse comment' : 'Expand comment';
-      toggleBtn.setAttribute('aria-label', isExpanded ? 'Collapse comment' : 'Expand comment');
-      toggleBtn.disabled = entry.generating || !String(entry.text || '').trim();
-      actions.appendChild(toggleBtn);
-      // Edit button — opens the comment in the advanced panel for refinement
-      const editBtn = document.createElement('button');
-      editBtn.className = 'btn';
-      editBtn.type = 'button';
-      editBtn.textContent = 'Edit';
-      editBtn.disabled = entry.generating || !String(entry.text || '').trim();
-      editBtn.title = 'Open in Advanced Generator to refine pronouns and assignments';
-      editBtn.addEventListener('click', () => {
-        const currentText = card.querySelector('textarea[data-basic-row-index]')?.value || String(entry.text || '');
-        if (!currentText.trim()) return;
-        editBasicCommentInAdvanced(rowIndex, currentText);
-      });
-      actions.appendChild(editBtn);
-      if (entry.error){
-        const retryBtn = document.createElement('button');
-        retryBtn.className = 'btn warn';
-        retryBtn.type = 'button';
-        retryBtn.dataset.basicRetry = String(rowIndex);
-        retryBtn.textContent = 'Retry';
-        actions.appendChild(retryBtn);
-      }
-      header.appendChild(title);
-      if (flagWrap.children.length) header.appendChild(flagWrap);
-      header.appendChild(actions);
-      card.appendChild(header);
-      if (entry.generating){
-        // Show a spinner while the comment is being generated
-        const spinnerWrap = document.createElement('div');
-        spinnerWrap.className = 'basic-card-spinner';
-        const ring = document.createElement('div');
-        ring.className = 'spinner-ring';
-        spinnerWrap.appendChild(ring);
-        const label = document.createElement('span');
-        label.className = 'spinner-label';
-        label.textContent = 'Generating…';
-        spinnerWrap.appendChild(label);
-        card.appendChild(spinnerWrap);
-      } else {
-        const textWrap = document.createElement('div');
-        textWrap.className = 'basic-comment-textarea-wrap';
-        const textarea = document.createElement('textarea');
-        textarea.className = 'basic-comment-textarea';
-        textarea.dataset.basicRowIndex = String(rowIndex);
-        textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
-        textarea.value = String(entry.text || '');
-        textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
-        const overlay = document.createElement('div');
-        overlay.className = 'basic-comment-textarea-overlay';
-        overlay.hidden = true;
-        textWrap.appendChild(textarea);
-        textWrap.appendChild(overlay);
-        card.appendChild(textWrap);
-        syncBasicCommentTextareaState(textarea, isExpanded);
-        const queuedAnimationText = consumeBasicCommentAnimation(id, rowIndex);
-        if (queuedAnimationText){
-          animateBasicCommentTextarea(textarea, overlay, queuedAnimationText, isExpanded);
-        }
-        if (entry.error){
-          const error = document.createElement('div');
-          error.className = 'basic-comment-error';
-          error.textContent = `Error: ${entry.error}`;
-          card.appendChild(error);
-        }
-      }
-      builderBasicResultsEl.appendChild(card);
-    });
-    builderBasicResultsEl.querySelectorAll('button[data-basic-retry]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const rowIndex = Number(btn.dataset.basicRetry);
-        if (Number.isNaN(rowIndex)) return;
-        retryBasicGeneratedComment(rowIndex);
-      });
+      builderBasicResultsEl.appendChild(buildBasicGeneratedCommentCard(id, rowIndex));
     });
   }
 
