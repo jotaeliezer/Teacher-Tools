@@ -3,6 +3,7 @@
   const BASIC_STRUCTURE_OPTIONS = new Set(['strengths_feedback_blocks', 'sandwich_paragraph', 'bullet_points']);
   const BASIC_SORT_DEFAULT = 'grade_desc';
   const BASIC_SORT_OPTIONS = new Set(['grade_desc', 'first_name', 'last_name']);
+  const DEFAULT_BUILDER_AI_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
 
 // ==== Init from stored settings ====
   const initialSettings = loadSettings();
@@ -19,7 +20,7 @@
   setFilesDrawerExpanded(!!initialSettings.filesDrawerExpanded, false);
   selectedTemplateId = resolveSavedPrintTemplate(initialSettings);
   printAllTemplates = !!initialSettings.printAllTemplates;
-  builderAiEndpoint = String(initialSettings.builderAiEndpoint || '').trim();
+  builderAiEndpoint = String(DEFAULT_BUILDER_AI_ENDPOINT || initialSettings.builderAiEndpoint || '').trim();
   const basicSavedTerm = String(initialSettings.builderBasicTerm || '').trim();
   const basicSavedStructure = String(initialSettings.builderBasicStructure || '').trim().toLowerCase();
   const basicSavedSort = String(initialSettings.builderBasicSort || BASIC_SORT_DEFAULT).trim().toLowerCase();
