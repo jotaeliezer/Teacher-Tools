@@ -1990,13 +1990,13 @@
     .basic-comment-char{
       display:inline-block;
       opacity:0;
-      transform:translateY(3px);
-      animation:basicCharFadeIn 140ms ease forwards;
+      transform:translateY(2px);
+      animation:basicCharFadeIn 90ms ease forwards;
     }
     @keyframes basicCharFadeIn{
       from{
         opacity:0;
-        transform:translateY(3px);
+        transform:translateY(2px);
       }
       to{
         opacity:1;

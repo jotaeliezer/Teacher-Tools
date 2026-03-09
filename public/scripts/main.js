@@ -4,7 +4,7 @@
   const BASIC_SORT_DEFAULT = 'grade_desc';
   const BASIC_SORT_OPTIONS = new Set(['grade_desc', 'first_name', 'last_name']);
   const DEFAULT_BUILDER_AI_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
-  const BASIC_COMMENT_CHAR_FADE_MS = 140;
+  const BASIC_COMMENT_CHAR_FADE_MS = 90;
   const BASIC_COMMENT_COLLAPSED_HEIGHT = 180;
 
 // ==== Init from stored settings ====
@@ -5734,7 +5734,9 @@ function getPerformanceToneLine(coreLevel, context){
       basicCommentAnimationStateByContext[contextKey] = {
         activeAnimations: 0,
         pendingRequests: 0,
-        pingAfterComplete: false
+        pingAfterComplete: false,
+        queue: [],
+        processing: false
       };
     }
     return basicCommentAnimationStateByContext[contextKey] || null;
@@ -5744,6 +5746,8 @@ function getPerformanceToneLine(coreLevel, context){
     state.activeAnimations = 0;
     state.pendingRequests = Number.isFinite(options.pendingRequests) ? Math.max(0, Number(options.pendingRequests)) : 0;
     state.pingAfterComplete = !!options.pingAfterComplete;
+    state.queue = [];
+    state.processing = false;
     return state;
   }
   function clearBasicCommentAnimationState(contextId){
@@ -5759,7 +5763,7 @@ function getPerformanceToneLine(coreLevel, context){
   function maybeFinishBasicCommentAnimationRun(contextId){
     const state = getBasicCommentAnimationState(contextId);
     if (!state) return;
-    if (state.pendingRequests === 0 && state.activeAnimations === 0){
+    if (state.pendingRequests === 0 && state.activeAnimations === 0 && !state.processing && !(state.queue && state.queue.length)){
       if (state.pingAfterComplete){
         playCompletionPing();
       }
@@ -5801,7 +5805,22 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function queueBasicCommentAnimation(contextId, rowIndex, text){
     const state = getBasicCommentAnimationState(contextId, true);
-    state.activeAnimations += 1;
+    state.queue = Array.isArray(state.queue) ? state.queue : [];
+    state.queue.push({ rowIndex, text });
+    processNextBasicCommentAnimation(contextId);
+  }
+  function processNextBasicCommentAnimation(contextId){
+    const state = getBasicCommentAnimationState(contextId);
+    if (!state || state.processing) return;
+    state.queue = Array.isArray(state.queue) ? state.queue : [];
+    const nextItem = state.queue.shift();
+    if (!nextItem){
+      maybeFinishBasicCommentAnimationRun(contextId);
+      return;
+    }
+    state.processing = true;
+    state.activeAnimations = 1;
+    const { rowIndex, text } = nextItem;
     animateBasicCommentIntoCard(contextId, rowIndex, text, () => {
       const contextStore = getBasicCommentsStoreForContext(contextId, true);
       const entry = contextStore[String(rowIndex)] || {};
@@ -5818,9 +5837,11 @@ function getPerformanceToneLine(coreLevel, context){
       replaceBasicGeneratedCommentCard(contextId, rowIndex);
       const nextState = getBasicCommentAnimationState(contextId);
       if (nextState){
-        nextState.activeAnimations = Math.max(0, nextState.activeAnimations - 1);
+        nextState.activeAnimations = 0;
+        nextState.processing = false;
       }
       maybeFinishBasicCommentAnimationRun(contextId);
+      processNextBasicCommentAnimation(contextId);
     });
   }
   function skipBasicCommentAnimationRow(contextId, rowIndex){
@@ -5841,21 +5862,20 @@ function getPerformanceToneLine(coreLevel, context){
     textarea.classList.add('is-animating');
     textarea.value = '';
     syncBasicCommentTextareaState(textarea, expanded);
+    const tokens = source.match(/\S+\s*|[\r\n]+/g) || [];
     let index = 0;
-    const charsPerStep = 3;
-    const stepDelay = 10;
+    const wordsPerStep = 4;
+    const stepDelay = 12;
     const step = () => {
       if (overlay.dataset.animToken !== token) return;
-      const end = Math.min(index + charsPerStep, source.length);
-      textarea.value = source.slice(0, end);
-      syncBasicCommentTextareaState(textarea, expanded);
+      const end = Math.min(index + wordsPerStep, tokens.length);
       for (; index < end; index += 1){
         const span = document.createElement('span');
         span.className = 'basic-comment-char';
-        span.textContent = source.charAt(index);
+        span.textContent = tokens[index];
         overlay.appendChild(span);
       }
-      if (index < source.length){
+      if (index < tokens.length){
         setTimeout(step, stepDelay);
         return;
       }
