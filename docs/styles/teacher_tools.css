@@ -1947,7 +1947,7 @@
     }
     .basic-comment-textarea{
       width:100%;
-      min-height:112px;
+      min-height:180px;
       resize:none;
       overflow-y:hidden;
       font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;

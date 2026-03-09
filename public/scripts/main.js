@@ -5,6 +5,7 @@
   const BASIC_SORT_OPTIONS = new Set(['grade_desc', 'first_name', 'last_name']);
   const DEFAULT_BUILDER_AI_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
   const BASIC_COMMENT_CHAR_FADE_MS = 140;
+  const BASIC_COMMENT_COLLAPSED_HEIGHT = 180;
 
 // ==== Init from stored settings ====
   const initialSettings = loadSettings();
@@ -5712,8 +5713,8 @@ function getPerformanceToneLine(coreLevel, context){
     textarea.classList.toggle('is-expanded', isExpanded);
     textarea.classList.toggle('is-collapsed', !isExpanded);
     textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
-    const currentHeight = Math.max(textarea.offsetHeight || 112, 112);
-    const targetHeight = isExpanded ? Math.max(textarea.scrollHeight, 112) : 112;
+    const currentHeight = Math.max(textarea.offsetHeight || BASIC_COMMENT_COLLAPSED_HEIGHT, BASIC_COMMENT_COLLAPSED_HEIGHT);
+    const targetHeight = isExpanded ? Math.max(textarea.scrollHeight, BASIC_COMMENT_COLLAPSED_HEIGHT) : BASIC_COMMENT_COLLAPSED_HEIGHT;
     textarea.style.height = `${currentHeight}px`;
     requestAnimationFrame(() => {
       textarea.style.height = `${targetHeight}px`;
@@ -5810,7 +5811,7 @@ function getPerformanceToneLine(coreLevel, context){
         pendingText: '',
         generating: false,
         animating: false,
-        expanded: true,
+        expanded: false,
         error: ''
       };
       persistBasicGeneratedComments();
@@ -6292,7 +6293,7 @@ function getPerformanceToneLine(coreLevel, context){
       animating: false,
       pendingText: '',
       text: '',
-      expanded: true,
+      expanded: false,
       error: '',
       termLabel
     };
@@ -6315,7 +6316,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
-        expanded: true,
+        expanded: false,
         error: ''
       };
       persistBasicGeneratedComments();
@@ -6329,7 +6330,7 @@ function getPerformanceToneLine(coreLevel, context){
           allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
           generating: false,
           animating: false,
-          expanded: true,
+          expanded: false,
           error: ''
         };
         persistBasicGeneratedComments();
@@ -6723,7 +6724,7 @@ function getPerformanceToneLine(coreLevel, context){
         text: '',
         termLabel,
         error: '',
-        expanded: true
+        expanded: false
       };
     });
     persistBasicGeneratedComments();
@@ -6746,7 +6747,7 @@ function getPerformanceToneLine(coreLevel, context){
             termLabel,
             updatedAt: Date.now(),
             modelUsed: result.modelUsed,
-            expanded: true,
+            expanded: false,
             error: ''
           };
           persistBasicGeneratedComments();
@@ -6811,7 +6812,7 @@ function getPerformanceToneLine(coreLevel, context){
       text: '',
       error: '',
       termLabel,
-      expanded: true
+      expanded: false
     };
     persistBasicGeneratedComments();
     replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
@@ -6824,7 +6825,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
-        expanded: true,
+        expanded: false,
         error: ''
       };
       persistBasicGeneratedComments();
@@ -6839,7 +6840,7 @@ function getPerformanceToneLine(coreLevel, context){
           termLabel,
           updatedAt: Date.now(),
           modelUsed: result.modelUsed,
-          expanded: true,
+          expanded: false,
           generating: false,
           animating: false,
           error: ''
@@ -6890,7 +6891,7 @@ function getPerformanceToneLine(coreLevel, context){
       animating: false,
       pendingText: '',
       text: '',
-      expanded: true,
+      expanded: false,
       error: '',
       termLabel
     };
@@ -6908,7 +6909,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
-        expanded: true,
+        expanded: false,
         error: ''
       };
       persistBasicGeneratedComments();
@@ -6924,7 +6925,7 @@ function getPerformanceToneLine(coreLevel, context){
           termLabel,
           updatedAt: Date.now(),
           modelUsed: result.modelUsed,
-          expanded: true,
+          expanded: false,
           generating: false,
           animating: false,
           error: ''
