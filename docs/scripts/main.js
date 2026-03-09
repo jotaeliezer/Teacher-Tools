@@ -4,6 +4,7 @@
   const BASIC_SORT_DEFAULT = 'grade_desc';
   const BASIC_SORT_OPTIONS = new Set(['grade_desc', 'first_name', 'last_name']);
   const DEFAULT_BUILDER_AI_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
+  const BASIC_COMMENT_CHAR_FADE_MS = 140;
 
 // ==== Init from stored settings ====
   const initialSettings = loadSettings();
@@ -5720,7 +5721,7 @@ function getPerformanceToneLine(coreLevel, context){
   }
   function shouldExpandBasicComment(entry){
     if (!entry) return false;
-    if (entry.generating) return true;
+    if (entry.generating || entry.animating) return false;
     const hasText = !!String(entry.text || '').trim();
     if (!hasText) return false;
     return entry.expanded !== false;
@@ -5776,6 +5777,14 @@ function getPerformanceToneLine(coreLevel, context){
     };
   }
   function animateBasicCommentIntoCard(contextId, rowIndex, text, onDone = null){
+    const contextStore = getBasicCommentsStoreForContext(contextId, true);
+    const existingEntry = contextStore[String(rowIndex)] || {};
+    contextStore[String(rowIndex)] = {
+      ...existingEntry,
+      animating: true,
+      expanded: false
+    };
+    persistBasicGeneratedComments();
     let refs = getBasicCommentCardElements(rowIndex);
     if (!refs){
       replaceBasicGeneratedCommentCard(contextId, rowIndex);
@@ -5787,7 +5796,7 @@ function getPerformanceToneLine(coreLevel, context){
     }
     refs.card.classList.add('is-generating');
     if (refs.statusEl) refs.statusEl.textContent = 'Writing...';
-    animateBasicCommentTextarea(refs.textarea, refs.overlay, text, true, onDone);
+    animateBasicCommentTextarea(refs.textarea, refs.overlay, text, false, onDone);
   }
   function queueBasicCommentAnimation(contextId, rowIndex, text){
     const state = getBasicCommentAnimationState(contextId, true);
@@ -5800,6 +5809,7 @@ function getPerformanceToneLine(coreLevel, context){
         text: String(text || ''),
         pendingText: '',
         generating: false,
+        animating: false,
         expanded: true,
         error: ''
       };
@@ -5848,12 +5858,15 @@ function getPerformanceToneLine(coreLevel, context){
         setTimeout(step, stepDelay);
         return;
       }
-      textarea.classList.remove('is-animating');
-      overlay.classList.remove('is-visible');
-      overlay.hidden = true;
-      textarea.value = source;
-      syncBasicCommentTextareaState(textarea, expanded);
-      if (typeof onDone === 'function') onDone();
+      setTimeout(() => {
+        if (overlay.dataset.animToken !== token) return;
+        textarea.classList.remove('is-animating');
+        overlay.classList.remove('is-visible');
+        overlay.hidden = true;
+        textarea.value = source;
+        syncBasicCommentTextareaState(textarea, expanded);
+        if (typeof onDone === 'function') onDone();
+      }, BASIC_COMMENT_CHAR_FADE_MS + 30);
     };
     step();
   }
@@ -6213,6 +6226,21 @@ function getPerformanceToneLine(coreLevel, context){
       customAssignmentSelection: !!options.customAssignmentSelection
     };
   }
+  function normalizeBasicAssignmentMentionText(value){
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[%.,/#!$^&*;:{}=\-_`~()'"]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function hasBasicAssignmentMention(commentText, labels){
+    const haystack = normalizeBasicAssignmentMentionText(commentText);
+    if (!haystack) return false;
+    return (Array.isArray(labels) ? labels : []).some((label) => {
+      const needle = normalizeBasicAssignmentMentionText(label);
+      return needle && haystack.includes(needle);
+    });
+  }
   async function requestBasicComment(endpoint, payload){
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -6235,7 +6263,11 @@ function getPerformanceToneLine(coreLevel, context){
   }
   async function runBasicGenerateForStudent(rowIndex, termLabel, endpoint, options = {}){
     const payload = buildBasicBulkPayload(rowIndex, termLabel, options);
-    return requestBasicComment(endpoint, payload);
+    const result = await requestBasicComment(endpoint, payload);
+    return {
+      ...result,
+      payload
+    };
   }
   async function applyBasicCustomSelectionsAndRegenerate(rowIndex, assignCols, upcomingCols){
     if (!activeContext || !rows.length) return;
@@ -6257,6 +6289,7 @@ function getPerformanceToneLine(coreLevel, context){
       customAssignCols: nextAssignCols,
       customUpcomingCols: nextUpcomingCols,
       generating: true,
+      animating: false,
       pendingText: '',
       text: '',
       expanded: true,
@@ -6278,6 +6311,7 @@ function getPerformanceToneLine(coreLevel, context){
         customAssignCols: nextAssignCols,
         customUpcomingCols: nextUpcomingCols,
         pendingText: result.text,
+        allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
@@ -6292,7 +6326,9 @@ function getPerformanceToneLine(coreLevel, context){
           ...latestEntry,
           text: result.text,
           pendingText: '',
+          allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
           generating: false,
+          animating: false,
           expanded: true,
           error: ''
         };
@@ -6309,6 +6345,7 @@ function getPerformanceToneLine(coreLevel, context){
         text: previousText,
         pendingText: '',
         generating: false,
+        animating: false,
         error: String(err?.message || 'No valid output returned')
       };
       persistBasicGeneratedComments();
@@ -6681,6 +6718,7 @@ function getPerformanceToneLine(coreLevel, context){
       contextStore[key] = {
         ...existingEntry,
         generating: true,
+        animating: false,
         pendingText: '',
         text: '',
         termLabel,
@@ -6704,6 +6742,7 @@ function getPerformanceToneLine(coreLevel, context){
           contextStore[key] = {
             ...contextStore[key],
             pendingText: result.text,
+            allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
             termLabel,
             updatedAt: Date.now(),
             modelUsed: result.modelUsed,
@@ -6723,6 +6762,7 @@ function getPerformanceToneLine(coreLevel, context){
             updatedAt: Date.now(),
             modelUsed: '',
             generating: false,
+            animating: false,
             error: String(err?.message || 'No valid output returned')
           };
           persistBasicGeneratedComments();
@@ -6766,6 +6806,7 @@ function getPerformanceToneLine(coreLevel, context){
     contextStore[rowKey] = {
       ...existingEntry,
       generating: true,
+      animating: false,
       pendingText: '',
       text: '',
       error: '',
@@ -6779,6 +6820,7 @@ function getPerformanceToneLine(coreLevel, context){
       contextStore[rowKey] = {
         ...contextStore[rowKey],
         pendingText: result.text,
+        allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
@@ -6793,11 +6835,13 @@ function getPerformanceToneLine(coreLevel, context){
           ...latestEntry,
           text: result.text,
           pendingText: '',
+          allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
           termLabel,
           updatedAt: Date.now(),
           modelUsed: result.modelUsed,
           expanded: true,
           generating: false,
+          animating: false,
           error: ''
         };
         persistBasicGeneratedComments();
@@ -6813,6 +6857,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         generating: false,
+        animating: false,
         error: String(err?.message || 'No valid output returned')
       };
       updateBasicGeneratorStatus('Retry failed for one student.');
@@ -6842,6 +6887,7 @@ function getPerformanceToneLine(coreLevel, context){
       ...existingEntry,
       pronounOverride: normalized,
       generating: true,
+      animating: false,
       pendingText: '',
       text: '',
       expanded: true,
@@ -6858,6 +6904,7 @@ function getPerformanceToneLine(coreLevel, context){
         ...contextStore[rowKey],
         pronounOverride: normalized,
         pendingText: result.text,
+        allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
         termLabel,
         updatedAt: Date.now(),
         modelUsed: result.modelUsed,
@@ -6873,11 +6920,13 @@ function getPerformanceToneLine(coreLevel, context){
           pronounOverride: normalized,
           text: result.text,
           pendingText: '',
+          allowedAssignmentLabels: Array.isArray(result.payload?.allowedAssignmentLabels) ? [...result.payload.allowedAssignmentLabels] : [],
           termLabel,
           updatedAt: Date.now(),
           modelUsed: result.modelUsed,
           expanded: true,
           generating: false,
+          animating: false,
           error: ''
         };
         persistBasicGeneratedComments();
@@ -6894,6 +6943,7 @@ function getPerformanceToneLine(coreLevel, context){
         termLabel,
         updatedAt: Date.now(),
         generating: false,
+        animating: false,
         error: String(err?.message || 'No valid output returned')
       };
       updateBasicGeneratorStatus(`Pronoun update failed for ${studentName}.`);
@@ -6912,15 +6962,22 @@ function getPerformanceToneLine(coreLevel, context){
     const entry = contextStore[String(rowIndex)] || {};
     const performanceCode = getRowPerformanceLevel(row);
     const studentGradeVal = markMeta?.value ?? null;
-    const isMarkOmitted = performanceCode === 'needs_support'
+    const assignmentMentionLabels = Array.isArray(entry.allowedAssignmentLabels) && entry.allowedAssignmentLabels.length
+      ? entry.allowedAssignmentLabels
+      : [
+          ...((Array.isArray(entry.customAssignCols) ? entry.customAssignCols : bulkSelectedAssignCols).map((col) => cleanAssignmentLabel(col))),
+          ...((Array.isArray(entry.customUpcomingCols) ? entry.customUpcomingCols : bulkSelectedUpcomingCols).map((col) => cleanAssignmentLabel(col)))
+        ].filter(Boolean);
+    const commentHasAssignmentMention = hasBasicAssignmentMention(entry.text, assignmentMentionLabels);
+    const isMarkOmitted = !commentHasAssignmentMention && performanceCode === 'needs_support'
       && studentGradeVal != null
       && (classGradeAvg == null ? studentGradeVal < 65 : studentGradeVal < (classGradeAvg - 10));
     const detectedTheyThem = shouldShowTheyThemToast(entry.text);
-    const isNeutralPronoun = detectedTheyThem && !entry.generating;
+    const isNeutralPronoun = detectedTheyThem && !entry.generating && !entry.animating;
     const card = document.createElement('div');
     card.className = 'basic-comment-card';
     card.dataset.basicCardRow = String(rowIndex);
-    if (entry.generating) card.classList.add('is-generating');
+    if (entry.generating || entry.animating) card.classList.add('is-generating');
     if (isMarkOmitted || isNeutralPronoun) card.classList.add('basic-comment-card--flagged');
 
     const header = document.createElement('div');
@@ -6984,7 +7041,7 @@ function getPerformanceToneLine(coreLevel, context){
     copyBtn.type = 'button';
     copyBtn.dataset.basicCopy = String(rowIndex);
     copyBtn.textContent = 'Copy';
-    copyBtn.disabled = entry.generating || !String(entry.text || '').trim();
+    copyBtn.disabled = entry.generating || entry.animating || !String(entry.text || '').trim();
     actions.appendChild(copyBtn);
 
     const isExpanded = shouldExpandBasicComment(entry);
@@ -6995,14 +7052,14 @@ function getPerformanceToneLine(coreLevel, context){
     toggleBtn.textContent = isExpanded ? '^' : 'v';
     toggleBtn.title = isExpanded ? 'Collapse comment' : 'Expand comment';
     toggleBtn.setAttribute('aria-label', isExpanded ? 'Collapse comment' : 'Expand comment');
-    toggleBtn.disabled = entry.generating || !String(entry.text || entry.pendingText || '').trim();
+    toggleBtn.disabled = entry.generating || entry.animating || !String(entry.text || entry.pendingText || '').trim();
     actions.appendChild(toggleBtn);
 
     const editBtn = document.createElement('button');
     editBtn.className = 'btn';
     editBtn.type = 'button';
     editBtn.textContent = 'Edit';
-    editBtn.disabled = entry.generating || !String(entry.text || '').trim();
+    editBtn.disabled = entry.generating || entry.animating || !String(entry.text || '').trim();
     editBtn.title = 'Open in Advanced Generator to refine pronouns and assignments';
     editBtn.addEventListener('click', () => {
       const currentText = card.querySelector('textarea[data-basic-row-index]')?.value || String(entry.text || '');
@@ -7033,7 +7090,7 @@ function getPerformanceToneLine(coreLevel, context){
     textarea.dataset.basicExpanded = isExpanded ? 'true' : 'false';
     textarea.value = String(entry.text || '');
     textarea.placeholder = entry.error ? `Generation failed: ${entry.error}` : 'Generated comment will appear here.';
-    textarea.readOnly = !!entry.generating;
+    textarea.readOnly = !!entry.generating || !!entry.animating;
     const overlay = document.createElement('div');
     overlay.className = 'basic-comment-textarea-overlay';
     overlay.hidden = true;
@@ -7042,10 +7099,10 @@ function getPerformanceToneLine(coreLevel, context){
     card.appendChild(textWrap);
     syncBasicCommentTextareaState(textarea, isExpanded);
 
-    if (entry.generating){
+    if (entry.generating || entry.animating){
       const statusEl = document.createElement('div');
       statusEl.className = 'basic-card-writing-status';
-      statusEl.textContent = String(entry.pendingText || '').trim() ? 'Writing...' : 'Generating...';
+      statusEl.textContent = entry.animating ? 'Writing...' : 'Generating...';
       card.appendChild(statusEl);
     }else if (entry.error){
       const error = document.createElement('div');
