@@ -5875,6 +5875,12 @@ function getPerformanceToneLine(coreLevel, context){
     if (!builderBasicStatusEl) return;
     builderBasicStatusEl.textContent = String(message || '').trim();
   }
+  function formatBasicGeneratorErrorMessage(errorValue){
+    const key = String(errorValue || '').trim();
+    if (!key) return 'No valid output returned';
+    if (key === 'basic_bulk_invalid_output') return 'Output invalid. RETRY';
+    return key;
+  }
   function getStrictPronounFromRow(row){
     if (!row) return '';
     for (const col of allColumns){
@@ -6347,7 +6353,7 @@ function getPerformanceToneLine(coreLevel, context){
         pendingText: '',
         generating: false,
         animating: false,
-        error: String(err?.message || 'No valid output returned')
+        error: formatBasicGeneratorErrorMessage(err?.message || 'No valid output returned')
       };
       persistBasicGeneratedComments();
       replaceBasicGeneratedCommentCard(activeContext.id, rowIndex);
@@ -6764,7 +6770,7 @@ function getPerformanceToneLine(coreLevel, context){
             modelUsed: '',
             generating: false,
             animating: false,
-            error: String(err?.message || 'No valid output returned')
+            error: formatBasicGeneratorErrorMessage(err?.message || 'No valid output returned')
           };
           persistBasicGeneratedComments();
           if (builderGeneratorMode === 'basic' && activeContext?.id === contextId){
@@ -6859,7 +6865,7 @@ function getPerformanceToneLine(coreLevel, context){
         updatedAt: Date.now(),
         generating: false,
         animating: false,
-        error: String(err?.message || 'No valid output returned')
+        error: formatBasicGeneratorErrorMessage(err?.message || 'No valid output returned')
       };
       updateBasicGeneratorStatus('Retry failed for one student.');
     }
@@ -6945,7 +6951,7 @@ function getPerformanceToneLine(coreLevel, context){
         updatedAt: Date.now(),
         generating: false,
         animating: false,
-        error: String(err?.message || 'No valid output returned')
+        error: formatBasicGeneratorErrorMessage(err?.message || 'No valid output returned')
       };
       updateBasicGeneratorStatus(`Pronoun update failed for ${studentName}.`);
     }
