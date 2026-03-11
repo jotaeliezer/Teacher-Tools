@@ -6549,18 +6549,20 @@ function getPerformanceToneLine(coreLevel, context){
 
   function populateBulkUpcomingList(){
     if (!bulkUpcomingList) return;
-    // Only show columns where NO student has a mark yet — truly future/ungraded assignments
+    // Only show future/ungraded columns that look like tests.
     const cols = allColumns.filter(col => {
       if (!col) return false;
       if (col === END_OF_LINE_COL) return false;
       if (col === studentNameColumn) return false;
       if (col === firstNameKey) return false;
       if (col === lastNameKey) return false;
+      const label = cleanAssignmentLabel(col);
+      if (!/\btests?\b/i.test(label)) return false;
       return !columnHasMark(col);
     });
     bulkUpcomingList.innerHTML = '';
     if (!cols.length){
-      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No upcoming columns found — all columns already have marks.</p>';
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No future test columns found.</p>';
       return;
     }
     cols.forEach(col => {
@@ -7450,7 +7452,7 @@ function getPerformanceToneLine(coreLevel, context){
       const msg = document.createElement('div');
       msg.className = 'muted';
       msg.style.fontSize = '12px';
-      msg.textContent = 'No upcoming columns found for this student.';
+      bulkUpcomingList.innerHTML = '<p class="muted" style="font-size:13px; margin:0;">No future test columns found.</p>';
       listEl.appendChild(msg);
       return;
     }
