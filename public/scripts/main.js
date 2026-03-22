@@ -4128,6 +4128,17 @@ function getPerformanceToneLine(coreLevel, context){
   function savePhoneLogsData(){
     try { localStorage.setItem('phoneLogsData', JSON.stringify(phoneLogsData)); } catch(e){}
   }
+  function hasPhoneLog(idx){
+    const entry = phoneLogsData[idx];
+    if (!entry) return false;
+    return !!(entry.date || entry.time || (entry.log && entry.log.trim()));
+  }
+  function updateUnderperformingLoggedBadge(idx){
+    const badge = document.querySelector(`.up-logged-badge[data-logged-for="${idx}"]`);
+    if (!badge) return;
+    const logged = hasPhoneLog(idx);
+    badge.style.display = logged ? '' : 'none';
+  }
   function renderPhoneLogsList(){
     const listEl = phoneLogsList || document.getElementById('phoneLogsList');
     if (!listEl) return;
@@ -4169,7 +4180,14 @@ function getPerformanceToneLine(coreLevel, context){
           const markSpan = document.createElement('span');
           markSpan.className = 'up-mark';
           markSpan.textContent = numeric + '%';
+          const loggedBadge = document.createElement('span');
+          loggedBadge.className = 'up-logged-badge';
+          loggedBadge.dataset.loggedFor = idx;
+          loggedBadge.textContent = '✓';
+          loggedBadge.title = 'Phone log saved';
+          loggedBadge.style.display = hasPhoneLog(idx) ? '' : 'none';
           item.appendChild(nameSpan);
+          item.appendChild(loggedBadge);
           item.appendChild(markSpan);
           item.addEventListener('click', () => {
             const card = listEl.querySelector(`.phone-log-entry[data-idx="${idx}"]`);
@@ -4246,6 +4264,29 @@ function getPerformanceToneLine(coreLevel, context){
         savePhoneLogsData();
       });
       card.appendChild(textarea);
+
+      const saveRow = document.createElement('div');
+      saveRow.className = 'phone-log-save-row';
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'btn phone-log-save-btn' + (hasPhoneLog(idx) ? ' saved' : '');
+      saveBtn.textContent = hasPhoneLog(idx) ? 'Saved ✓' : 'Save Log';
+      saveBtn.addEventListener('click', () => {
+        if (!phoneLogsData[idx]) phoneLogsData[idx] = {};
+        phoneLogsData[idx].date = dateInput.value;
+        phoneLogsData[idx].time = timeInput.value;
+        phoneLogsData[idx].log = textarea.value;
+        savePhoneLogsData();
+        saveBtn.textContent = 'Saved ✓';
+        saveBtn.classList.add('saved');
+        updateUnderperformingLoggedBadge(idx);
+        setTimeout(() => {
+          saveBtn.textContent = hasPhoneLog(idx) ? 'Saved ✓' : 'Save Log';
+          if (!hasPhoneLog(idx)) saveBtn.classList.remove('saved');
+        }, 1500);
+      });
+      saveRow.appendChild(saveBtn);
+      card.appendChild(saveRow);
 
       listEl.appendChild(card);
     });
