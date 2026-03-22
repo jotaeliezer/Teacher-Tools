@@ -37,6 +37,7 @@
   // Phone Logs state
   let phoneLogsData = {}; // { rowIndex: { date, time, log } }
   try { phoneLogsData = JSON.parse(localStorage.getItem('phoneLogsData') || '{}'); } catch(e){ phoneLogsData = {}; }
+  let showOnlyUnderperforming = false;
 
   // Seating Plan state
   const SEATING_DEFAULT_ROWS = 5;
@@ -271,6 +272,15 @@
   }
   if (printPhoneLogsBtn){
     printPhoneLogsBtn.addEventListener('click', printPhoneLogs);
+  }
+  const showUnderperformingBtn = document.getElementById('showUnderperformingBtn');
+  if (showUnderperformingBtn){
+    showUnderperformingBtn.addEventListener('click', () => {
+      showOnlyUnderperforming = !showOnlyUnderperforming;
+      showUnderperformingBtn.classList.toggle('active', showOnlyUnderperforming);
+      showUnderperformingBtn.textContent = showOnlyUnderperforming ? '✕ Show All Students' : '⚠️ Show Underperforming';
+      applyUnderperformingFilter();
+    });
   }
   if (phoneLogsSearch){
     phoneLogsSearch.addEventListener('input', () => {
@@ -4139,6 +4149,15 @@ function getPerformanceToneLine(coreLevel, context){
     const logged = hasPhoneLog(idx);
     badge.style.display = logged ? '' : 'none';
   }
+  function applyUnderperformingFilter(){
+    const listEl = phoneLogsList || document.getElementById('phoneLogsList');
+    if (!listEl) return;
+    const cards = Array.from(listEl.querySelectorAll('.phone-log-entry'));
+    cards.forEach(card => {
+      const isUnder = card.dataset.underperforming === 'true';
+      card.style.display = (showOnlyUnderperforming && !isUnder) ? 'none' : '';
+    });
+  }
   function renderPhoneLogsList(){
     const listEl = phoneLogsList || document.getElementById('phoneLogsList');
     if (!listEl) return;
@@ -4205,6 +4224,8 @@ function getPerformanceToneLine(coreLevel, context){
     }
     if (upCountEl) upCountEl.textContent = underperforming.length ? String(underperforming.length) : '';
 
+    const underperformingIdxSet = new Set(underperforming.map(u => u.idx));
+
     sortedIndices.forEach(({ idx, name }) => {
       const row = rows[idx];
       const entry = phoneLogsData[idx] || {};
@@ -4212,6 +4233,7 @@ function getPerformanceToneLine(coreLevel, context){
       const card = document.createElement('div');
       card.className = 'phone-log-entry';
       card.dataset.idx = idx;
+      card.dataset.underperforming = underperformingIdxSet.has(idx) ? 'true' : 'false';
 
       const nameEl = document.createElement('div');
       const markMeta = gradeColumn ? deriveMarkMeta(row?.[gradeColumn], gradeColumn) : null;
@@ -4290,6 +4312,7 @@ function getPerformanceToneLine(coreLevel, context){
 
       listEl.appendChild(card);
     });
+    applyUnderperformingFilter();
   }
   function formatPhoneLogTime(t){
     if (!t) return '';
