@@ -1080,7 +1080,8 @@
       background:#fff;
     }
     .underperforming-panel{
-      flex:1;
+      flex:0 0 auto;
+      width:fit-content;
       min-width:220px;
       border:1px solid #fca5a5;
       border-radius:8px;
@@ -1132,6 +1133,38 @@
     .underperforming-item .up-mark{
       font-weight:700;
       color:#b91c1c;
+    }
+    .up-logged-badge{
+      font-size:11px;
+      font-weight:700;
+      color:#15803d;
+      background:#dcfce7;
+      border-radius:8px;
+      padding:1px 6px;
+      flex-shrink:0;
+    }
+    .phone-log-save-row{
+      display:flex;
+      justify-content:flex-end;
+      margin-top:8px;
+    }
+    .phone-log-save-btn{
+      font-size:12px;
+      padding:5px 14px;
+    }
+    .phone-log-save-btn.saved{
+      color:#15803d;
+      border-color:#86efac;
+      background:#f0fdf4;
+    }
+    body.dark-mode .up-logged-badge{
+      background:#052e16;
+      color:#4ade80;
+    }
+    body.dark-mode .phone-log-save-btn.saved{
+      color:#4ade80;
+      border-color:#166534;
+      background:#052e16;
     }
     /* highlight card when scrolled-to */
     .phone-log-entry.phone-log-highlight{
