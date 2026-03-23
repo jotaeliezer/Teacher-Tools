@@ -1166,11 +1166,12 @@ async function loadGrades() {
     overlayAssignCols   = [];
     overlayUpcomingCols = [];
     renderStudents();
-    setStatus(`✓ ${students.length} students loaded`, 'success');
 
     if (result.paginationWarning) {
-      // Show pagination warning after a short delay so the success message flashes first
-      setTimeout(() => setStatus(result.paginationWarning, 'error'), 1200);
+      // Pagination warning takes priority — stays visible so teacher acts on it
+      setStatus(result.paginationWarning, 'error');
+    } else {
+      setStatus(`✓ ${students.length} students loaded`, 'success');
     }
 
   } catch (err) {

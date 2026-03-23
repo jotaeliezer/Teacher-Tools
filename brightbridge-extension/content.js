@@ -273,18 +273,17 @@ function scrapeGrades() {
     '| thead rows:', thead ? thead.querySelectorAll('tr').length : 0,
     '| tbody rows:', tbody ? tbody.querySelectorAll('tr').length : 0);
 
-  // If Brightspace is paginating, try to switch to 200-per-page automatically.
-  // If it worked, the table will reload — return a prompt to click ↻ again.
+  // Check for pagination — Brightspace may be showing only one page of students.
+  // We cannot reliably trigger a reload via JS (Brightspace ignores programmatic
+  // change events on its selects), so we scrape what is visible and return a
+  // warning so the side panel can prompt the teacher to fix it manually.
   const pagination = detectPagination();
-  if (pagination && pagination.total > 1) {
+  const paginationWarning = (pagination && pagination.total > 1)
+    ? `⚠️ Brightspace is showing page ${pagination.current} of ${pagination.total} — not all students are loaded. In Brightspace, set "Results Per Page" to the highest value, then click ↻.`
+    : null;
+
+  if (paginationWarning) {
     console.log(`[BrightBridge] Pagination detected: page ${pagination.current} of ${pagination.total}`);
-    const changed = tryMaximiseRowsPerPage();
-    if (changed) {
-      return {
-        success: false,
-        error: `Brightspace is showing page ${pagination.current} of ${pagination.total} (not all students). Switching to 200 per page — please wait a moment, then click ↻ to reload all students.`
-      };
-    }
   }
 
   const data = parseTable(tbl);
@@ -298,12 +297,6 @@ function scrapeGrades() {
       error: `Grade table found (${tbl.rows.length} total rows) but no data rows extracted. Try switching to Spreadsheet View in Brightspace.`
     };
   }
-
-  // Warn if pagination is still active (auto-switch didn't take effect yet)
-  const stillPaging = detectPagination();
-  const paginationWarning = (stillPaging && stillPaging.total > 1)
-    ? `⚠️ Showing page ${stillPaging.current} of ${stillPaging.total} — averages may be off. In Brightspace, change "Results Per Page" to 200, then click ↻.`
-    : null;
 
   return {
     success: true,
