@@ -45,6 +45,102 @@ const COMMENT_BANK_MINI = [
   }
 ];
 
+// ── Pronoun guess from first name (mirrors Teacher Tools main.js) ──────────────
+
+function guessPronounFromFirstName(firstName) {
+  const name = String(firstName || '').trim().toLowerCase();
+  if (!name) return 'they';
+
+  const female = new Set([
+    // English
+    'emma','olivia','ava','sophia','isabella','mia','charlotte','amelia','evelyn','abigail',
+    'emily','elizabeth','ella','avery','sofia','camila','aria','scarlett','victoria','madison',
+    'luna','grace','chloe','penelope','layla','riley','zoey','nora','lily','eleanor','hannah',
+    'lillian','aubrey','ellie','stella','natalia','zoe','leah','hazel','violet','aurora',
+    'savannah','audrey','brooklyn','bella','claire','skylar','lucy','anna','caroline','nova',
+    'emilia','kennedy','samantha','maya','willow','naomi','aaliyah','elena','sarah','ariana',
+    'allison','gabriella','alice','ruby','eva','serenity','autumn','hailey','gianna',
+    'valentina','isla','eliana','quinn','ivy','sadie','piper','lydia','alexa','josephine',
+    'julia','delilah','arianna','vivian','kaylee','sophie','madeline','peyton','rylee','clara',
+    'hadley','amber','anaya','anita','ana','irene','annie','aisha','sara','sehar','jessica',
+    'jennifer','ashley','amanda','megan','rachel','laura','natalie','kayla','brianna','taylor',
+    'jasmine','vanessa','caitlin','shannon','melissa','tiffany','brittany','danielle','crystal',
+    'holly','katie','kelly','lindsey','miranda','nikki','paige','shelby','stacy','wendy',
+    'sandra','patricia','linda','barbara','margaret','carol','donna','diane',
+    // Chinese female (pinyin)
+    'mei','fang','jing','ling','xiu','hui','yan','ying','xin','yue','zhen','lan','rong',
+    'juan','min','fen','xia','na','qing','hua','shan','dan','rou','xue','ting','lian',
+    'qian','shu','tian','ping','yanyan','tingting','linlin','xiaoyan','xiaoling','xiaomei',
+    'yinyin','jingjing','huihui','shanshan','xinxin','yueyue','fangfang','rongrong',
+    // Indian / South-Asian female
+    'priya','ananya','divya','pooja','shreya','riya','neha','aditi','swati','deepa',
+    'kavya','nisha','sunita','meera','anjali','sita','lakshmi','puja','isha','diya',
+    'sonal','tanya','vanya','mansi','sakshi','smita','nita','rita','gita','rashmi',
+    'shweta','preeti','seema','reena','rina','reema','rekha','renu','usha','uma',
+    'vidya','vinita','varsha','vandana','veena','yamini','yashika','yashna','anika',
+    'aastha','anushka','avni','charu','devika','esha','gargi','harsha','hema','indu',
+    'jaya','jyoti','kajal','kamla','karuna','komal','kriti','lavanya','madhuri','manisha',
+    'megha','minal','mohini','namita','nandita','natasha','nidhi','nilam','paro','parvati',
+    'poonam','prachi','pragya','rachna','radhika','radha','rani','riddhi','ritu','ruhi',
+    'rupal','rupali','sandhya','sanjana','saraswati','savita','shanti','shilpa','shobha',
+    'shruti','simran','sonali','sonam','sudha','supriya','surbhi','sushma','swapna',
+    'tanvi','taruna','trisha','trishna','urvashi','vasudha','vibha','vimala','vrinda',
+    'anam','fatima','zainab','maryam','nadia','hana','layla','yasmin','sana',
+    'bushra','farah','hira','iram','noor','rabia','rima','sahar','samia','sobia','sofia',
+  ]);
+
+  const male = new Set([
+    // English
+    'liam','noah','william','james','oliver','benjamin','elijah','lucas','mason','logan',
+    'alexander','ethan','jacob','michael','daniel','henry','jackson','sebastian','aiden','matthew',
+    'samuel','david','joseph','carter','owen','wyatt','john','jack','luke','jayden',
+    'dylan','grayson','levi','isaac','gabriel','julian','mateo','anthony','jaxon','lincoln',
+    'joshua','christopher','andrew','theodore','caleb','ryan','asher','nathaniel','thomas','leo',
+    'christian','jonathan','ezra','charles','colton','cameron','eli','hudson','aaron','landon',
+    'adam','dominic','austin','evan','parker','tyler','blake','chase','garrett','grant',
+    'ian','kyle','nolan','seth','tanner','trevor','troy','victor','wade','zach','zachary',
+    'mikhail','zaydan','wesley','kanav','kabir','aadit','hunter','hayden','cole','jordan',
+    'kevin','brian','jason','justin','brandon','sean','derek','eric','greg',
+    'mark','paul','scott','steven','robert','richard','edward','george',
+    // Chinese male (pinyin)
+    'wei','jun','hao','ming','jie','tao','bin','rui','long','peng',
+    'gang','feng','bo','yi','dong','kang','qiang','chao','jian','kai',
+    'liang','xiang','yang','yu','zheng','jiahao','jiaming','junhao','junming',
+    'mingzhe','ruihao','tianhao','yuhao','zihao','ziyang','ziyuan',
+    // Indian / South-Asian male
+    'arjun','rahul','rohan','raj','vikram','arun','suresh','rajesh','kiran','amit',
+    'nikhil','vivek','sanjay','gaurav','vishal','akash','ravi','kunal','aditya','saurabh',
+    'pranav','varun','ishaan','aarav','advait','dhruv','harsh','krishna','manav','nakul',
+    'omkar','parth','prateek','rishabh','rohit','samarth','siddharth','tanmay','uday',
+    'vaibhav','vedant','vikas','vinay','vineet','yash','yogesh','ankit','apoorv',
+    'aryan','ashish','ayush','bharat','chirag','deepak','devesh','dheeraj',
+    'dinesh','dipak','girish','gopal','govind','harish','hitesh','jatin','jayesh',
+    'karan','kartik','mahesh','manish','mayank','mohit','naresh','naveen','nilesh','nishant',
+    'pankaj','paras','piyush','prakash','prasad','pratik','praveen','pushkar',
+    'raghav','rakesh','ramesh','ritesh','sachin','sahil','santosh','satish',
+    'shyam','sumit','sunil','suraj','tushar','umesh','vipul',
+    // Muslim / Sikh male
+    'muhammad','omar','ali','hassan','hussain','ibrahim','ismail','yusuf','tariq','khalid',
+    'adnan','bilal','faisal','hamza','imran','jawad','kamran','naveed','sajid','shahid',
+    'sufyan','usman','waleed','zain','zubair','gurpreet','harpreet','jaswinder','kulwant',
+    'mandeep','navneet','paramjit','rajinder','surjit','amrit','balwinder','davinder',
+    'gurmeet','inderjit','jaskaran','jaspal','lakhvir','manjit','narinder','parminder',
+    'ranjit','satinder','tarsem','tejinder',
+  ]);
+
+  if (female.has(name)) return 'she';
+  if (male.has(name))   return 'he';
+
+  // ── Heuristic patterns (same as Teacher Tools) ─────────────────────────────
+  if (/i[ck]a$|ita$|ina$|n[iy]a$|l[iy]a$|s[iy]a$|m[iy]a$|[iy][ay]$|shi$|thi$|dhi$|nee$|dee$|jot[i]?$|vani$|wati$|kumari$/.test(name)) return 'she';
+  if (/raj$|han$|nav$|esh$|jit$|pal$|bir$|vin$|kar$|jot$|vir$|deep$|nand$|preet$|meet$|inder$|winder$/.test(name)) return 'he';
+  if (/(ling|mei|xin|yan|ying|yue|fang|xiu|rong|juan|shan|rou|lian|qian|shu)$/.test(name)) return 'she';
+  if (/(jun|hao|wei|jie|long|peng|yang|ming|feng|gang|dong|kang|bin|rui|tao|liang)$/.test(name)) return 'he';
+  if (/a$/.test(name) && !/sha$|cha$|ssa$|kha$|pha$/.test(name)) return 'she';
+
+  return 'they'; // genuinely ambiguous — teacher will be prompted
+}
+
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let students            = [];   // processed student objects
@@ -55,11 +151,11 @@ let isGeneratingAll     = false;
 // Per-card state: collapse/expand, pronoun override, advanced panel data
 const cardStates = {};   // { [idx]: CardState }
 
-function getCardState(idx) {
+function getCardState(idx, firstName) {
   if (!cardStates[idx]) {
     cardStates[idx] = {
       collapsed:    false,
-      pronoun:      'unknown',   // 'unknown' | 'he' | 'she' | 'they'
+      pronoun:      guessPronounFromFirstName(firstName),  // 'he' | 'she' | 'they'
       customNote:   '',
       selectedBank: new Set(),
       advancedOpen: false,
@@ -288,7 +384,7 @@ function renderStudents() {
 function buildCard(student) {
   const under   = isUnderperforming(student);
   const comment = generatedComments[student.idx] || '';
-  const state   = getCardState(student.idx);
+  const state   = getCardState(student.idx, student.firstName);
 
   const card = document.createElement('div');
   card.className = 'student-card' + (under ? ' underperforming' : '');
@@ -337,10 +433,12 @@ function buildCard(student) {
   const body = document.createElement('div');
   body.className = 'card-body' + (state.collapsed ? ' collapsed' : '');
 
-  // Pronoun toast row (shows when they/them detected)
+  // Pronoun toast row — shows when pronoun is ambiguous (they) or already confirmed (he/she)
   const pronounRow = document.createElement('div');
   pronounRow.className = 'pronoun-row';
-  pronounRow.style.display = detectTheyThem(comment) ? '' : 'none';
+  // Show toast when pronoun is genuinely unclear (they) so teacher can assign he/she,
+  // or when it's been confirmed (he/she) so teacher can see/change the assignment.
+  pronounRow.style.display = '';
 
   const toastBtn = document.createElement('button');
   toastBtn.type = 'button';
@@ -380,8 +478,6 @@ function buildCard(student) {
   textarea.addEventListener('input', () => {
     generatedComments[student.idx] = textarea.value;
     updateCopyBtn(copyBtn, textarea.value);
-    // Check if they/them language appears in edited comment
-    pronounRow.style.display = detectTheyThem(textarea.value) ? '' : 'none';
   });
   body.appendChild(textarea);
 
@@ -416,7 +512,7 @@ function buildCard(student) {
   body.appendChild(actions);
 
   // Advanced panel (initially hidden unless state.advancedOpen)
-  const advPanel = buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow);
+  const advPanel = buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow, toastBtn);
   advPanel.style.display = state.advancedOpen ? '' : 'none';
   body.appendChild(advPanel);
 
@@ -467,7 +563,7 @@ function buildCard(student) {
 
 // ── Advanced panel ─────────────────────────────────────────────────────────────
 
-function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow) {
+function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow, toastBtn) {
   const panel = document.createElement('div');
   panel.className = 'advanced-panel';
 
@@ -483,9 +579,8 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
   pronounGroup.className = 'pronoun-radio-group';
 
   const pronounOpts = [
-    { val: 'unknown', label: 'Auto' },
-    { val: 'he',      label: '🚹 He/Him' },
-    { val: 'she',     label: '🚺 She/Her' }
+    { val: 'he',   label: '🚹 He/Him' },
+    { val: 'she',  label: '🚺 She/Her' }
   ];
 
   pronounOpts.forEach(opt => {
@@ -499,6 +594,8 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
       pronounGroup.querySelectorAll('.pronoun-radio-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.val === opt.val)
       );
+      // Sync the toast in the card header
+      if (toastBtn) updatePronounToast(state, toastBtn);
     });
     pronounGroup.appendChild(btn);
   });
@@ -610,11 +707,11 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
 
 function updatePronounToast(state, toastBtn) {
   const labels = {
-    unknown: '🔁 Pronoun unclear — tap to set',
-    he:      '🚹 He/Him',
-    she:     '🚺 She/Her'
+    they: '🔁 Pronoun unclear — tap to set',
+    he:   '🚹 He/Him',
+    she:  '🚺 She/Her'
   };
-  toastBtn.textContent = labels[state.pronoun] || labels.unknown;
+  toastBtn.textContent = labels[state.pronoun] || labels.they;
   toastBtn.dataset.pronoun = state.pronoun;
 }
 
@@ -730,9 +827,6 @@ async function generateOne(student, textarea, genBtn, copyBtn, pronounRow, state
 
     generatedComments[student.idx] = comment;
     textarea.classList.remove('loading');
-
-    // Show/hide pronoun toast based on generated text
-    if (pronounRow) pronounRow.style.display = detectTheyThem(comment) ? '' : 'none';
 
     typewriterAnimate(textarea, comment, () => {
       updateCopyBtn(copyBtn, comment);
