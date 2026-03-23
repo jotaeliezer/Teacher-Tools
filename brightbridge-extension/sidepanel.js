@@ -40,61 +40,65 @@ const MALE_NAMES = new Set([
   'colton','connor','cory','curtis','cyrus',
   'daniel','darius','david','dean','derek','devraj','diego','dominic','dylan',
   'eli','elijah','elliot','ethan','evan',
-  'felix','finn','francisco',
+  'fares','farhan','farhaan','fariz','felix','finn','francisco',
   'gabriel','gavin','george','giovanni','grant','griffin',
   'hamza','hassan','henry','hudson','hugo','hunter',
   'ian','ibrahim','isaac','isaiah','ivan',
   'jack','jackson','jacob','jake','james','jason','javier','jayden','jeremy',
   'jesse','joe','joel','john','jonathan','jose','joseph','joshua',
   'juan','julian','justin',
-  'kevin','kyle',
+  'karim','kevin','khalid','kyle',
   'landon','leo','levi','liam','logan','lorenzo','lucas','luke',
   'marcus','mark','mason','matthew','max','michael','miguel','miles',
-  'mohammed','muhammad',
-  'nathan','nicholas','noah',
+  'mohammed','muhammad','mustafa',
+  'nate','nathan','nicholas','noah',
   'oliver','omar','owen',
   'patrick','paulo','peter','philip',
-  'rafael','richard','robert','ryan',
+  'rafael','rajan','rami','richard','robert','ryan',
   'samir','samuel','sean','sebastian','seth','shaan','shane','simon',
   'stephen','steven',
   'thomas','tim','tobias','tyler',
+  'umar','usman',
   'victor','vincent',
   'wesley','william',
   'xavier',
-  'zachary','zane','ziad'
+  'yousuf','yusef',
+  'zachary','zane','ziad','zubair'
 ]);
 
 const FEMALE_NAMES = new Set([
-  'aaliyah','abby','abigail','ada','aisha','alannah','alexa','alexandra','alexia',
-  'alice','alicia','alisha','aliya','aliyah','alondra','alyssa','amanda','amber',
-  'amelia','amira','amy','ana','anastasia','angela','angie','annika','ariana',
-  'asha','ashley','astrid','audrey','ava','ayesha',
+  'aaliyah','abby','abigail','ada','aisha','alana','alannah','alexa','alexandra',
+  'alexia','alice','alicia','alisha','alina','aliya','aliyah','alondra','alyssa',
+  'amanda','amber','amelia','amira','amy','ana','anastasia','aneesa','aneesha',
+  'angela','angie','annika','annie','ariana','asha','ashley','astrid','audrey',
+  'ava','ayesha',
   'beatrice','bella','beth','bianca','brianna','brooke','brooklyn',
   'caitlin','camila','cara','carolina','caroline','cassandra','charlotte',
   'chloe','christina','claire','clara','claudia',
   'daisy','dana','daniela','diana',
   'elena','eliza','elizabeth','ella','emilia','emily','emma','erica','eva','evelyn',
-  'faith','fatima','fiona',
+  'faith','fatima','fiona','freya',
   'gabriela','gemma','gianna','grace',
-  'hannah','harper','hayley','heather','helen','holly',
+  'hana','hanna','hannah','harper','hayley','heather','helen','holly',
   'isabella','isla',
   'jade','jasmine','jennifer','jessica','jillian','julia','julianna','julie',
   'kaitlyn','karen','katelyn','katherine','kathryn','katie','kayla','kelly',
   'kendra','kylie',
-  'laura','lauren','layla','leah','lillian','lily','lindsay','lisa','lola','lucy',
-  'luna','lydia',
+  'laila','layla','laura','lauren','leah','leila','lillian','lily','lindsay',
+  'lisa','lola','lucy','luna','lydia',
   'madison','maeve','maria','mariam','marie','maya','megan','mia','michelle',
   'miranda','molly',
-  'nadia','natalie','nicole','nora',
+  'nadia','natalie','nicole','noor','nora',
   'olivia',
-  'paige','patricia','penelope',
+  'paige','patricia','penelope','priya',
   'rachel','rebecca','rosa','rose','ruby',
   'samantha','sandra','sara','sarah','savannah','scarlett','serena','sienna',
   'simone','sofia','sophia','stephanie','suman',
   'tiffany',
-  'valentina','vanessa','victoria','violet',
+  'valentina','vanessa','victoria','violet','vivera',
   'whitney',
-  'zoe','zoey'
+  'yara',
+  'zainab','zara','zoe','zoey'
 ]);
 
 function guessPronounFromName(firstName) {
@@ -132,8 +136,21 @@ function getCardState(idx, student) {
       advancedOpen: false,
       perfOverride: null
     };
+  } else if (cardStates[idx].pronoun === 'unknown' && student) {
+    // Re-detect in case this is a stale state from a previous load
+    const guess = guessPronounFromName(student.firstName);
+    if (guess !== 'unknown') cardStates[idx].pronoun = guess;
   }
   return cardStates[idx];
+}
+
+// Normalize "Term 1" / "TERM 1" / "T1" → "T1" for TERM_LESSON_RANGES lookup
+function normalizeTermCode(val) {
+  const v = String(val || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (v === 'T1' || v === 'TERM1') return 'T1';
+  if (v === 'T2' || v === 'TERM2') return 'T2';
+  if (v === 'T3' || v === 'TERM3') return 'T3';
+  return '';
 }
 
 // ── DOM ────────────────────────────────────────────────────────────────────────
@@ -251,7 +268,7 @@ function processStudents({ headers, rows }) {
     const assignments = headers
       .filter(h => !cols.skipCols.has(h))
       .map(h => ({ label: h, value: (rowGet(row, h) || '').trim() }))
-      .filter(a => a.value && a.value !== '- -' && a.value !== '--' && a.value !== 'N/A');
+      .filter(a => a.value && /\d/.test(a.value));
 
     return { idx, name, firstName, lastName, gradeRaw, gradeNum, assignments, row };
   }).filter(Boolean);
@@ -292,7 +309,7 @@ function getLessonNum(col) {
 const TERM_LESSON_RANGES = { T1: [1, 13], T2: [14, 26], T3: [27, 39] };
 
 function getTermAssignCols(termCode) {
-  const tc = String(termCode || '').trim().toUpperCase();
+  const tc = normalizeTermCode(termCode);
   if (!tc) return allAssignCols.filter(c => colHasMarks(c));
   return allAssignCols.filter(col => {
     const n = getLessonNum(col);
@@ -302,11 +319,15 @@ function getTermAssignCols(termCode) {
   });
 }
 
+// A cell value counts as "has a mark" only when it contains at least one digit
+// Handles Brightspace's various no-mark formats: "- -", "--", "N/A", "-%", "- %", empty
+function hasMark(v) {
+  const s = String(v || '').trim();
+  return s.length > 0 && /\d/.test(s);
+}
+
 function colHasMarks(col) {
-  return rawRows.some(row => {
-    const v = String(row[col] || '').trim();
-    return v && v !== '- -' && v !== '--' && v !== 'N/A' && /\d/.test(v);
-  });
+  return rawRows.some(row => hasMark(row[col]));
 }
 
 function getColClassAvg(col) {
@@ -317,10 +338,7 @@ function getColClassAvg(col) {
 
 function getColSubmitRate(col) {
   if (!rawRows.length) return null;
-  const submitted = rawRows.filter(row => {
-    const v = String(row[col] || '').trim();
-    return v && v !== '- -' && v !== '--' && v !== 'N/A' && /\d/.test(v);
-  }).length;
+  const submitted = rawRows.filter(row => hasMark(row[col])).length;
   return (submitted / rawRows.length) * 100;
 }
 
@@ -372,7 +390,7 @@ function showAssignOverlay(onConfirm) {
   const s1List = document.createElement('div');
   s1List.className = 'assign-list';
 
-  const termCode = String(termSelect.value || '').trim().toUpperCase();
+  const termCode = normalizeTermCode(termSelect.value);
   let termCols = getTermAssignCols(termCode);
   if (!termCols.length) termCols = allAssignCols.filter(c => colHasMarks(c));
 
