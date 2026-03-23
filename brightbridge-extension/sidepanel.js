@@ -409,11 +409,12 @@ function showAssignOverlay(onConfirm) {
   s1List.className = 'assign-list';
 
   const termCode = normalizeTermCode(termSelect.value);
-  let termCols = getTermAssignCols(termCode);
-  if (!termCols.length) termCols = allAssignCols.filter(c => colHasMarks(c));
+  const termCols = getTermAssignCols(termCode);
+  // NOTE: No cross-term fallback here. If the selected term has no lesson-numbered
+  // columns, we show a message rather than silently showing another term's data.
 
   if (!termCols.length) {
-    s1List.innerHTML = '<p class="assign-empty">No assignment columns found. Make sure your Brightspace grade table has assignment columns with marks.</p>';
+    s1List.innerHTML = `<p class="assign-empty">No assignment columns found for ${termSelect.value}. Make sure Brightspace assignment columns include a lesson number in their name (e.g. "L14 – Assignment Name").</p>`;
   } else {
     termCols.forEach(col => {
       const label = cleanAssignLabel(col);
@@ -517,18 +518,24 @@ function showAssignOverlay(onConfirm) {
   const s2List = document.createElement('div');
   s2List.className = 'assign-list';
 
-  // Show columns whose name contains "test" AND have no marks yet.
+  // Show test columns for the selected term where fewer than 25% of students
+  // have marks — meaning the test is largely upcoming/ungraded.
   // Spirit of Math names all test columns with the word "Test"
   // e.g. "L6 - Relocation Property Test", "L7 - Mastermind Test".
+  // Using a 25% threshold (instead of strict 0%) handles edge cases where a
+  // data offset from collapsed Brightspace column groups created a phantom mark.
+  const UPCOMING_SUBMIT_THRESHOLD = 25; // % of students with marks — below this = upcoming
   const termColsForUpcoming = getTermAssignCols(termCode);
   const upcomingCols = (termColsForUpcoming.length ? termColsForUpcoming : allAssignCols)
-    .filter(col => /\btest\b/i.test(cleanAssignLabel(col)) && !colHasMarks(col));
+    .filter(col => /\btest\b/i.test(cleanAssignLabel(col)) &&
+                   (getColSubmitRate(col) ?? 0) < UPCOMING_SUBMIT_THRESHOLD);
 
   if (!upcomingCols.length) {
-    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and no marks entered yet will appear here.</p>';
+    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and fewer than 25% of students graded will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
       const label = cleanAssignLabel(col);
+      const sub   = getColSubmitRate(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
 
       const row = document.createElement('div');
@@ -557,8 +564,16 @@ function showAssignOverlay(onConfirm) {
       lbl.className = 'assign-label';
       lbl.textContent = label;
 
+      // Submission rate badge — shows how many students have marks so teacher
+      // can confirm this is genuinely upcoming ("0% submitted" = no one graded yet)
+      const subBadge = document.createElement('span');
+      subBadge.className = 'assign-sub';
+      subBadge.title = 'Submission rate';
+      subBadge.textContent = sub != null ? `${Math.round(sub)}% sub` : '0% sub';
+
       row.appendChild(cb);
       row.appendChild(lbl);
+      row.appendChild(subBadge);
       s2List.appendChild(row);
     });
   }
