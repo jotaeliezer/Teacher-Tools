@@ -493,8 +493,14 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
 }
+.bank-category:hover { color: var(--text); }
+
+.bank-items { display: flex; flex-direction: column; gap: 1px; }
 
 .bank-item {
   display: flex;
@@ -504,12 +510,37 @@ header {
   color: var(--text);
   cursor: pointer;
   line-height: 1.4;
+  padding: 1px 0;
 }
 .bank-item input[type="checkbox"] {
   margin-top: 2px;
   flex-shrink: 0;
   accent-color: var(--primary);
 }
+
+/* Positive / constructive dot indicators */
+.bank-item--positive::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5a7a00;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.bank-item--constructive::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b36b00;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+body.dark .bank-item--positive::before  { background: #8fb020; }
+body.dark .bank-item--constructive::before { background: #d4900a; }
 
 .adv-regen-btn { width: 100%; margin-top: 2px; }
 
@@ -574,7 +605,7 @@ header {
 
 .assign-table-head {
   display: grid;
-  grid-template-columns: 20px 1fr 52px 52px;
+  grid-template-columns: 20px 1fr;
   gap: 6px;
   font-size: 10px;
   font-weight: 700;
@@ -596,7 +627,7 @@ header {
 
 .assign-row {
   display: grid;
-  grid-template-columns: 20px 1fr 52px 52px;
+  grid-template-columns: 20px 1fr;
   gap: 6px;
   align-items: center;
   padding: 6px 4px;
@@ -616,18 +647,9 @@ header {
   font-weight: 500;
 }
 
-.assign-avg { font-weight: 700; font-size: 11px; text-align: right; }
-.assign-sub { color: var(--muted); font-size: 11px; text-align: right; }
-
 .assign-empty { color: var(--muted); font-size: 12px; padding: 12px 4px; }
 
 .assign-warning { color: var(--danger); font-size: 11px; font-weight: 600; }
-
-.upcoming-row .assign-sub {
-  grid-column: 3 / span 2;
-  text-align: left;
-  color: var(--muted);
-}
 
 .assign-primary-btn {
   background: var(--primary);
