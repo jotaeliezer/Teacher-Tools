@@ -1,173 +1,136 @@
 // sidepanel.js — BrightBridge
-// Handles all side-panel UI: loading grades, rendering students, generating comments.
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const API_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
-const CONCURRENCY  = 2;       // max parallel API calls (mirrors Teacher Tools)
-const UNDERPERFORM_THRESHOLD = 60; // % at or below = underperforming
+const CONCURRENCY  = 2;
+const UNDERPERFORM_THRESHOLD = 60;
 
 const COMMENT_BANK_MINI = [
-  {
-    category: 'Participation',
-    items: [
-      'actively participates in class discussions',
-      'consistently contributes thoughtful answers'
-    ]
-  },
-  {
-    category: 'Homework',
-    items: [
-      'completes all assigned work on time',
-      'demonstrates strong effort on homework'
-    ]
-  },
-  {
-    category: 'Seeking Help',
-    items: [
-      'proactively asks questions when unsure',
-      'makes great use of extra help sessions'
-    ]
-  },
-  {
-    category: 'Personal Qualities',
-    items: [
-      'shows excellent perseverance and resilience',
-      'demonstrates a positive and cooperative attitude'
-    ]
-  },
-  {
-    category: 'Looking Ahead',
-    items: [
-      'is encouraged to review key concepts regularly',
-      'has strong potential to excel next term'
-    ]
-  }
+  { category: 'Participation', items: [
+    'actively participates in class discussions',
+    'consistently contributes thoughtful answers'
+  ]},
+  { category: 'Homework', items: [
+    'completes all assigned work on time',
+    'demonstrates strong effort on homework'
+  ]},
+  { category: 'Seeking Help', items: [
+    'proactively asks questions when unsure',
+    'makes great use of extra help sessions'
+  ]},
+  { category: 'Personal Qualities', items: [
+    'shows excellent perseverance and resilience',
+    'demonstrates a positive and cooperative attitude'
+  ]},
+  { category: 'Looking Ahead', items: [
+    'is encouraged to review key concepts regularly',
+    'has strong potential to excel next term'
+  ]}
 ];
 
-const SUPPORT_TRAIT_HINTS = [
-  'Shows effort despite struggles',
-  'Smart and capable, great potential',
-  'Pleasant, remains positive through challenges'
-];
+// ── Name-based pronoun detection ───────────────────────────────────────────────
 
-// ── Pronoun guess from first name (mirrors Teacher Tools main.js) ──────────────
+const MALE_NAMES = new Set([
+  'aaron','adam','adil','adnan','adrian','ahmed','aidan','aiden','alan','albert',
+  'alejandro','alex','alexander','alexei','ali','amir','andre','andrew','andy',
+  'anthony','antonio','arjun','arthur','ashraf','austin','ayaan','ayden',
+  'beau','ben','benjamin','bob','brady','brandon','brian','bruce','bryan',
+  'caleb','carlos','carter','charles','charlie','christian','christopher',
+  'colton','connor','cory','curtis','cyrus',
+  'daniel','darius','david','dean','derek','devraj','diego','dominic','dylan',
+  'eli','elijah','elliot','ethan','evan',
+  'felix','finn','francisco',
+  'gabriel','gavin','george','giovanni','grant','griffin',
+  'hamza','hassan','henry','hudson','hugo','hunter',
+  'ian','ibrahim','isaac','isaiah','ivan',
+  'jack','jackson','jacob','jake','james','jason','javier','jayden','jeremy',
+  'jesse','joe','joel','john','jonathan','jose','joseph','joshua',
+  'juan','julian','justin',
+  'kevin','kyle',
+  'landon','leo','levi','liam','logan','lorenzo','lucas','luke',
+  'marcus','mark','mason','matthew','max','michael','miguel','miles',
+  'mohammed','muhammad',
+  'nathan','nicholas','noah',
+  'oliver','omar','owen',
+  'patrick','paulo','peter','philip',
+  'rafael','richard','robert','ryan',
+  'samir','samuel','sean','sebastian','seth','shaan','shane','simon',
+  'stephen','steven',
+  'thomas','tim','tobias','tyler',
+  'victor','vincent',
+  'wesley','william',
+  'xavier',
+  'zachary','zane','ziad'
+]);
 
-function guessPronounFromFirstName(firstName) {
-  const name = String(firstName || '').trim().toLowerCase();
-  if (!name) return 'they';
+const FEMALE_NAMES = new Set([
+  'aaliyah','abby','abigail','ada','aisha','alannah','alexa','alexandra','alexia',
+  'alice','alicia','alisha','aliya','aliyah','alondra','alyssa','amanda','amber',
+  'amelia','amira','amy','ana','anastasia','angela','angie','annika','ariana',
+  'asha','ashley','astrid','audrey','ava','ayesha',
+  'beatrice','bella','beth','bianca','brianna','brooke','brooklyn',
+  'caitlin','camila','cara','carolina','caroline','cassandra','charlotte',
+  'chloe','christina','claire','clara','claudia',
+  'daisy','dana','daniela','diana',
+  'elena','eliza','elizabeth','ella','emilia','emily','emma','erica','eva','evelyn',
+  'faith','fatima','fiona',
+  'gabriela','gemma','gianna','grace',
+  'hannah','harper','hayley','heather','helen','holly',
+  'isabella','isla',
+  'jade','jasmine','jennifer','jessica','jillian','julia','julianna','julie',
+  'kaitlyn','karen','katelyn','katherine','kathryn','katie','kayla','kelly',
+  'kendra','kylie',
+  'laura','lauren','layla','leah','lillian','lily','lindsay','lisa','lola','lucy',
+  'luna','lydia',
+  'madison','maeve','maria','mariam','marie','maya','megan','mia','michelle',
+  'miranda','molly',
+  'nadia','natalie','nicole','nora',
+  'olivia',
+  'paige','patricia','penelope',
+  'rachel','rebecca','rosa','rose','ruby',
+  'samantha','sandra','sara','sarah','savannah','scarlett','serena','sienna',
+  'simone','sofia','sophia','stephanie','suman',
+  'tiffany',
+  'valentina','vanessa','victoria','violet',
+  'whitney',
+  'zoe','zoey'
+]);
 
-  const female = new Set([
-    // English
-    'emma','olivia','ava','sophia','isabella','mia','charlotte','amelia','evelyn','abigail',
-    'emily','elizabeth','ella','avery','sofia','camila','aria','scarlett','victoria','madison',
-    'luna','grace','chloe','penelope','layla','riley','zoey','nora','lily','eleanor','hannah',
-    'lillian','aubrey','ellie','stella','natalia','zoe','leah','hazel','violet','aurora',
-    'savannah','audrey','brooklyn','bella','claire','skylar','lucy','anna','caroline','nova',
-    'emilia','kennedy','samantha','maya','willow','naomi','aaliyah','elena','sarah','ariana',
-    'allison','gabriella','alice','ruby','eva','serenity','autumn','hailey','gianna',
-    'valentina','isla','eliana','quinn','ivy','sadie','piper','lydia','alexa','josephine',
-    'julia','delilah','arianna','vivian','kaylee','sophie','madeline','peyton','rylee','clara',
-    'hadley','amber','anaya','anita','ana','irene','annie','aisha','sara','sehar','jessica',
-    'jennifer','ashley','amanda','megan','rachel','laura','natalie','kayla','brianna','taylor',
-    'jasmine','vanessa','caitlin','shannon','melissa','tiffany','brittany','danielle','crystal',
-    'holly','katie','kelly','lindsey','miranda','nikki','paige','shelby','stacy','wendy',
-    'sandra','patricia','linda','barbara','margaret','carol','donna','diane',
-    // Chinese female (pinyin)
-    'mei','fang','jing','ling','xiu','hui','yan','ying','xin','yue','zhen','lan','rong',
-    'juan','min','fen','xia','na','qing','hua','shan','dan','rou','xue','ting','lian',
-    'qian','shu','tian','ping','yanyan','tingting','linlin','xiaoyan','xiaoling','xiaomei',
-    'yinyin','jingjing','huihui','shanshan','xinxin','yueyue','fangfang','rongrong',
-    // Indian / South-Asian female
-    'priya','ananya','divya','pooja','shreya','riya','neha','aditi','swati','deepa',
-    'kavya','nisha','sunita','meera','anjali','sita','lakshmi','puja','isha','diya',
-    'sonal','tanya','vanya','mansi','sakshi','smita','nita','rita','gita','rashmi',
-    'shweta','preeti','seema','reena','rina','reema','rekha','renu','usha','uma',
-    'vidya','vinita','varsha','vandana','veena','yamini','yashika','yashna','anika',
-    'aastha','anushka','avni','charu','devika','esha','gargi','harsha','hema','indu',
-    'jaya','jyoti','kajal','kamla','karuna','komal','kriti','lavanya','madhuri','manisha',
-    'megha','minal','mohini','namita','nandita','natasha','nidhi','nilam','paro','parvati',
-    'poonam','prachi','pragya','rachna','radhika','radha','rani','riddhi','ritu','ruhi',
-    'rupal','rupali','sandhya','sanjana','saraswati','savita','shanti','shilpa','shobha',
-    'shruti','simran','sonali','sonam','sudha','supriya','surbhi','sushma','swapna',
-    'tanvi','taruna','trisha','trishna','urvashi','vasudha','vibha','vimala','vrinda',
-    'anam','fatima','zainab','maryam','nadia','hana','layla','yasmin','sana',
-    'bushra','farah','hira','iram','noor','rabia','rima','sahar','samia','sobia','sofia',
-  ]);
-
-  const male = new Set([
-    // English
-    'liam','noah','william','james','oliver','benjamin','elijah','lucas','mason','logan',
-    'alexander','ethan','jacob','michael','daniel','henry','jackson','sebastian','aiden','matthew',
-    'samuel','david','joseph','carter','owen','wyatt','john','jack','luke','jayden',
-    'dylan','grayson','levi','isaac','gabriel','julian','mateo','anthony','jaxon','lincoln',
-    'joshua','christopher','andrew','theodore','caleb','ryan','asher','nathaniel','thomas','leo',
-    'christian','jonathan','ezra','charles','colton','cameron','eli','hudson','aaron','landon',
-    'adam','dominic','austin','evan','parker','tyler','blake','chase','garrett','grant',
-    'ian','kyle','nolan','seth','tanner','trevor','troy','victor','wade','zach','zachary',
-    'mikhail','zaydan','wesley','kanav','kabir','aadit','hunter','hayden','cole','jordan',
-    'kevin','brian','jason','justin','brandon','sean','derek','eric','greg',
-    'mark','paul','scott','steven','robert','richard','edward','george',
-    // Chinese male (pinyin)
-    'wei','jun','hao','ming','jie','tao','bin','rui','long','peng',
-    'gang','feng','bo','yi','dong','kang','qiang','chao','jian','kai',
-    'liang','xiang','yang','yu','zheng','jiahao','jiaming','junhao','junming',
-    'mingzhe','ruihao','tianhao','yuhao','zihao','ziyang','ziyuan',
-    // Indian / South-Asian male
-    'arjun','rahul','rohan','raj','vikram','arun','suresh','rajesh','kiran','amit',
-    'nikhil','vivek','sanjay','gaurav','vishal','akash','ravi','kunal','aditya','saurabh',
-    'pranav','varun','ishaan','aarav','advait','dhruv','harsh','krishna','manav','nakul',
-    'omkar','parth','prateek','rishabh','rohit','samarth','siddharth','tanmay','uday',
-    'vaibhav','vedant','vikas','vinay','vineet','yash','yogesh','ankit','apoorv',
-    'aryan','ashish','ayush','bharat','chirag','deepak','devesh','dheeraj',
-    'dinesh','dipak','girish','gopal','govind','harish','hitesh','jatin','jayesh',
-    'karan','kartik','mahesh','manish','mayank','mohit','naresh','naveen','nilesh','nishant',
-    'pankaj','paras','piyush','prakash','prasad','pratik','praveen','pushkar',
-    'raghav','rakesh','ramesh','ritesh','sachin','sahil','santosh','satish',
-    'shyam','sumit','sunil','suraj','tushar','umesh','vipul',
-    // Muslim / Sikh male
-    'muhammad','omar','ali','hassan','hussain','ibrahim','ismail','yusuf','tariq','khalid',
-    'adnan','bilal','faisal','hamza','imran','jawad','kamran','naveed','sajid','shahid',
-    'sufyan','usman','waleed','zain','zubair','gurpreet','harpreet','jaswinder','kulwant',
-    'mandeep','navneet','paramjit','rajinder','surjit','amrit','balwinder','davinder',
-    'gurmeet','inderjit','jaskaran','jaspal','lakhvir','manjit','narinder','parminder',
-    'ranjit','satinder','tarsem','tejinder',
-  ]);
-
-  if (female.has(name)) return 'she';
-  if (male.has(name))   return 'he';
-
-  // ── Heuristic patterns (same as Teacher Tools) ─────────────────────────────
-  if (/i[ck]a$|ita$|ina$|n[iy]a$|l[iy]a$|s[iy]a$|m[iy]a$|[iy][ay]$|shi$|thi$|dhi$|nee$|dee$|jot[i]?$|vani$|wati$|kumari$/.test(name)) return 'she';
-  if (/raj$|han$|nav$|esh$|jit$|pal$|bir$|vin$|kar$|jot$|vir$|deep$|nand$|preet$|meet$|inder$|winder$/.test(name)) return 'he';
-  if (/(ling|mei|xin|yan|ying|yue|fang|xiu|rong|juan|shan|rou|lian|qian|shu)$/.test(name)) return 'she';
-  if (/(jun|hao|wei|jie|long|peng|yang|ming|feng|gang|dong|kang|bin|rui|tao|liang)$/.test(name)) return 'he';
-  if (/a$/.test(name) && !/sha$|cha$|ssa$|kha$|pha$/.test(name)) return 'she';
-
-  return 'they'; // genuinely ambiguous — teacher will be prompted
+function guessPronounFromName(firstName) {
+  if (!firstName) return 'unknown';
+  const lower = firstName.toLowerCase().trim();
+  if (MALE_NAMES.has(lower))   return 'he';
+  if (FEMALE_NAMES.has(lower)) return 'she';
+  return 'unknown';
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-let students            = [];   // processed student objects
-let generatedComments   = {};   // { studentIdx: string }
-let showOnlyUnderperf   = false;
-let isGeneratingAll     = false;
-let selectedAssignLabels  = [];   // teacher-selected assignment columns for bulk generation
-let selectedUpcomingLabel = null; // single upcoming test label (or null)
+let students          = [];
+let generatedComments = {};
+let showOnlyUnderperf = false;
+let isGeneratingAll   = false;
 
-// Per-card state: collapse/expand, pronoun override, advanced panel data
-const cardStates = {};   // { [idx]: CardState }
+// Raw scrape data — kept for assignment overlay stats
+let rawRows       = [];
+let allAssignCols = [];
 
-function getCardState(idx, firstName) {
+// Selections from the Generate All overlay
+let overlayAssignCols   = [];
+let overlayUpcomingCols = [];
+
+const cardStates = {};
+
+function getCardState(idx, student) {
   if (!cardStates[idx]) {
     cardStates[idx] = {
       collapsed:    false,
-      pronoun:      guessPronounFromFirstName(firstName),  // 'he' | 'she' | 'they'
+      pronoun:      student ? guessPronounFromName(student.firstName) : 'unknown',
       customNote:   '',
       selectedBank: new Set(),
       advancedOpen: false,
-      perfOverride: null         // null = auto | 'good' | 'satisfactory' | 'average' | 'needs_support'
+      perfOverride: null
     };
   }
   return cardStates[idx];
@@ -176,19 +139,19 @@ function getCardState(idx, firstName) {
 // ── DOM ────────────────────────────────────────────────────────────────────────
 
 const $  = id => document.getElementById(id);
-const refreshBtn             = $('refreshBtn');
-const statusBar              = $('statusBar');
-const statusText             = $('statusText');
-const classLabel             = $('classLabel');
-const controls               = $('controls');
-const termSelect             = $('termSelect');
-const gradeGroupSelect       = $('gradeGroupSelect');
-const structureSelect        = $('structureSelect');
+const refreshBtn               = $('refreshBtn');
+const statusBar                = $('statusBar');
+const statusText               = $('statusText');
+const classLabel               = $('classLabel');
+const controls                 = $('controls');
+const termSelect               = $('termSelect');
+const gradeGroupSelect         = $('gradeGroupSelect');
+const structureSelect          = $('structureSelect');
 const filterUnderperformingBtn = $('filterUnderperformingBtn');
-const studentCount           = $('studentCount');
-const generateAllBtn         = $('generateAllBtn');
-const studentList            = $('studentList');
-const emptyState             = $('emptyState');
+const studentCount             = $('studentCount');
+const generateAllBtn           = $('generateAllBtn');
+const studentList              = $('studentList');
+const emptyState               = $('emptyState');
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -200,147 +163,91 @@ function setStatus(text, type = 'idle') {
 // ── Column detection ───────────────────────────────────────────────────────────
 
 const GRADE_HINTS = [
-  'final calculated grade',
-  'calculated final grade',
-  'final grade',
-  'overall grade',
-  'course grade',
-  'grade'
+  'final calculated grade','calculated final grade','final grade',
+  'overall grade','course grade','grade'
 ];
 
 function norm(h) {
   return (h || '')
-    .replace(/[▼▲►◄▸▾⌄⌃]/g, '') // strip sort arrows Brightspace puts in headers
-    .toLowerCase()
-    .replace(/\s*#\s*$/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/[▼▲►◄▸▾⌄⌃]/g, '')
+    .toLowerCase().replace(/\s*#\s*$/, '').replace(/\s+/g, ' ').trim();
 }
 
 function detectCols(headers) {
   const norms = headers.map(norm);
-
-  const lastCol  = headers.find((_, i) => ['last name', 'lastname', 'surname'].includes(norms[i]));
-  const firstCol = headers.find((_, i) => ['first name', 'firstname', 'given name'].includes(norms[i]));
-  // Include 'learner' and 'student' — used by Spirit of Math / D2L Brightspace
-  const fullCol  = headers.find((_, i) => ['student name', 'name', 'full name', 'learner', 'student'].includes(norms[i]));
+  const lastCol  = headers.find((_, i) => ['last name','lastname','surname'].includes(norms[i]));
+  const firstCol = headers.find((_, i) => ['first name','firstname','given name'].includes(norms[i]));
+  const fullCol  = headers.find((_, i) => ['student name','name','full name','learner','student'].includes(norms[i]));
 
   let gradeCol = null;
   for (const hint of GRADE_HINTS) {
     gradeCol = headers.find((_, i) => norms[i] === hint || norms[i].startsWith(hint));
     if (gradeCol) break;
   }
-  // fallback: any col with grade/mark/percent/score
-  if (!gradeCol) {
-    gradeCol = headers.find(h => /grade|mark|percent|score/i.test(h));
-  }
+  if (!gradeCol) gradeCol = headers.find(h => /grade|mark|percent|score/i.test(h));
 
-  // Skip cols: ID, email, org cols
   const skipPatterns = /email|username|orgid|org\s*defined|id\s*#|userid/i;
   const skipCols = new Set(
     [lastCol, firstCol, fullCol, gradeCol, ...headers.filter(h => skipPatterns.test(h))].filter(Boolean)
   );
-
   return { lastCol, firstCol, fullCol, gradeCol, skipCols };
 }
 
-// Extract the first (given) name from a full name string.
-// Handles both "First Last" and Brightspace's "Last, First" comma-separated format.
-function extractFirstName(fullName) {
-  if (!fullName) return '';
-  if (fullName.includes(',')) {
-    // "Ghindea, Darius" → "Darius"
-    const afterComma = fullName.split(',')[1] || '';
-    return afterComma.trim().split(/\s+/)[0];
-  }
-  // "Darius Ghindea" → "Darius"
-  return fullName.split(/\s+/)[0];
-}
-
-// Strip non-name characters (icons, arrows, checkboxes) that Brightspace injects into cells
 function cleanNameText(raw) {
   return (raw || '')
-    .replace(/[▼▲►◄▸▾⌄⌃⌘⚑⚐]/g, '')       // arrows and icons
-    .replace(/[^\p{L}\p{M}\s'\-\.]/gu, ' ')  // keep letters (incl. accented), spaces, hyphens, apostrophes
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/[▼▲►◄▸▾⌄⌃⌘⚑⚐]/g, '')
+    .replace(/[^\p{L}\p{M}\s'\-\.]/gu, ' ')
+    .replace(/\s+/g, ' ').trim();
 }
 
 // ── Student processing ─────────────────────────────────────────────────────────
 
-// Case-insensitive key lookup on a row object — handles minor whitespace/case mismatches
 function rowGet(row, key) {
   if (!key) return '';
-  if (row[key] !== undefined) return row[key]; // exact match first
+  if (row[key] !== undefined) return row[key];
   const lk = key.toLowerCase().trim();
   const found = Object.keys(row).find(k => k.toLowerCase().trim() === lk);
   return found ? row[found] : '';
 }
 
 function processStudents({ headers, rows }) {
-  // ── Debug logging — open Side Panel DevTools (right-click → Inspect) to view ──
   console.log('[BrightBridge] headers:', JSON.stringify(headers));
   console.log('[BrightBridge] row count:', rows.length);
-  if (rows.length) console.log('[BrightBridge] first row keys:', JSON.stringify(Object.keys(rows[0])));
   if (rows.length) console.log('[BrightBridge] first row sample:', JSON.stringify(rows[0]));
 
   const cols = detectCols(headers);
   console.log('[BrightBridge] detected cols — fullCol:', cols.fullCol, '| gradeCol:', cols.gradeCol);
 
+  // Save for overlay use
+  rawRows = rows;
+  allAssignCols = headers.filter(h => h && !cols.skipCols.has(h));
+
   return rows.map((row, idx) => {
-    // Name — clean up Brightspace cell noise (icons, arrows, checkboxes)
     let name = '';
-
     if (cols.fullCol) {
-      const raw = cleanNameText(rowGet(row, cols.fullCol));
-      // Normalise "Last, First" → "First Last" for display
-      if (raw.includes(',')) {
-        const parts = raw.split(',');
-        name = (parts[1].trim() + ' ' + parts[0].trim()).trim();
-      } else {
-        name = raw;
-      }
+      name = cleanNameText(rowGet(row, cols.fullCol));
     } else if (cols.firstCol && cols.lastCol) {
-      const fn = cleanNameText(rowGet(row, cols.firstCol));
-      const ln = cleanNameText(rowGet(row, cols.lastCol));
-      name = `${fn} ${ln}`.trim();
+      name = `${cleanNameText(rowGet(row, cols.firstCol))} ${cleanNameText(rowGet(row, cols.lastCol))}`.trim();
     }
-
-    // Broader fallback 1: any header containing name/learner/student
     if (!name || name.length < 2) {
-      const fallback = headers.find(h =>
-        /name|learner|student/i.test(h) && !/grade|mark|score|percent|enrolled/i.test(h)
-      );
+      const fallback = headers.find(h => /name|learner|student/i.test(h) && !/grade|mark|score|percent|enrolled/i.test(h));
       if (fallback) name = cleanNameText(rowGet(row, fallback));
     }
-
-    // Broader fallback 2: first column that contains at least 2 letters and looks like a name
     if (!name || name.length < 2) {
       for (const h of headers) {
         const val = cleanNameText(rowGet(row, h));
-        if (
-          val.length >= 2 &&
-          /[a-zA-Z]{2,}/.test(val) &&             // at least 2 consecutive letters
-          !/grade|calculated|percent|enrolled|week|exercise|mastermind/i.test(val)
-        ) {
-          name = val;
-          break;
+        if (val.length >= 2 && /[a-zA-Z]{2,}/.test(val) && !/grade|calculated|percent|enrolled|week|exercise|mastermind/i.test(val)) {
+          name = val; break;
         }
       }
     }
-
     if (!name || name.length < 2) return null;
 
-    const firstName = cols.firstCol
-      ? cleanNameText(rowGet(row, cols.firstCol))
-      : extractFirstName(name);  // handles both "First Last" and "Last, First" (Brightspace Learner col)
-    const lastName = cols.lastCol ? cleanNameText(rowGet(row, cols.lastCol)) : '';
+    const firstName = cols.firstCol ? cleanNameText(rowGet(row, cols.firstCol)) : name.split(' ')[0];
+    const lastName  = cols.lastCol  ? cleanNameText(rowGet(row, cols.lastCol))  : '';
+    const gradeRaw  = cols.gradeCol ? rowGet(row, cols.gradeCol) : '';
+    const gradeNum  = parseGradeNum(gradeRaw);
 
-    // Grade
-    const gradeRaw = cols.gradeCol ? rowGet(row, cols.gradeCol) : '';
-    const gradeNum = parseGradeNum(gradeRaw);
-
-    // Assignment columns (everything except name/id/grade/email cols)
     const assignments = headers
       .filter(h => !cols.skipCols.has(h))
       .map(h => ({ label: h, value: (rowGet(row, h) || '').trim() }))
@@ -352,7 +259,6 @@ function processStudents({ headers, rows }) {
 
 function parseGradeNum(raw) {
   if (!raw) return null;
-  // Extract the first number in the string (handles "81.34 % 👁", "0 %", "- -", etc.)
   const match = String(raw).match(/(\d+[.,]?\d*)/);
   if (!match) return null;
   const n = parseFloat(match[1].replace(',', '.'));
@@ -376,10 +282,300 @@ function perfCode(gradeNum) {
   return 'needs_support';
 }
 
-// ── Pronoun detection ──────────────────────────────────────────────────────────
+// ── Assignment overlay helpers ─────────────────────────────────────────────────
 
-function detectTheyThem(text) {
-  return /\b(they|them|their|themself|themselves)\b/i.test(text || '');
+function getLessonNum(col) {
+  const m = String(col || '').toUpperCase().match(/L\s*(\d+)/);
+  return m ? (Number(m[1]) || null) : null;
+}
+
+const TERM_LESSON_RANGES = { T1: [1, 13], T2: [14, 26], T3: [27, 39] };
+
+function getTermAssignCols(termCode) {
+  const tc = String(termCode || '').trim().toUpperCase();
+  if (!tc) return allAssignCols.filter(c => colHasMarks(c));
+  return allAssignCols.filter(col => {
+    const n = getLessonNum(col);
+    if (n == null) return false;
+    const [min, max] = TERM_LESSON_RANGES[tc] || [];
+    return min != null && n >= min && n <= max;
+  });
+}
+
+function colHasMarks(col) {
+  return rawRows.some(row => {
+    const v = String(row[col] || '').trim();
+    return v && v !== '- -' && v !== '--' && v !== 'N/A' && /\d/.test(v);
+  });
+}
+
+function getColClassAvg(col) {
+  const nums = rawRows.map(row => parseGradeNum(row[col])).filter(n => n !== null);
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function getColSubmitRate(col) {
+  if (!rawRows.length) return null;
+  const submitted = rawRows.filter(row => {
+    const v = String(row[col] || '').trim();
+    return v && v !== '- -' && v !== '--' && v !== 'N/A' && /\d/.test(v);
+  }).length;
+  return (submitted / rawRows.length) * 100;
+}
+
+function cleanAssignLabel(label) {
+  let s = String(label || '').trim();
+  s = s.replace(/\s+(Scheme Symbol|Points Grade|Points Points|Grade Points|Percentage|Letter Grade|GPA Scale|Pass\/Fail|Complete\/Incomplete)\s*$/i, '').trim();
+  const m = s.match(/^L\d+\s*-\s*(.*)$/i);
+  return m ? (m[1].trim() || s) : s;
+}
+
+function avgColor(avg) {
+  if (!Number.isFinite(avg)) return '#bbb';
+  if (avg >= 80) return '#1a7f4b';
+  if (avg >= 70) return '#b07800';
+  return '#c0186a';
+}
+
+// ── Assignment selection overlay (2-step) ──────────────────────────────────────
+
+function showAssignOverlay(onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'assign-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'assign-modal';
+
+  // ── Step 1: Assignments ──
+  const step1 = document.createElement('div');
+  step1.className = 'assign-step';
+
+  const s1Title = document.createElement('div');
+  s1Title.className = 'assign-title';
+  s1Title.innerHTML = '<strong>Step 1 of 2</strong> — Select assignments to highlight';
+
+  const s1Hint = document.createElement('div');
+  s1Hint.className = 'assign-hint';
+  s1Hint.textContent = 'Choose up to 3. Avg = class average · Sub = submission rate.';
+
+  const s1Search = document.createElement('input');
+  s1Search.className = 'assign-search';
+  s1Search.placeholder = 'Search assignments…';
+  s1Search.type = 'text';
+
+  const s1Warning = document.createElement('div');
+  s1Warning.className = 'assign-warning';
+  s1Warning.textContent = 'Maximum 3 assignments can be selected.';
+  s1Warning.style.display = 'none';
+
+  const s1List = document.createElement('div');
+  s1List.className = 'assign-list';
+
+  const termCode = String(termSelect.value || '').trim().toUpperCase();
+  let termCols = getTermAssignCols(termCode);
+  if (!termCols.length) termCols = allAssignCols.filter(c => colHasMarks(c));
+
+  if (!termCols.length) {
+    s1List.innerHTML = '<p class="assign-empty">No assignment columns found. Make sure your Brightspace grade table has assignment columns with marks.</p>';
+  } else {
+    termCols.forEach(col => {
+      const label = cleanAssignLabel(col);
+      const avg   = getColClassAvg(col);
+      const sub   = getColSubmitRate(col);
+      const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
+
+      const row = document.createElement('div');
+      row.className = 'assign-row';
+      row.dataset.label = label.toLowerCase();
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = safeId;
+      cb.dataset.col = col;
+      if (overlayAssignCols.includes(col)) cb.checked = true;
+
+      cb.addEventListener('change', () => {
+        const checked = s1List.querySelectorAll('input[type="checkbox"]:checked');
+        if (checked.length > 3) { cb.checked = false; s1Warning.style.display = ''; return; }
+        s1Warning.style.display = 'none';
+      });
+      row.addEventListener('click', e => {
+        if (e.target === cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+
+      const lbl = document.createElement('label');
+      lbl.htmlFor = safeId;
+      lbl.className = 'assign-label';
+      lbl.textContent = label;
+
+      const avgBadge = document.createElement('span');
+      avgBadge.className = 'assign-avg';
+      avgBadge.style.color = avgColor(avg);
+      avgBadge.title = 'Class average';
+      avgBadge.textContent = avg != null ? `${Math.round(avg)}%` : '—';
+
+      const subBadge = document.createElement('span');
+      subBadge.className = 'assign-sub';
+      subBadge.style.color = avgColor(sub);
+      subBadge.title = 'Submission rate';
+      subBadge.textContent = sub != null ? `${Math.round(sub)}%` : '—';
+
+      row.appendChild(cb);
+      row.appendChild(lbl);
+      row.appendChild(avgBadge);
+      row.appendChild(subBadge);
+      s1List.appendChild(row);
+    });
+  }
+
+  s1Search.addEventListener('input', () => {
+    const q = s1Search.value.toLowerCase();
+    s1List.querySelectorAll('.assign-row').forEach(r => {
+      r.style.display = r.dataset.label.includes(q) ? '' : 'none';
+    });
+  });
+
+  const s1Footer = document.createElement('div');
+  s1Footer.className = 'assign-footer';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => overlay.remove());
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'btn assign-primary-btn';
+  nextBtn.textContent = 'Continue →';
+
+  s1Footer.appendChild(cancelBtn);
+  s1Footer.appendChild(nextBtn);
+
+  step1.appendChild(s1Title);
+  step1.appendChild(s1Hint);
+  step1.appendChild(s1Search);
+  step1.appendChild(s1Warning);
+  step1.appendChild(s1List);
+  step1.appendChild(s1Footer);
+
+  // ── Step 2: Upcoming tests ──
+  const step2 = document.createElement('div');
+  step2.className = 'assign-step';
+  step2.style.display = 'none';
+
+  const s2Title = document.createElement('div');
+  s2Title.className = 'assign-title';
+  s2Title.innerHTML = '<strong>Step 2 of 2</strong> — Upcoming test <span style="font-weight:400;color:var(--muted)">(optional)</span>';
+
+  const s2Hint = document.createElement('div');
+  s2Hint.className = 'assign-hint';
+  s2Hint.textContent = 'Pick one upcoming test for the comment to mention encouragingly. Only ungraded test columns appear here.';
+
+  const s2Search = document.createElement('input');
+  s2Search.className = 'assign-search';
+  s2Search.placeholder = 'Search tests…';
+  s2Search.type = 'text';
+
+  const s2List = document.createElement('div');
+  s2List.className = 'assign-list';
+
+  const upcomingCols = allAssignCols.filter(col => {
+    const label = cleanAssignLabel(col).toLowerCase();
+    return /\btest(s)?\b/i.test(label) && !colHasMarks(col);
+  });
+
+  if (!upcomingCols.length) {
+    s2List.innerHTML = '<p class="assign-empty">No upcoming test columns found. Columns with "test" in the name and no marks yet will appear here.</p>';
+  } else {
+    upcomingCols.forEach(col => {
+      const label = cleanAssignLabel(col);
+      const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
+
+      const row = document.createElement('div');
+      row.className = 'assign-row';
+      row.dataset.label = label.toLowerCase();
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = safeId;
+      cb.dataset.col = col;
+      if (overlayUpcomingCols.includes(col)) cb.checked = true;
+
+      cb.addEventListener('change', () => {
+        if (cb.checked) {
+          s2List.querySelectorAll('input[type="checkbox"]').forEach(o => { if (o !== cb) o.checked = false; });
+        }
+      });
+      row.addEventListener('click', e => {
+        if (e.target === cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+
+      const lbl = document.createElement('label');
+      lbl.htmlFor = safeId;
+      lbl.className = 'assign-label';
+      lbl.textContent = label;
+
+      row.appendChild(cb);
+      row.appendChild(lbl);
+      s2List.appendChild(row);
+    });
+  }
+
+  s2Search.addEventListener('input', () => {
+    const q = s2Search.value.toLowerCase();
+    s2List.querySelectorAll('.assign-row').forEach(r => {
+      r.style.display = r.dataset.label.includes(q) ? '' : 'none';
+    });
+  });
+
+  const s2Footer = document.createElement('div');
+  s2Footer.className = 'assign-footer';
+
+  const backBtn = document.createElement('button');
+  backBtn.className = 'btn';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', () => {
+    step1.style.display = '';
+    step2.style.display = 'none';
+  });
+
+  const generateBtn = document.createElement('button');
+  generateBtn.className = 'btn assign-primary-btn';
+  generateBtn.textContent = '▶ Generate All';
+
+  s2Footer.appendChild(backBtn);
+  s2Footer.appendChild(generateBtn);
+
+  step2.appendChild(s2Title);
+  step2.appendChild(s2Hint);
+  step2.appendChild(s2Search);
+  step2.appendChild(s2List);
+  step2.appendChild(s2Footer);
+
+  // Advance to step 2
+  nextBtn.addEventListener('click', () => {
+    overlayAssignCols = Array.from(s1List.querySelectorAll('input[type="checkbox"]:checked'))
+      .map(cb => cb.dataset.col).filter(Boolean);
+    step1.style.display = 'none';
+    step2.style.display = '';
+  });
+
+  // Confirm and generate
+  generateBtn.addEventListener('click', () => {
+    overlayUpcomingCols = Array.from(s2List.querySelectorAll('input[type="checkbox"]:checked'))
+      .map(cb => cb.dataset.col).filter(Boolean);
+    overlay.remove();
+    onConfirm();
+  });
+
+  modal.appendChild(step1);
+  modal.appendChild(step2);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────────
@@ -411,20 +607,18 @@ function renderStudents() {
 
 function buildCard(student) {
   const under   = isUnderperforming(student);
+  const perf    = perfCode(student.gradeNum);
   const comment = generatedComments[student.idx] || '';
-  const state   = getCardState(student.idx, student.firstName);
-
-  const perf  = perfCode(student.gradeNum);  // 'good'|'satisfactory'|'average'|'needs_support'
+  const state   = getCardState(student.idx, student);
 
   const card = document.createElement('div');
-  card.className = `student-card perf-${perf}`;
+  card.className = `student-card perf-${perf}` + (under ? ' underperforming' : '');
   card.dataset.idx = student.idx;
 
-  // ── Card header ──
+  // Card header
   const header = document.createElement('div');
   header.className = 'card-header';
 
-  // Collapse / expand button
   const collapseBtn = document.createElement('button');
   collapseBtn.type = 'button';
   collapseBtn.className = 'btn collapse-btn';
@@ -432,7 +626,7 @@ function buildCard(student) {
   collapseBtn.textContent = state.collapsed ? '▶' : '▼';
   header.appendChild(collapseBtn);
 
-  if (perf === 'needs_support') {
+  if (under) {
     const badge = document.createElement('span');
     badge.className = 'warning-badge';
     badge.textContent = '⚠️';
@@ -447,33 +641,31 @@ function buildCard(student) {
   gradeEl.className = `student-grade grade-${perf}`;
   gradeEl.textContent = formatGrade(student.gradeNum);
 
-  // Edit button
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
   editBtn.className = 'btn edit-btn';
   editBtn.textContent = '✏️';
-  editBtn.title = 'Edit advanced options';
+  editBtn.title = 'Advanced options';
 
   header.appendChild(nameEl);
   header.appendChild(gradeEl);
   header.appendChild(editBtn);
   card.appendChild(header);
 
-  // ── Collapsible body ──
+  // Collapsible body
   const body = document.createElement('div');
   body.className = 'card-body' + (state.collapsed ? ' collapsed' : '');
 
-  // Pronoun toast row — shows when pronoun is ambiguous (they) or already confirmed (he/she)
+  // Pronoun toast — only shown when pronoun is unknown
   const pronounRow = document.createElement('div');
   pronounRow.className = 'pronoun-row';
-  // Show toast when pronoun is genuinely unclear (they) so teacher can assign he/she,
-  // or when it's been confirmed (he/she) so teacher can see/change the assignment.
-  pronounRow.style.display = '';
+  pronounRow.style.display = (state.pronoun === 'unknown') ? '' : 'none';
 
   const toastBtn = document.createElement('button');
   toastBtn.type = 'button';
   toastBtn.className = 'pronoun-toast';
-  toastBtn.title = 'Click to set pronouns';
+  toastBtn.title = 'Pronoun unclear — tap to set';
+  toastBtn.textContent = '🔁 Pronoun unclear — tap to set';
 
   const chooser = document.createElement('div');
   chooser.className = 'pronoun-chooser';
@@ -493,9 +685,6 @@ function buildCard(student) {
 
   chooser.appendChild(heBtn);
   chooser.appendChild(sheBtn);
-
-  updatePronounToast(state, toastBtn);
-
   pronounRow.appendChild(toastBtn);
   pronounRow.appendChild(chooser);
   body.appendChild(pronounRow);
@@ -541,79 +730,69 @@ function buildCard(student) {
   actions.appendChild(copyBtn);
   body.appendChild(actions);
 
-  // Advanced panel (initially hidden unless state.advancedOpen)
-  const advPanel = buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow, toastBtn);
+  // Advanced panel
+  const advPanel = buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow);
   advPanel.style.display = state.advancedOpen ? '' : 'none';
   body.appendChild(advPanel);
 
   card.appendChild(body);
 
-  // ── Wire collapse ──
+  // Wire collapse
   collapseBtn.addEventListener('click', () => {
     state.collapsed = !state.collapsed;
     collapseBtn.textContent = state.collapsed ? '▶' : '▼';
     body.classList.toggle('collapsed', state.collapsed);
   });
 
-  // ── Wire edit button ──
+  // Wire edit
   editBtn.addEventListener('click', () => {
     state.advancedOpen = !state.advancedOpen;
     advPanel.style.display = state.advancedOpen ? '' : 'none';
     editBtn.classList.toggle('active', state.advancedOpen);
     if (state.collapsed && state.advancedOpen) {
-      // Auto-expand card if collapsed when opening edit panel
       state.collapsed = false;
       collapseBtn.textContent = '▼';
       body.classList.remove('collapsed');
     }
   });
 
-  // ── Wire pronoun toast toggle ──
+  // Wire toast + chooser
   toastBtn.addEventListener('click', () => {
     chooser.style.display = chooser.style.display === 'none' ? '' : 'none';
   });
 
-  // ── Wire pronoun choice buttons ──
   [heBtn, sheBtn].forEach(btn => {
     btn.addEventListener('click', () => {
       state.pronoun = btn.dataset.pronoun;
-      updatePronounToast(state, toastBtn);
       [heBtn, sheBtn].forEach(b => b.classList.toggle('active', b === btn));
       chooser.style.display = 'none';
+      pronounRow.style.display = 'none'; // hide toast once set
     });
   });
-
-  // Set active pronoun button on initial render
-  [heBtn, sheBtn].forEach(b =>
-    b.classList.toggle('active', b.dataset.pronoun === state.pronoun)
-  );
 
   return card;
 }
 
 // ── Advanced panel ─────────────────────────────────────────────────────────────
 
-function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow, toastBtn) {
+function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRow) {
   const panel = document.createElement('div');
   panel.className = 'advanced-panel';
 
-  // ── Pronoun selector ──
+  // Pronoun selector
   const pronounSection = document.createElement('div');
   pronounSection.className = 'adv-section';
-
   const pronounLabel = document.createElement('div');
   pronounLabel.className = 'adv-label';
   pronounLabel.textContent = 'Pronouns';
-
   const pronounGroup = document.createElement('div');
   pronounGroup.className = 'pronoun-radio-group';
 
-  const pronounOpts = [
-    { val: 'he',   label: '🚹 He/Him' },
-    { val: 'she',  label: '🚺 She/Her' }
-  ];
-
-  pronounOpts.forEach(opt => {
+  [
+    { val: 'unknown', label: 'Auto-detect' },
+    { val: 'he',      label: '🚹 He/Him'   },
+    { val: 'she',     label: '🚺 She/Her'  }
+  ].forEach(opt => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'pronoun-radio-btn' + (state.pronoun === opt.val ? ' active' : '');
@@ -624,8 +803,7 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
       pronounGroup.querySelectorAll('.pronoun-radio-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.val === opt.val)
       );
-      // Sync the toast in the card header
-      if (toastBtn) updatePronounToast(state, toastBtn);
+      pronounRow.style.display = (state.pronoun === 'unknown') ? '' : 'none';
     });
     pronounGroup.appendChild(btn);
   });
@@ -634,22 +812,20 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
   pronounSection.appendChild(pronounGroup);
   panel.appendChild(pronounSection);
 
-  // ── Performance override ──
+  // Performance override
   const perfSection = document.createElement('div');
   perfSection.className = 'adv-section';
-
   const perfLabel = document.createElement('div');
   perfLabel.className = 'adv-label';
   perfLabel.textContent = 'Performance';
-
   const perfSelect = document.createElement('select');
   perfSelect.className = 'adv-select';
   [
-    { val: '',             label: `Auto (${perfCode(student.gradeNum).replace('_', ' ')})` },
-    { val: 'good',         label: 'Good' },
-    { val: 'satisfactory', label: 'Satisfactory' },
-    { val: 'average',      label: 'Average' },
-    { val: 'needs_support',label: 'Needs Support' }
+    { val: '',              label: `Auto (${perfCode(student.gradeNum).replace('_', ' ')})` },
+    { val: 'good',          label: 'Good' },
+    { val: 'satisfactory',  label: 'Satisfactory' },
+    { val: 'average',       label: 'Average' },
+    { val: 'needs_support', label: 'Needs Support' }
   ].forEach(opt => {
     const o = document.createElement('option');
     o.value = opt.val;
@@ -657,41 +833,33 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
     if (opt.val === (state.perfOverride || '')) o.selected = true;
     perfSelect.appendChild(o);
   });
-  perfSelect.addEventListener('change', () => {
-    state.perfOverride = perfSelect.value || null;
-  });
-
+  perfSelect.addEventListener('change', () => { state.perfOverride = perfSelect.value || null; });
   perfSection.appendChild(perfLabel);
   perfSection.appendChild(perfSelect);
   panel.appendChild(perfSection);
 
-  // ── Custom note ──
+  // Custom note
   const noteSection = document.createElement('div');
   noteSection.className = 'adv-section';
-
   const noteLabel = document.createElement('div');
   noteLabel.className = 'adv-label';
   noteLabel.textContent = 'Custom Note';
-
   const noteInput = document.createElement('textarea');
   noteInput.className = 'adv-note';
-  noteInput.placeholder = 'e.g. "She recently moved schools." — added to the prompt';
+  noteInput.placeholder = 'e.g. "Recently joined from another school." — added to the prompt';
   noteInput.value = state.customNote;
   noteInput.rows = 2;
   noteInput.addEventListener('input', () => { state.customNote = noteInput.value; });
-
   noteSection.appendChild(noteLabel);
   noteSection.appendChild(noteInput);
   panel.appendChild(noteSection);
 
-  // ── Comment bank ──
+  // Comment bank
   const bankSection = document.createElement('div');
   bankSection.className = 'adv-section';
-
   const bankLabel = document.createElement('div');
   bankLabel.className = 'adv-label';
   bankLabel.textContent = 'Comment Bank';
-
   bankSection.appendChild(bankLabel);
 
   COMMENT_BANK_MINI.forEach(cat => {
@@ -699,11 +867,9 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
     catEl.className = 'bank-category';
     catEl.textContent = cat.category;
     bankSection.appendChild(catEl);
-
     cat.items.forEach(item => {
       const itemRow = document.createElement('label');
       itemRow.className = 'bank-item';
-
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = state.selectedBank.has(item);
@@ -711,16 +877,14 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
         if (cb.checked) state.selectedBank.add(item);
         else            state.selectedBank.delete(item);
       });
-
       itemRow.appendChild(cb);
       itemRow.appendChild(document.createTextNode(' ' + item));
       bankSection.appendChild(itemRow);
     });
   });
-
   panel.appendChild(bankSection);
 
-  // ── Regenerate button ──
+  // Regenerate
   const regenBtn = document.createElement('button');
   regenBtn.type = 'button';
   regenBtn.className = 'btn gen-btn adv-regen-btn';
@@ -733,18 +897,6 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
   return panel;
 }
 
-// ── Pronoun toast helper ───────────────────────────────────────────────────────
-
-function updatePronounToast(state, toastBtn) {
-  const labels = {
-    they: '🔁 Pronoun unclear — tap to set',
-    he:   '🚹 He/Him',
-    she:  '🚺 She/Her'
-  };
-  toastBtn.textContent = labels[state.pronoun] || labels.they;
-  toastBtn.dataset.pronoun = state.pronoun;
-}
-
 // ── Copy button helper ─────────────────────────────────────────────────────────
 
 function updateCopyBtn(btn, text) {
@@ -753,278 +905,37 @@ function updateCopyBtn(btn, text) {
   btn.textContent = has ? 'Copy ✓' : 'Copy';
 }
 
-// ── Assignment stats & selection ───────────────────────────────────────────────
-
-// Calculate class average and submission rate for each assignment column across all students.
-function getAssignmentStats() {
-  const labelSet = new Set();
-  students.forEach(s => s.assignments.forEach(a => labelSet.add(a.label)));
-
-  return [...labelSet].map(label => {
-    const values = students.map(s => {
-      const a = s.assignments.find(x => x.label === label);
-      return a ? parseGradeNum(a.value) : null;
-    });
-    const submitted = values.filter(v => v !== null);
-    const classAvg  = submitted.length
-      ? submitted.reduce((a, b) => a + b, 0) / submitted.length
-      : null;
-    const submissionRate = students.length
-      ? (submitted.length / students.length) * 100
-      : 0;
-    return { label, classAvg, submissionRate, submittedCount: submitted.length };
-  })
-  .filter(s => s.submittedCount > 0)                        // skip empty columns
-  .sort((a, b) => b.submissionRate - a.submissionRate);     // most-submitted first
-}
-
-// Pick up to 2 of the teacher-selected assignments for one student, add tone.
-function computeAssignmentFacts(student, labels) {
-  if (!labels || !labels.length) return [];
-  // Randomly pick 2 for variety across students (same logic as Teacher Tools)
-  const shuffled = [...labels].sort(() => Math.random() - 0.5);
-  const picked   = shuffled.slice(0, Math.min(2, shuffled.length));
-  return picked.map(label => {
-    const a = student.assignments.find(x => x.label === label);
-    if (!a) return null;
-    const scoreValue = parseGradeNum(a.value);
-    return {
-      label,
-      scoreText:  a.value || '',
-      scoreValue,
-      tone: scoreValue !== null && scoreValue > 75 ? 'positive' : 'constructive'
-    };
-  }).filter(Boolean);
-}
-
-// ── Assignment overlay DOM ─────────────────────────────────────────────────────
-
-const assignOverlay     = $('assignOverlay');
-const assignStep1       = $('assignStep1');
-const assignStep2       = $('assignStep2');
-const assignSearch      = $('assignSearch');
-const assignList        = $('assignList');
-const assignWarning     = $('assignWarning');
-const assignCancelBtn   = $('assignCancelBtn');
-const assignStep1Btn    = $('assignStep1Btn');
-const assignBackBtn     = $('assignBackBtn');
-const assignSkipBtn     = $('assignSkipBtn');
-const assignGenerateBtn = $('assignGenerateBtn');
-const upcomingSearch    = $('upcomingSearch');
-const upcomingList      = $('upcomingList');
-
-function avgColor(avg) {
-  if (avg === null) return 'var(--muted)';
-  if (avg >= 85) return '#3a8a1a';
-  if (avg >= 70) return '#b07d0a';
-  return '#b91c1c';
-}
-
-// ── Step 1: assignment checkboxes ──────────────────────────────────────────────
-
-function populateAssignList(filter) {
-  const stats = getAssignmentStats();
-  const q     = (filter || '').toLowerCase();
-  const shown = q ? stats.filter(s => s.label.toLowerCase().includes(q)) : stats;
-
-  assignList.innerHTML = '';
-
-  if (!shown.length) {
-    const empty = document.createElement('p');
-    empty.className   = 'assign-empty';
-    empty.textContent = 'No assignments found.';
-    assignList.appendChild(empty);
-    return;
-  }
-
-  shown.forEach(({ label, classAvg, submissionRate }) => {
-    const row = document.createElement('label');
-    row.className = 'assign-row';
-
-    const cb = document.createElement('input');
-    cb.type    = 'checkbox';
-    cb.checked = selectedAssignLabels.includes(label);
-    cb.addEventListener('change', () => {
-      if (cb.checked) {
-        if (selectedAssignLabels.length >= 3) {
-          cb.checked = false;
-          assignWarning.style.display = '';
-          return;
-        }
-        selectedAssignLabels.push(label);
-        assignWarning.style.display = 'none';
-      } else {
-        selectedAssignLabels = selectedAssignLabels.filter(l => l !== label);
-        assignWarning.style.display = 'none';
-      }
-    });
-
-    const nameEl = document.createElement('span');
-    nameEl.className   = 'assign-label';
-    nameEl.textContent = label;
-
-    const avgEl = document.createElement('span');
-    avgEl.className   = 'assign-avg';
-    avgEl.style.color = avgColor(classAvg);
-    avgEl.textContent = classAvg !== null ? classAvg.toFixed(1) + '%' : '—';
-
-    const subEl = document.createElement('span');
-    subEl.className   = 'assign-sub';
-    subEl.textContent = submissionRate.toFixed(0) + '%';
-
-    row.appendChild(cb);
-    row.appendChild(nameEl);
-    row.appendChild(avgEl);
-    row.appendChild(subEl);
-    assignList.appendChild(row);
-  });
-}
-
-// ── Step 2: upcoming test radio list ──────────────────────────────────────────
-
-function populateUpcomingList(filter) {
-  const stats = getAssignmentStats();
-
-  // Priority: columns whose label contains "test" AND have 0% submission (truly future).
-  // Fallback: any column with <20% submission rate (likely not yet graded).
-  // Last resort: show all columns so teacher can still pick one.
-  let candidates = stats.filter(s => /test/i.test(s.label) && s.submissionRate === 0);
-  if (!candidates.length) candidates = stats.filter(s => s.submissionRate < 20);
-  if (!candidates.length) candidates = stats;
-
-  const q      = (filter || '').toLowerCase();
-  const shown  = q ? candidates.filter(s => s.label.toLowerCase().includes(q)) : candidates;
-
-  upcomingList.innerHTML = '';
-
-  if (!shown.length) {
-    const empty = document.createElement('p');
-    empty.className   = 'assign-empty';
-    empty.textContent = 'No upcoming tests found.';
-    upcomingList.appendChild(empty);
-    return;
-  }
-
-  shown.forEach(({ label, submissionRate }) => {
-    const row = document.createElement('label');
-    row.className = 'assign-row upcoming-row';
-
-    const rb = document.createElement('input');
-    rb.type    = 'radio';
-    rb.name    = 'upcomingTest';
-    rb.value   = label;
-    rb.checked = selectedUpcomingLabel === label;
-    rb.addEventListener('change', () => {
-      if (rb.checked) selectedUpcomingLabel = label;
-    });
-
-    const nameEl = document.createElement('span');
-    nameEl.className   = 'assign-label';
-    nameEl.textContent = label;
-
-    const subEl = document.createElement('span');
-    subEl.className   = 'assign-sub';
-    subEl.textContent = submissionRate.toFixed(0) + '% submitted';
-    subEl.style.gridColumn = '3 / span 2';
-
-    row.appendChild(rb);
-    row.appendChild(nameEl);
-    row.appendChild(subEl);
-    upcomingList.appendChild(row);
-  });
-}
-
-// ── Overlay navigation ────────────────────────────────────────────────────────
-
-function showAssignOverlay() {
-  selectedAssignLabels  = [];
-  selectedUpcomingLabel = null;
-  assignSearch.value          = '';
-  upcomingSearch.value        = '';
-  assignWarning.style.display = 'none';
-  assignStep1.style.display   = '';
-  assignStep2.style.display   = 'none';
-  populateAssignList();
-  assignOverlay.style.display = 'flex';
-}
-
-assignSearch.addEventListener('input',   () => populateAssignList(assignSearch.value));
-upcomingSearch.addEventListener('input', () => populateUpcomingList(upcomingSearch.value));
-
-assignCancelBtn.addEventListener('click', () => {
-  assignOverlay.style.display = 'none';
-});
-
-assignStep1Btn.addEventListener('click', () => {
-  // Advance to Step 2
-  selectedUpcomingLabel = null;
-  populateUpcomingList();
-  upcomingSearch.value      = '';
-  assignStep1.style.display = 'none';
-  assignStep2.style.display = '';
-});
-
-assignBackBtn.addEventListener('click', () => {
-  assignStep2.style.display = 'none';
-  assignStep1.style.display = '';
-});
-
-assignSkipBtn.addEventListener('click', () => {
-  selectedUpcomingLabel       = null;
-  assignOverlay.style.display = 'none';
-  runGenerateAll();
-});
-
-assignGenerateBtn.addEventListener('click', () => {
-  assignOverlay.style.display = 'none';
-  runGenerateAll();
-});
-
 // ── API & comment generation ───────────────────────────────────────────────────
 
 function buildPayload(student, state) {
-  const term        = termSelect.value;
-  const gradeGroup  = gradeGroupSelect.value;
-  const structure   = structureSelect.value;
+  const term       = termSelect.value;
+  const gradeGroup = gradeGroupSelect.value;
+  const structure  = structureSelect.value;
 
   const resolvedPerf   = (state && state.perfOverride) ? state.perfOverride : perfCode(student.gradeNum);
-  const resolvedPronoun = state ? state.pronoun : 'they';
+  const resolvedPronoun = state ? state.pronoun : guessPronounFromName(student.firstName);
 
-  // ── Assignment facts ──
-  // Use teacher-selected assignments if available, otherwise fall back to student's top 2.
-  const labelsToUse  = selectedAssignLabels.length ? selectedAssignLabels : [];
-  const assignmentFacts = labelsToUse.length
-    ? computeAssignmentFacts(student, labelsToUse)
-    : student.assignments.slice(0, 2).map(a => {
-        const scoreValue = parseGradeNum(a.value);
-        return {
-          label:      a.label,
-          scoreText:  a.value || '',
-          scoreValue,
-          tone: scoreValue !== null && scoreValue > 75 ? 'positive' : 'constructive'
-        };
-      });
+  // Assignment facts: prefer overlay selections, fall back to top student assignments
+  let assignmentFacts = [];
+  if (overlayAssignCols.length) {
+    assignmentFacts = overlayAssignCols.map(col => {
+      const a = student.assignments.find(x => x.label === col);
+      return a ? { label: cleanAssignLabel(a.label), value: a.value } : null;
+    }).filter(Boolean).slice(0, 3);
+  }
+  if (!assignmentFacts.length) {
+    assignmentFacts = student.assignments.slice(0, 2).map(a => ({
+      label: cleanAssignLabel(a.label), value: a.value
+    }));
+  }
 
-  // ── Support trait hint (for severely underperforming students) ──
-  // Mirror Teacher Tools: omit final mark and include an opening trait hint when
-  // student is needs_support AND their grade is > 10 points below the class average.
-  const classGradeAvg = (() => {
-    const vals = students.map(s => s.gradeNum).filter(v => v !== null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  })();
-  const omitMark = resolvedPerf === 'needs_support'
-    && student.gradeNum !== null
-    && (classGradeAvg === null ? student.gradeNum < 65 : student.gradeNum < classGradeAvg - 10);
-  const supportTraitHint = omitMark
-    ? SUPPORT_TRAIT_HINTS[Math.floor(Math.random() * SUPPORT_TRAIT_HINTS.length)]
-    : null;
+  const upcomingTests = overlayUpcomingCols.map(col => cleanAssignLabel(col)).filter(Boolean);
 
-  // ── Comment bank + custom note → additionalContext ──
   let additionalContext = '';
   if (state && state.selectedBank.size > 0) {
     additionalContext += 'Incorporate these notes: ' + [...state.selectedBank].join('; ') + '.';
   }
-  if (state && state.customNote && state.customNote.trim()) {
+  if (state && state.customNote.trim()) {
     additionalContext += (additionalContext ? ' ' : '') + state.customNote.trim();
   }
 
@@ -1039,18 +950,14 @@ function buildPayload(student, state) {
     studentName:             student.name,
     studentFirstName:        student.firstName,
     pronounGuess:            resolvedPronoun,
-    finalMark:               omitMark ? '' : (student.gradeRaw || ''),
+    finalMark:               student.gradeRaw || '',
     performanceLevel:        resolvedPerf,
     performanceLabel:        resolvedPerf.replace('_', ' '),
-    needsSupport:            omitMark,
-    supportTraitHint:        supportTraitHint || undefined,
+    needsSupport:            resolvedPerf === 'needs_support',
     gradeGroup,
     assignmentFacts,
-    upcomingTests:           selectedUpcomingLabel ? [selectedUpcomingLabel] : [],
-    allowedAssignmentLabels: [
-      ...assignmentFacts.map(a => a.label),
-      ...(selectedUpcomingLabel ? [selectedUpcomingLabel] : [])
-    ],
+    upcomingTests,
+    allowedAssignmentLabels: student.assignments.map(a => cleanAssignLabel(a.label)),
     classFirstNames,
     additionalContext:       additionalContext || undefined
   };
@@ -1065,13 +972,11 @@ function parseApiResponse(data) {
   return '';
 }
 
-// Typewriter animation — types the comment character by character into the textarea
 function typewriterAnimate(textarea, text, onDone) {
   textarea.value = '';
   textarea.style.overflow = 'hidden';
   let i = 0;
-  const CHAR_DELAY = 12; // ms per character
-
+  const CHAR_DELAY = 12;
   function typeNext() {
     if (i < text.length) {
       textarea.value += text[i];
@@ -1084,7 +989,6 @@ function typewriterAnimate(textarea, text, onDone) {
       if (onDone) onDone();
     }
   }
-
   typeNext();
 }
 
@@ -1098,7 +1002,7 @@ async function generateOne(student, textarea, genBtn, copyBtn, pronounRow, state
     const res = await fetch(API_ENDPOINT, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(buildPayload(student, state || getCardState(student.idx)))
+      body:    JSON.stringify(buildPayload(student, state || getCardState(student.idx, student)))
     });
 
     if (!res.ok) throw new Error(`Server error ${res.status}`);
@@ -1125,53 +1029,53 @@ async function generateOne(student, textarea, genBtn, copyBtn, pronounRow, state
   genBtn.textContent = '↺ Generate';
 }
 
-function generateAll() {
+async function generateAll() {
   if (isGeneratingAll || !students.length) return;
-  showAssignOverlay(); // open assignment picker first; Generate button inside calls runGenerateAll()
-}
 
-async function runGenerateAll() {
-  if (isGeneratingAll || !students.length) return;
-  isGeneratingAll = true;
-  generateAllBtn.disabled    = true;
-  generateAllBtn.textContent = '⏳ Generating…';
-
-  const visible = showOnlyUnderperf ? students.filter(isUnderperforming) : students;
-  const queue   = [...visible];
-  let done = 0;
-
-  const selCount = selectedAssignLabels.length;
-  setStatus(
-    `Generating ${visible.length} comments${selCount ? ` (${selCount} assignment${selCount > 1 ? 's' : ''} selected)` : ''}…`,
-    'loading'
-  );
-
-  async function worker() {
-    while (queue.length) {
-      const student = queue.shift();
-      const card    = studentList.querySelector(`.student-card[data-idx="${student.idx}"]`);
-      if (!card) continue;
-
-      const textarea   = card.querySelector('.comment-textarea');
-      const genBtn     = card.querySelector('.gen-btn');
-      const copyBtn    = card.querySelector('.copy-btn');
-      const pronounRow = card.querySelector('.pronoun-row');
-      const state      = getCardState(student.idx, student.firstName);
-
-      if (textarea && genBtn && copyBtn) {
-        await generateOne(student, textarea, genBtn, copyBtn, pronounRow, state);
-      }
-      done++;
-      setStatus(`Generated ${done} / ${visible.length}…`, 'loading');
-    }
+  const term = String(termSelect.value || '').trim();
+  if (!term) {
+    setStatus('⚠ Select a term before generating all comments.', 'error');
+    return;
   }
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  showAssignOverlay(async () => {
+    isGeneratingAll = true;
+    generateAllBtn.disabled    = true;
+    generateAllBtn.textContent = '⏳ Generating…';
 
-  setStatus(`✓ ${done} comments ready!`, 'success');
-  generateAllBtn.disabled    = false;
-  generateAllBtn.textContent = '▶ Generate All Comments';
-  isGeneratingAll = false;
+    const visible = showOnlyUnderperf ? students.filter(isUnderperforming) : students;
+    const queue   = [...visible];
+    let done = 0;
+
+    setStatus(`Generating comments for ${visible.length} students…`, 'loading');
+
+    async function worker() {
+      while (queue.length) {
+        const student    = queue.shift();
+        const card       = studentList.querySelector(`.student-card[data-idx="${student.idx}"]`);
+        if (!card) continue;
+
+        const textarea   = card.querySelector('.comment-textarea');
+        const genBtn     = card.querySelector('.gen-btn');
+        const copyBtn    = card.querySelector('.copy-btn');
+        const pronounRow = card.querySelector('.pronoun-row');
+        const state      = getCardState(student.idx, student);
+
+        if (textarea && genBtn && copyBtn) {
+          await generateOne(student, textarea, genBtn, copyBtn, pronounRow, state);
+        }
+        done++;
+        setStatus(`Generated ${done} / ${visible.length}…`, 'loading');
+      }
+    }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+
+    setStatus(`✓ ${done} comments ready!`, 'success');
+    generateAllBtn.disabled    = false;
+    generateAllBtn.textContent = '▶ Generate All Comments';
+    isGeneratingAll = false;
+  });
 }
 
 // ── Data loading ───────────────────────────────────────────────────────────────
@@ -1185,28 +1089,26 @@ async function loadGrades() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) throw new Error('No active tab found.');
 
-    // Inject content script if it hasn't loaded yet (e.g. page was already open)
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files:  ['content.js']
-    }).catch(() => {}); // ignore if already injected
+    }).catch(() => {});
 
     const result = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeGrades' });
-    if (!result) throw new Error('No response from page. Try refreshing Brightspace.');
+    if (!result)         throw new Error('No response from page. Try refreshing Brightspace.');
     if (!result.success) throw new Error(result.error);
 
     students = processStudents(result.data);
     if (!students.length) throw new Error('No student rows found in the grade table.');
 
-    // Class label
     classLabel.textContent = result.className
       ? result.className.slice(0, 40)
       : `${students.length} students`;
 
-    // Restore settings
     restoreSettings();
-
-    generatedComments = {}; // reset comments on fresh load
+    generatedComments   = {};
+    overlayAssignCols   = [];
+    overlayUpcomingCols = [];
     renderStudents();
     setStatus(`✓ ${students.length} students loaded`, 'success');
 
@@ -1235,24 +1137,21 @@ function saveSettings() {
 function restoreSettings() {
   try {
     const s = JSON.parse(localStorage.getItem('bb_settings') || '{}');
-    if (s.term       && termSelect.querySelector(`option[value="${s.term}"]`))       termSelect.value = s.term;
+    if (s.term       && termSelect.querySelector(`option[value="${s.term}"]`))                 termSelect.value = s.term;
     if (s.gradeGroup && gradeGroupSelect.querySelector(`option[value="${s.gradeGroup}"]`)) gradeGroupSelect.value = s.gradeGroup;
-    if (s.structure  && structureSelect.querySelector(`option[value="${s.structure}"]`))  structureSelect.value = s.structure;
+    if (s.structure  && structureSelect.querySelector(`option[value="${s.structure}"]`))     structureSelect.value = s.structure;
   } catch (_) {}
 }
 
 // ── Event wiring ───────────────────────────────────────────────────────────────
 
 refreshBtn.addEventListener('click', loadGrades);
-
 generateAllBtn.addEventListener('click', generateAll);
 
 filterUnderperformingBtn.addEventListener('click', () => {
   showOnlyUnderperf = !showOnlyUnderperf;
   filterUnderperformingBtn.classList.toggle('active', showOnlyUnderperf);
-  filterUnderperformingBtn.textContent = showOnlyUnderperf
-    ? '✕ Show All Students'
-    : '⚠️ Show Underperforming';
+  filterUnderperformingBtn.textContent = showOnlyUnderperf ? '✕ Show All Students' : '⚠️ Show Underperforming';
   renderStudents();
 });
 
@@ -1260,12 +1159,10 @@ filterUnderperformingBtn.addEventListener('click', () => {
   el.addEventListener('change', saveSettings);
 });
 
-// Listen for content script notification (table appeared dynamically)
 chrome.runtime.onMessage.addListener(msg => {
   if (msg.action === 'gradeTableDetected') {
     setStatus('Grade table detected — click ↻ to load', 'idle');
   }
 });
 
-// Auto-load on panel open
 loadGrades();

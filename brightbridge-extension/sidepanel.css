@@ -680,6 +680,22 @@ header {
   color: var(--muted);
 }
 
+.assign-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.assign-primary-btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+.assign-primary-btn:hover:not(:disabled) { background: var(--primary-hover); }
+
 .assign-footer {
   display: flex;
   justify-content: flex-end;
