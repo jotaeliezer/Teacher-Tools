@@ -355,23 +355,16 @@ function buildCard(student) {
   heBtn.type = 'button';
   heBtn.className = 'pronoun-choice';
   heBtn.dataset.pronoun = 'he';
-  heBtn.textContent = '👦🏻 He/Him';
+  heBtn.textContent = '🚹 He/Him';
 
   const sheBtn = document.createElement('button');
   sheBtn.type = 'button';
   sheBtn.className = 'pronoun-choice';
   sheBtn.dataset.pronoun = 'she';
-  sheBtn.textContent = '👧🏻 She/Her';
-
-  const theyBtn = document.createElement('button');
-  theyBtn.type = 'button';
-  theyBtn.className = 'pronoun-choice';
-  theyBtn.dataset.pronoun = 'they';
-  theyBtn.textContent = '🧑 They/Them';
+  sheBtn.textContent = '🚺 She/Her';
 
   chooser.appendChild(heBtn);
   chooser.appendChild(sheBtn);
-  chooser.appendChild(theyBtn);
 
   updatePronounToast(state, toastBtn);
 
@@ -455,18 +448,17 @@ function buildCard(student) {
   });
 
   // ── Wire pronoun choice buttons ──
-  [heBtn, sheBtn, theyBtn].forEach(btn => {
+  [heBtn, sheBtn].forEach(btn => {
     btn.addEventListener('click', () => {
       state.pronoun = btn.dataset.pronoun;
       updatePronounToast(state, toastBtn);
-      // Update active state
-      [heBtn, sheBtn, theyBtn].forEach(b => b.classList.toggle('active', b === btn));
+      [heBtn, sheBtn].forEach(b => b.classList.toggle('active', b === btn));
       chooser.style.display = 'none';
     });
   });
 
   // Set active pronoun button on initial render
-  [heBtn, sheBtn, theyBtn].forEach(b =>
+  [heBtn, sheBtn].forEach(b =>
     b.classList.toggle('active', b.dataset.pronoun === state.pronoun)
   );
 
@@ -492,9 +484,8 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
 
   const pronounOpts = [
     { val: 'unknown', label: 'Auto' },
-    { val: 'he',      label: '👦🏻 He/Him' },
-    { val: 'she',     label: '👧🏻 She/Her' },
-    { val: 'they',    label: '🧑 They/Them' }
+    { val: 'he',      label: '🚹 He/Him' },
+    { val: 'she',     label: '🚺 She/Her' }
   ];
 
   pronounOpts.forEach(opt => {
@@ -620,9 +611,8 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
 function updatePronounToast(state, toastBtn) {
   const labels = {
     unknown: '🔁 Pronoun unclear — tap to set',
-    he:      '👦🏻 He/Him',
-    she:     '👧🏻 She/Her',
-    they:    '🧑 They/Them'
+    he:      '🚹 He/Him',
+    she:     '🚺 She/Her'
   };
   toastBtn.textContent = labels[state.pronoun] || labels.unknown;
   toastBtn.dataset.pronoun = state.pronoun;
