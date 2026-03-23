@@ -572,6 +572,15 @@ header {
   overflow: hidden;
 }
 
+.assign-step-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+
 .assign-title {
   font-size: 15px;
   font-weight: 700;
@@ -663,6 +672,12 @@ header {
   color: var(--danger);
   font-size: 11px;
   font-weight: 600;
+}
+
+.upcoming-row .assign-sub {
+  grid-column: 3 / span 2;
+  text-align: left;
+  color: var(--muted);
 }
 
 .assign-footer {

@@ -72,23 +72,45 @@
     <!-- ── Assignment selector overlay ── -->
     <div id="assignOverlay" class="assign-overlay" style="display:none">
       <div class="assign-modal">
-        <div class="assign-modal-header">
-          <h3 class="assign-title">Choose Assignments</h3>
-          <p class="assign-hint">Select <strong>up to 3</strong>. Each comment references 2 of your picks — framed as a strength if above 75%, or constructive feedback if not.</p>
+
+        <!-- Step 1: choose assignments to include -->
+        <div id="assignStep1">
+          <div class="assign-modal-header">
+            <div class="assign-step-label">Step 1 of 2</div>
+            <h3 class="assign-title">Choose Assignments</h3>
+            <p class="assign-hint">Select <strong>up to 3</strong>. Each comment references 2 of your picks — framed as a strength if above 75%, or constructive feedback if not.</p>
+          </div>
+          <input type="text" id="assignSearch" class="assign-search" placeholder="Search assignments…"/>
+          <div class="assign-table-head">
+            <span></span>
+            <span>Assignment / Test</span>
+            <span>Class Avg</span>
+            <span>Submitted</span>
+          </div>
+          <div id="assignList" class="assign-list"></div>
+          <p id="assignWarning" class="assign-warning" style="display:none">⚠ Max 3 — deselect one first.</p>
+          <div class="assign-footer">
+            <button class="btn" id="assignCancelBtn" type="button">Cancel</button>
+            <button class="btn primary" id="assignStep1Btn" type="button">Continue →</button>
+          </div>
         </div>
-        <input type="text" id="assignSearch" class="assign-search" placeholder="Search assignments…"/>
-        <div class="assign-table-head">
-          <span></span>
-          <span>Assignment / Test</span>
-          <span>Class Avg</span>
-          <span>Submitted</span>
+
+        <!-- Step 2: choose one upcoming test -->
+        <div id="assignStep2" style="display:none">
+          <div class="assign-modal-header">
+            <div class="assign-step-label">Step 2 of 2</div>
+            <h3 class="assign-title">Upcoming Test</h3>
+            <p class="assign-hint">Optionally pick <strong>one</strong> upcoming test to mention at the end of each comment. Skip this step if none apply.</p>
+          </div>
+          <input type="text" id="upcomingSearch" class="assign-search" placeholder="Search tests…"/>
+          <div id="upcomingList" class="assign-list"></div>
+          <div class="assign-footer">
+            <button class="btn" id="assignBackBtn" type="button">← Back</button>
+            <button class="btn" id="assignSkipBtn" type="button">Skip</button>
+            <button class="btn primary" id="assignGenerateBtn" type="button">▶ Generate All</button>
+          </div>
         </div>
-        <div id="assignList" class="assign-list"></div>
-        <p id="assignWarning" class="assign-warning" style="display:none">⚠ Max 3 — deselect one first.</p>
-        <div class="assign-footer">
-          <button class="btn" id="assignCancelBtn" type="button">Cancel</button>
-          <button class="btn primary" id="assignGenerateBtn" type="button">▶ Generate All</button>
-        </div>
+
       </div>
     </div>
 

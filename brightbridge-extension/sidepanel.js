@@ -153,7 +153,8 @@ let students            = [];   // processed student objects
 let generatedComments   = {};   // { studentIdx: string }
 let showOnlyUnderperf   = false;
 let isGeneratingAll     = false;
-let selectedAssignLabels = [];  // teacher-selected assignment columns for bulk generation
+let selectedAssignLabels  = [];   // teacher-selected assignment columns for bulk generation
+let selectedUpcomingLabel = null; // single upcoming test label (or null)
 
 // Per-card state: collapse/expand, pronoun override, advanced panel data
 const cardStates = {};   // { [idx]: CardState }
@@ -798,12 +799,19 @@ function computeAssignmentFacts(student, labels) {
 
 // ── Assignment overlay DOM ─────────────────────────────────────────────────────
 
-const assignOverlay    = $('assignOverlay');
-const assignSearch     = $('assignSearch');
-const assignList       = $('assignList');
-const assignWarning    = $('assignWarning');
-const assignCancelBtn  = $('assignCancelBtn');
+const assignOverlay     = $('assignOverlay');
+const assignStep1       = $('assignStep1');
+const assignStep2       = $('assignStep2');
+const assignSearch      = $('assignSearch');
+const assignList        = $('assignList');
+const assignWarning     = $('assignWarning');
+const assignCancelBtn   = $('assignCancelBtn');
+const assignStep1Btn    = $('assignStep1Btn');
+const assignBackBtn     = $('assignBackBtn');
+const assignSkipBtn     = $('assignSkipBtn');
 const assignGenerateBtn = $('assignGenerateBtn');
+const upcomingSearch    = $('upcomingSearch');
+const upcomingList      = $('upcomingList');
 
 function avgColor(avg) {
   if (avg === null) return 'var(--muted)';
@@ -812,22 +820,24 @@ function avgColor(avg) {
   return '#b91c1c';
 }
 
+// ── Step 1: assignment checkboxes ──────────────────────────────────────────────
+
 function populateAssignList(filter) {
-  const stats    = getAssignmentStats();
-  const q        = (filter || '').toLowerCase();
-  const filtered = q ? stats.filter(s => s.label.toLowerCase().includes(q)) : stats;
+  const stats = getAssignmentStats();
+  const q     = (filter || '').toLowerCase();
+  const shown = q ? stats.filter(s => s.label.toLowerCase().includes(q)) : stats;
 
   assignList.innerHTML = '';
 
-  if (!filtered.length) {
+  if (!shown.length) {
     const empty = document.createElement('p');
-    empty.className = 'assign-empty';
+    empty.className   = 'assign-empty';
     empty.textContent = 'No assignments found.';
     assignList.appendChild(empty);
     return;
   }
 
-  filtered.forEach(({ label, classAvg, submissionRate }) => {
+  shown.forEach(({ label, classAvg, submissionRate }) => {
     const row = document.createElement('label');
     row.className = 'assign-row';
 
@@ -870,16 +880,101 @@ function populateAssignList(filter) {
   });
 }
 
+// ── Step 2: upcoming test radio list ──────────────────────────────────────────
+
+function populateUpcomingList(filter) {
+  const stats = getAssignmentStats();
+
+  // Priority: columns whose label contains "test" AND have 0% submission (truly future).
+  // Fallback: any column with <20% submission rate (likely not yet graded).
+  // Last resort: show all columns so teacher can still pick one.
+  let candidates = stats.filter(s => /test/i.test(s.label) && s.submissionRate === 0);
+  if (!candidates.length) candidates = stats.filter(s => s.submissionRate < 20);
+  if (!candidates.length) candidates = stats;
+
+  const q      = (filter || '').toLowerCase();
+  const shown  = q ? candidates.filter(s => s.label.toLowerCase().includes(q)) : candidates;
+
+  upcomingList.innerHTML = '';
+
+  if (!shown.length) {
+    const empty = document.createElement('p');
+    empty.className   = 'assign-empty';
+    empty.textContent = 'No upcoming tests found.';
+    upcomingList.appendChild(empty);
+    return;
+  }
+
+  shown.forEach(({ label, submissionRate }) => {
+    const row = document.createElement('label');
+    row.className = 'assign-row upcoming-row';
+
+    const rb = document.createElement('input');
+    rb.type    = 'radio';
+    rb.name    = 'upcomingTest';
+    rb.value   = label;
+    rb.checked = selectedUpcomingLabel === label;
+    rb.addEventListener('change', () => {
+      if (rb.checked) selectedUpcomingLabel = label;
+    });
+
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'assign-label';
+    nameEl.textContent = label;
+
+    const subEl = document.createElement('span');
+    subEl.className   = 'assign-sub';
+    subEl.textContent = submissionRate.toFixed(0) + '% submitted';
+    subEl.style.gridColumn = '3 / span 2';
+
+    row.appendChild(rb);
+    row.appendChild(nameEl);
+    row.appendChild(subEl);
+    upcomingList.appendChild(row);
+  });
+}
+
+// ── Overlay navigation ────────────────────────────────────────────────────────
+
 function showAssignOverlay() {
-  selectedAssignLabels = []; // reset each time
-  populateAssignList();
-  assignSearch.value         = '';
+  selectedAssignLabels  = [];
+  selectedUpcomingLabel = null;
+  assignSearch.value          = '';
+  upcomingSearch.value        = '';
   assignWarning.style.display = 'none';
+  assignStep1.style.display   = '';
+  assignStep2.style.display   = 'none';
+  populateAssignList();
   assignOverlay.style.display = 'flex';
 }
 
-assignSearch.addEventListener('input', () => populateAssignList(assignSearch.value));
-assignCancelBtn.addEventListener('click', () => { assignOverlay.style.display = 'none'; });
+assignSearch.addEventListener('input',   () => populateAssignList(assignSearch.value));
+upcomingSearch.addEventListener('input', () => populateUpcomingList(upcomingSearch.value));
+
+assignCancelBtn.addEventListener('click', () => {
+  assignOverlay.style.display = 'none';
+});
+
+assignStep1Btn.addEventListener('click', () => {
+  // Advance to Step 2
+  selectedUpcomingLabel = null;
+  populateUpcomingList();
+  upcomingSearch.value      = '';
+  assignStep1.style.display = 'none';
+  assignStep2.style.display = '';
+});
+
+assignBackBtn.addEventListener('click', () => {
+  assignStep2.style.display = 'none';
+  assignStep1.style.display = '';
+});
+
+assignSkipBtn.addEventListener('click', () => {
+  selectedUpcomingLabel       = null;
+  assignOverlay.style.display = 'none';
+  runGenerateAll();
+});
+
 assignGenerateBtn.addEventListener('click', () => {
   assignOverlay.style.display = 'none';
   runGenerateAll();
@@ -951,8 +1046,11 @@ function buildPayload(student, state) {
     supportTraitHint:        supportTraitHint || undefined,
     gradeGroup,
     assignmentFacts,
-    upcomingTests:           [],
-    allowedAssignmentLabels: assignmentFacts.map(a => a.label),
+    upcomingTests:           selectedUpcomingLabel ? [selectedUpcomingLabel] : [],
+    allowedAssignmentLabels: [
+      ...assignmentFacts.map(a => a.label),
+      ...(selectedUpcomingLabel ? [selectedUpcomingLabel] : [])
+    ],
     classFirstNames,
     additionalContext:       additionalContext || undefined
   };
