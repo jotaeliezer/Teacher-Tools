@@ -507,7 +507,7 @@ function showAssignOverlay(onConfirm) {
 
   const s2Hint = document.createElement('div');
   s2Hint.className = 'assign-hint';
-  s2Hint.textContent = 'Optionally pick one upcoming test to mention encouragingly. Shows test/challenge/review/exam columns with no marks yet for this term.';
+  s2Hint.textContent = 'Optionally pick one upcoming test to mention encouragingly. Shows columns with "Test" in the name and no marks entered yet for this term.';
 
   const s2Search = document.createElement('input');
   s2Search.className = 'assign-search';
@@ -517,16 +517,15 @@ function showAssignOverlay(onConfirm) {
   const s2List = document.createElement('div');
   s2List.className = 'assign-list';
 
-  // Show columns that look like tests/assessments AND have no marks yet.
-  // Matches: "test", "challenge", "exam", "quiz", "assessment", "review"
-  // (Spirit of Math uses "Review" and "Challenge" as their test column names)
-  const TEST_KEYWORDS = /\b(test|challenge|exam|quiz|assessment|review)\b/i;
+  // Show columns whose name contains "test" AND have no marks yet.
+  // Spirit of Math names all test columns with the word "Test"
+  // e.g. "L6 - Relocation Property Test", "L7 - Mastermind Test".
   const termColsForUpcoming = getTermAssignCols(termCode);
   const upcomingCols = (termColsForUpcoming.length ? termColsForUpcoming : allAssignCols)
-    .filter(col => TEST_KEYWORDS.test(cleanAssignLabel(col)) && !colHasMarks(col));
+    .filter(col => /\btest\b/i.test(cleanAssignLabel(col)) && !colHasMarks(col));
 
   if (!upcomingCols.length) {
-    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns containing "test", "challenge", "exam", "quiz", "review", or "assessment" with no marks yet will appear here.</p>';
+    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and no marks entered yet will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
       const label = cleanAssignLabel(col);
