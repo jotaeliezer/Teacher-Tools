@@ -58,7 +58,8 @@ function detectCols(headers) {
 
   const lastCol  = headers.find((_, i) => ['last name', 'lastname', 'surname'].includes(norms[i]));
   const firstCol = headers.find((_, i) => ['first name', 'firstname', 'given name'].includes(norms[i]));
-  const fullCol  = headers.find((_, i) => ['student name', 'name', 'full name'].includes(norms[i]));
+  // Include 'learner' and 'student' — used by Spirit of Math / D2L Brightspace
+  const fullCol  = headers.find((_, i) => ['student name', 'name', 'full name', 'learner', 'student'].includes(norms[i]));
 
   let gradeCol = null;
   for (const hint of GRADE_HINTS) {
@@ -79,28 +80,42 @@ function detectCols(headers) {
   return { lastCol, firstCol, fullCol, gradeCol, skipCols };
 }
 
+// Strip non-name characters (icons, arrows, checkboxes) that Brightspace injects into cells
+function cleanNameText(raw) {
+  return (raw || '')
+    .replace(/[▼▲►◄▸▾⌄⌃⌘⚑⚐]/g, '')       // arrows and icons
+    .replace(/[^\p{L}\p{M}\s'\-\.]/gu, ' ')  // keep letters (incl. accented), spaces, hyphens, apostrophes
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ── Student processing ─────────────────────────────────────────────────────────
 
 function processStudents({ headers, rows }) {
   const cols = detectCols(headers);
 
   return rows.map((row, idx) => {
-    // Name
+    // Name — clean up Brightspace cell noise (icons, arrows, checkboxes)
     let name = '';
     if (cols.fullCol) {
-      name = (row[cols.fullCol] || '').trim();
+      name = cleanNameText(row[cols.fullCol] || '');
     } else if (cols.firstCol && cols.lastCol) {
-      name = `${(row[cols.firstCol] || '').trim()} ${(row[cols.lastCol] || '').trim()}`.trim();
+      const fn = cleanNameText(row[cols.firstCol] || '');
+      const ln = cleanNameText(row[cols.lastCol] || '');
+      name = `${fn} ${ln}`.trim();
     } else {
-      const fallback = headers.find(h => /name/i.test(h) && !/grade|mark|score/i.test(h));
-      name = fallback ? (row[fallback] || '').trim() : '';
+      // Broader fallback: matches "Learner", "Student Name", any name-like column
+      const fallback = headers.find(h =>
+        /name|learner|student/i.test(h) && !/grade|mark|score|percent/i.test(h)
+      );
+      name = fallback ? cleanNameText(row[fallback] || '') : '';
     }
-    if (!name) return null;
+    if (!name || name.length < 2) return null;
 
     const firstName = cols.firstCol
-      ? (row[cols.firstCol] || '').trim()
+      ? cleanNameText(row[cols.firstCol] || '')
       : name.split(' ')[0];
-    const lastName = cols.lastCol ? (row[cols.lastCol] || '').trim() : '';
+    const lastName = cols.lastCol ? cleanNameText(row[cols.lastCol] || '') : '';
 
     // Grade
     const gradeRaw = cols.gradeCol ? (row[cols.gradeCol] || '') : '';
