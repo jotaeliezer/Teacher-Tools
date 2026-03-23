@@ -1168,6 +1168,11 @@ async function loadGrades() {
     renderStudents();
     setStatus(`✓ ${students.length} students loaded`, 'success');
 
+    if (result.paginationWarning) {
+      // Show pagination warning after a short delay so the success message flashes first
+      setTimeout(() => setStatus(result.paginationWarning, 'error'), 1200);
+    }
+
   } catch (err) {
     setStatus(`⚠ ${err.message}`, 'error');
     emptyState.style.display = '';

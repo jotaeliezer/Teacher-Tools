@@ -184,6 +184,59 @@ function parseTable(tbl) {
   return { headers, rows };
 }
 
+// ── Pagination helpers ─────────────────────────────────────────────────────────
+
+// Finds the "Results Per Page" <select> and maximises it so all students are
+// visible in one scrape. Returns true if the value was changed (meaning the
+// page will reload — the teacher should click ↻ again after it settles).
+function tryMaximiseRowsPerPage() {
+  // Brightspace labels the select with an off-screen <label> containing
+  // "Results Per Page" linked via a `for` attribute.
+  const label = Array.from(document.querySelectorAll('label'))
+    .find(l => /results per page/i.test(l.textContent));
+  if (!label) return false;
+
+  let sel = document.getElementById(label.getAttribute('for'));
+  if (!sel) {
+    // Fall back: find a <select> inside the element following the label
+    const next = label.nextElementSibling;
+    sel = next && next.querySelector('select');
+  }
+  if (!sel || !sel.options.length) return false;
+
+  // If Brightspace doesn't offer a 200-option, add one so we can use it
+  if (!Array.from(sel.options).some(o => o.value === '200')) {
+    sel.appendChild(new Option('200 per page', '200'));
+  }
+
+  if (sel.value === '200') return false; // already showing all
+
+  sel.value = '200';
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+  console.log('[BrightBridge] Results Per Page changed to 200 — table will reload');
+  return true;
+}
+
+// Returns { current, total } page numbers if Brightspace is paginating,
+// or null if only one page (or pagination control not found).
+function detectPagination() {
+  // The "Page Number" label is linked to a <select> whose options are "1", "2", ...
+  const label = Array.from(document.querySelectorAll('label'))
+    .find(l => /^page number$/i.test(l.textContent.trim()));
+  if (!label) return null;
+
+  let sel = document.getElementById(label.getAttribute('for'));
+  if (!sel) {
+    const next = label.nextElementSibling;
+    sel = next && next.querySelector('select');
+  }
+  if (!sel || sel.options.length <= 1) return null; // only 1 page
+
+  const current = parseInt(sel.value) || 1;
+  const total   = sel.options.length; // each option = one page
+  return { current, total };
+}
+
 // ── Class name detection ───────────────────────────────────────────────────────
 
 function getClassName() {
@@ -220,6 +273,20 @@ function scrapeGrades() {
     '| thead rows:', thead ? thead.querySelectorAll('tr').length : 0,
     '| tbody rows:', tbody ? tbody.querySelectorAll('tr').length : 0);
 
+  // If Brightspace is paginating, try to switch to 200-per-page automatically.
+  // If it worked, the table will reload — return a prompt to click ↻ again.
+  const pagination = detectPagination();
+  if (pagination && pagination.total > 1) {
+    console.log(`[BrightBridge] Pagination detected: page ${pagination.current} of ${pagination.total}`);
+    const changed = tryMaximiseRowsPerPage();
+    if (changed) {
+      return {
+        success: false,
+        error: `Brightspace is showing page ${pagination.current} of ${pagination.total} (not all students). Switching to 200 per page — please wait a moment, then click ↻ to reload all students.`
+      };
+    }
+  }
+
   const data = parseTable(tbl);
   console.log('[BrightBridge] parseTable result — headers:', JSON.stringify(data?.headers),
     '| data rows:', data?.rows?.length ?? 0);
@@ -232,10 +299,17 @@ function scrapeGrades() {
     };
   }
 
+  // Warn if pagination is still active (auto-switch didn't take effect yet)
+  const stillPaging = detectPagination();
+  const paginationWarning = (stillPaging && stillPaging.total > 1)
+    ? `⚠️ Showing page ${stillPaging.current} of ${stillPaging.total} — averages may be off. In Brightspace, change "Results Per Page" to 200, then click ↻.`
+    : null;
+
   return {
     success: true,
     data,
-    className: getClassName()
+    className: getClassName(),
+    paginationWarning
   };
 }
 
