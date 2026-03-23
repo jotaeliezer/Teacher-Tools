@@ -19,65 +19,77 @@ function cleanCellText(text) {
 // ── Table finding ──────────────────────────────────────────────────────────────
 
 function findGradeTable() {
-  const allTables = Array.from(document.querySelectorAll('table'));
+  // Helper: search for grade table inside a DOM root (regular or shadow)
+  function searchRoot(root) {
+    const allTables = Array.from(root.querySelectorAll('table'));
 
-  // Priority 1: a table that has a <th> cell whose text is exactly "Learner" or "Student"
-  const byLearner = allTables.find(tbl => {
-    return Array.from(tbl.querySelectorAll('th')).some(th =>
-      /^(learner|student name?|student)$/i.test(cleanHeaderText(th.innerText))
+    // Priority 1: table with a <th> that says "Learner" or "Student"
+    const byLearner = allTables.find(tbl =>
+      Array.from(tbl.querySelectorAll('th')).some(th =>
+        /^(learner|student name?|student)$/i.test(cleanHeaderText(th.innerText))
+      )
     );
-  });
-  if (byLearner) return byLearner;
+    if (byLearner) return byLearner;
 
-  // Priority 2: a D2L-specific selector
-  for (const sel of ['table.d2l-table', '.d2l-table-wrapper table', '[data-grade-type] table']) {
+    // Priority 2: D2L-specific class selectors
+    for (const sel of ['table.d2l-table', '.d2l-table-wrapper table', '[data-grade-type] table']) {
+      try {
+        const el = root.querySelector(sel);
+        if (el) {
+          const tbl = el.tagName === 'TABLE' ? el : el.querySelector('table');
+          if (tbl && tbl.rows.length > 1) return tbl;
+        }
+      } catch (_) {}
+    }
+
+    // Priority 3: largest table with 3+ rows
+    return allTables
+      .filter(t => t.rows.length > 2)
+      .sort((a, b) =>
+        (b.rows.length * (b.rows[0] ? b.rows[0].cells.length : 1)) -
+        (a.rows.length * (a.rows[0] ? a.rows[0].cells.length : 1))
+      )[0] || null;
+  }
+
+  // Search regular DOM first (Brightspace typically renders in regular DOM)
+  const fromDOM = searchRoot(document);
+  if (fromDOM) return fromDOM;
+
+  // Fallback: search open shadow roots (some Brightspace instances use web components)
+  for (const el of Array.from(document.querySelectorAll('*'))) {
     try {
-      const el = document.querySelector(sel);
-      if (el) {
-        const tbl = el.tagName === 'TABLE' ? el : el.querySelector('table');
-        if (tbl && tbl.rows.length > 1) return tbl;
+      if (el.shadowRoot) {
+        const fromShadow = searchRoot(el.shadowRoot);
+        if (fromShadow) return fromShadow;
       }
     } catch (_) {}
   }
 
-  // Priority 3: largest table with at least 3 rows
-  return allTables
-    .filter(t => t.rows.length > 2)
-    .sort((a, b) => (b.rows.length * (b.rows[0] ? b.rows[0].cells.length : 1))
-                  - (a.rows.length * (a.rows[0] ? a.rows[0].cells.length : 1)))[0] || null;
-}
-
-// ── Visibility helper ──────────────────────────────────────────────────────────
-// Returns true if an element is visible in the layout (not hidden/collapsed).
-
-function isCellVisible(cell) {
-  if (!cell) return false;
-  if (cell.hidden) return false;
-  // getComputedStyle is reliable for detecting display:none on collapsed columns
-  try {
-    const style = window.getComputedStyle(cell);
-    return style.display !== 'none' && style.visibility !== 'collapse';
-  } catch (_) {
-    return true; // if we can't check, assume visible
-  }
+  return null;
 }
 
 // ── Header building ────────────────────────────────────────────────────────────
-// Brightspace has a 2-row <thead>:
-//   Row 1: "Learner" | "Final Grades" | "Tests & Quizzes" (colspan=6) | ...
-//   Row 2: ""        | "Final Calculated Grade ▼" | "L6..." | "L7..." | "L35..."
 //
-// We merge both rows per-column so we get the most specific header name.
-// colspan attributes are handled so cell positions stay aligned.
+// Brightspace uses a 2-row <thead>:
 //
-// IMPORTANT: Brightspace allows column groups to be collapsed. When collapsed,
-// individual column <th> cells get display:none and the corresponding <td> cells
-// are removed from / hidden in the tbody rows — causing an index offset if we
-// naively map cells[i] → headers[i].
+//   Row 0 (group headers):
+//     "" rs=2 | "Learner" rs=2 | "Final Grades" cs=1 | "Enrolled…" rs=2 |
+//     "Marked Assignments" cs=19 | "Homework Completion" cs=2 | "Tests and Drills" cs=18 |
+//     ... more groups ... | "Final Exam Version" rs=2 | "Bonus Marks" rs=2 | ...
 //
-// We fix this by also tracking visibleIndices: the logical column positions that
-// map to actually-visible <th> cells in the last header row. parseTable() uses
-// this to match visible body cells to their correct header.
+//   Row 1 (individual column names):
+//     "Final Calculated Grade" | "L3 - Review 1" | "L3 - Review 2" | ...
+//     (Only 103 cells — 8 positions are already claimed by rowspan=2 cells from row 0)
+//
+// KEY BUG (now fixed): The old code started col=0 for row 1 without skipping the
+// positions claimed by rowspan=2 cells from row 0. So "Final Calculated Grade"
+// landed at col 0 (overwriting ""), "L3 - Review 1" landed at col 1 (overwriting
+// "Learner"), etc. — ALL row-1 headers were shifted left, causing every mark to
+// be stored under the wrong column key.
+//
+// FIX: Use a 2D grid (sparse object) to track which [row][col] positions are
+// already occupied by a rowspan from above. For each cell, advance past occupied
+// positions before placing the cell's text.
 
 function buildHeaders(tbl) {
   const thead = tbl.querySelector('thead');
@@ -88,50 +100,54 @@ function buildHeaders(tbl) {
         return r ? [r] : [tbl.rows[0]];
       })();
 
-  if (!headerRows.length) return { headers: [], visibleIndices: [] };
+  if (!headerRows.length) return [];
 
-  // Find total number of logical columns (accounting for colspan)
+  // 2D sparse grid: grid[rowIndex][colIndex] = headerText
+  // Cells with rowspan>1 fill multiple row positions in the grid, so later rows
+  // correctly skip those positions when advancing the column counter.
+  const grid = {}; // { [r]: { [c]: string } }
   let maxCols = 0;
-  for (const row of headerRows) {
-    let count = 0;
-    for (const cell of Array.from(row.cells)) {
-      count += parseInt(cell.getAttribute('colspan') || '1', 10);
+
+  for (let r = 0; r < headerRows.length; r++) {
+    if (!grid[r]) grid[r] = {};
+    let c = 0;
+
+    for (const cell of Array.from(headerRows[r].cells)) {
+      // Skip past columns already claimed by a rowspan from a previous row
+      while (grid[r][c] !== undefined) c++;
+
+      const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
+      const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
+      const text    = cleanHeaderText(cell.innerText);
+
+      // Fill the grid for every position this cell spans
+      for (let rs = 0; rs < rowspan; rs++) {
+        if (!grid[r + rs]) grid[r + rs] = {};
+        for (let cs = 0; cs < colspan; cs++) {
+          grid[r + rs][c + cs] = text;
+        }
+      }
+
+      c += colspan;
+      if (c > maxCols) maxCols = c;
     }
-    maxCols = Math.max(maxCols, count);
   }
 
-  // Fill headers: more specific (lower) header rows override group header rows
-  const headers = new Array(maxCols).fill('');
-  for (const row of headerRows) {
-    let col = 0;
-    for (const cell of Array.from(row.cells)) {
-      const span = parseInt(cell.getAttribute('colspan') || '1', 10);
-      const text = cleanHeaderText(cell.innerText);
-      if (text) headers[col] = text; // last non-empty wins = most specific
-      col += span;
+  // Build the flat headers array.
+  // For each logical column, the value from the LAST row that has text wins
+  // (individual column names in row 1 override group header names from row 0).
+  // Rowspan=2 cells set the same text in both rows, so they stay correct too.
+  const headers = [];
+  for (let c = 0; c < maxCols; c++) {
+    let value = '';
+    for (let r = 0; r < headerRows.length; r++) {
+      const v = (grid[r] && grid[r][c] !== undefined) ? grid[r][c] : '';
+      if (v) value = v; // last non-empty wins = most specific row
     }
+    headers.push(value);
   }
 
-  // Build visibleIndices: logical column positions whose <th> in the last header
-  // row is currently visible (not hidden by Brightspace column-group collapse).
-  const lastRow = headerRows[headerRows.length - 1];
-  const visibleIndices = [];
-  let vi = 0;
-  for (const cell of Array.from(lastRow.cells)) {
-    const span = parseInt(cell.getAttribute('colspan') || '1', 10);
-    if (isCellVisible(cell)) {
-      for (let s = 0; s < span; s++) visibleIndices.push(vi + s);
-    }
-    vi += span;
-  }
-
-  // Fallback: if all cells appear hidden (e.g. getComputedStyle unavailable),
-  // treat every column as visible so behaviour matches the original.
-  const effectiveIndices = visibleIndices.length
-    ? visibleIndices
-    : headers.map((_, i) => i);
-
-  return { headers, visibleIndices: effectiveIndices };
+  return headers;
 }
 
 // ── Table parsing ──────────────────────────────────────────────────────────────
@@ -139,7 +155,7 @@ function buildHeaders(tbl) {
 function parseTable(tbl) {
   if (!tbl) return null;
 
-  const { headers, visibleIndices } = buildHeaders(tbl);
+  const headers = buildHeaders(tbl);
   if (!headers.length) return null;
 
   // Use <tbody> rows as data rows; if no <tbody>, use all non-<th> rows
@@ -150,32 +166,15 @@ function parseTable(tbl) {
 
   if (!dataRows.length) return null;
 
+  // Each data row has one cell per logical column (matching headers[]).
+  // Direct index mapping: cells[i] → headers[i].
   const rows = dataRows.map(row => {
     const obj = {};
-
-    // Only read visible cells — hidden cells from collapsed column groups are
-    // skipped so that cells[j] correctly maps to visibleIndices[j].
-    const visibleCells = Array.from(row.cells).filter(cell => isCellVisible(cell));
-
-    // If the visible-cell count doesn't match visibleIndices (unexpected DOM state),
-    // fall back to using all cells with a direct index mapping.
-    const useFallback = visibleCells.length === 0 ||
-      Math.abs(visibleCells.length - visibleIndices.length) > 2;
-
-    if (useFallback) {
-      // Original behaviour: map cells[i] → headers[i]
-      Array.from(row.cells).forEach((cell, i) => {
-        const key = headers[i] || `_col${i}`;
-        obj[key] = cleanCellText(cell.innerText);
-      });
-    } else {
-      visibleCells.forEach((cell, j) => {
-        const logicalIdx = visibleIndices[j] !== undefined ? visibleIndices[j] : j;
-        const key = headers[logicalIdx] || `_col${logicalIdx}`;
-        obj[key] = cleanCellText(cell.innerText);
-      });
-    }
-
+    const cells = Array.from(row.cells);
+    headers.forEach((h, i) => {
+      const key = h || `_col${i}`;
+      obj[key] = cells[i] ? cleanCellText(cells[i].innerText) : '';
+    });
     return obj;
   }).filter(row =>
     // Remove rows where every cell is empty or just dashes
