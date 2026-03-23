@@ -236,6 +236,19 @@ function detectCols(headers) {
   return { lastCol, firstCol, fullCol, gradeCol, skipCols };
 }
 
+// Extract the first (given) name from a full name string.
+// Handles both "First Last" and Brightspace's "Last, First" comma-separated format.
+function extractFirstName(fullName) {
+  if (!fullName) return '';
+  if (fullName.includes(',')) {
+    // "Ghindea, Darius" → "Darius"
+    const afterComma = fullName.split(',')[1] || '';
+    return afterComma.trim().split(/\s+/)[0];
+  }
+  // "Darius Ghindea" → "Darius"
+  return fullName.split(/\s+/)[0];
+}
+
 // Strip non-name characters (icons, arrows, checkboxes) that Brightspace injects into cells
 function cleanNameText(raw) {
   return (raw || '')
@@ -271,7 +284,14 @@ function processStudents({ headers, rows }) {
     let name = '';
 
     if (cols.fullCol) {
-      name = cleanNameText(rowGet(row, cols.fullCol));
+      const raw = cleanNameText(rowGet(row, cols.fullCol));
+      // Normalise "Last, First" → "First Last" for display
+      if (raw.includes(',')) {
+        const parts = raw.split(',');
+        name = (parts[1].trim() + ' ' + parts[0].trim()).trim();
+      } else {
+        name = raw;
+      }
     } else if (cols.firstCol && cols.lastCol) {
       const fn = cleanNameText(rowGet(row, cols.firstCol));
       const ln = cleanNameText(rowGet(row, cols.lastCol));
@@ -305,7 +325,7 @@ function processStudents({ headers, rows }) {
 
     const firstName = cols.firstCol
       ? cleanNameText(rowGet(row, cols.firstCol))
-      : name.split(' ')[0];
+      : extractFirstName(name);  // handles both "First Last" and "Last, First" (Brightspace Learner col)
     const lastName = cols.lastCol ? cleanNameText(rowGet(row, cols.lastCol)) : '';
 
     // Grade
