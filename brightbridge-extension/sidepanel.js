@@ -507,7 +507,7 @@ function showAssignOverlay(onConfirm) {
 
   const s2Hint = document.createElement('div');
   s2Hint.className = 'assign-hint';
-  s2Hint.textContent = 'Optionally pick one upcoming assignment/test to mention encouragingly. Only columns with no marks yet (for this term) appear here.';
+  s2Hint.textContent = 'Optionally pick one upcoming test to mention encouragingly. Shows test/challenge/review/exam columns with no marks yet for this term.';
 
   const s2Search = document.createElement('input');
   s2Search.className = 'assign-search';
@@ -517,15 +517,16 @@ function showAssignOverlay(onConfirm) {
   const s2List = document.createElement('div');
   s2List.className = 'assign-list';
 
-  // Show all term columns that have NO marks yet — these are upcoming/ungraded work.
-  // We don't filter by the word "test" because Spirit of Math columns are named things
-  // like "L12-Challenge", "L12-Review", etc. — any ungraded column counts as upcoming.
+  // Show columns that look like tests/assessments AND have no marks yet.
+  // Matches: "test", "challenge", "exam", "quiz", "assessment", "review"
+  // (Spirit of Math uses "Review" and "Challenge" as their test column names)
+  const TEST_KEYWORDS = /\b(test|challenge|exam|quiz|assessment|review)\b/i;
   const termColsForUpcoming = getTermAssignCols(termCode);
   const upcomingCols = (termColsForUpcoming.length ? termColsForUpcoming : allAssignCols)
-    .filter(col => !colHasMarks(col));
+    .filter(col => TEST_KEYWORDS.test(cleanAssignLabel(col)) && !colHasMarks(col));
 
   if (!upcomingCols.length) {
-    s2List.innerHTML = '<p class="assign-empty">No upcoming (ungraded) columns found for this term. Once a column in Brightspace has no marks yet it will appear here.</p>';
+    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns containing "test", "challenge", "exam", "quiz", "review", or "assessment" with no marks yet will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
       const label = cleanAssignLabel(col);
