@@ -221,9 +221,14 @@ function detectCols(headers) {
   }
   if (!gradeCol) gradeCol = headers.find(h => /grade|mark|percent|score/i.test(h));
 
-  const skipPatterns = /email|username|orgid|org\s*defined|id\s*#|userid/i;
+  // Columns to exclude from the assignment list:
+  // - System/metadata cols (email, id, enrollment, etc.)
+  // - Aggregate/summary cols (subtotal, average, total, term summary)
+  // - Non-assignment graded items (drills, contests, bonus, participation, exam version, etc.)
+  // Assignment columns we WANT have an "Lxx - Name" pattern — those are kept.
+  const skipPatterns = /^(email|username|orgid|org\s*defined|id\s*#|userid|subtotal|average|total|bonus|participation|cooperation|contest|competition|olympiad|cemc|cnml|caribou|gauss|euclid|cayley|fermat|fryer|galois|hypatia?|pascal|mathematica|kangaroo|drill|probation|withdrawn|year.end|assessment|somc|term\s*\d|final\s*exam|exam\s*version|enrolled|homework\s*comp)/i;
   const skipCols = new Set(
-    [lastCol, firstCol, fullCol, gradeCol, ...headers.filter(h => skipPatterns.test(h))].filter(Boolean)
+    [lastCol, firstCol, fullCol, gradeCol, ...headers.filter(h => skipPatterns.test(norm(h)))].filter(Boolean)
   );
   return { lastCol, firstCol, fullCol, gradeCol, skipCols };
 }
