@@ -507,7 +507,7 @@ function showAssignOverlay(onConfirm) {
 
   const s2Hint = document.createElement('div');
   s2Hint.className = 'assign-hint';
-  s2Hint.textContent = 'Pick one upcoming test for the comment to mention encouragingly. Only ungraded test columns appear here.';
+  s2Hint.textContent = 'Optionally pick one upcoming assignment/test to mention encouragingly. Only columns with no marks yet (for this term) appear here.';
 
   const s2Search = document.createElement('input');
   s2Search.className = 'assign-search';
@@ -517,13 +517,15 @@ function showAssignOverlay(onConfirm) {
   const s2List = document.createElement('div');
   s2List.className = 'assign-list';
 
-  const upcomingCols = allAssignCols.filter(col => {
-    const label = cleanAssignLabel(col).toLowerCase();
-    return /\btest(s)?\b/i.test(label) && !colHasMarks(col);
-  });
+  // Show all term columns that have NO marks yet — these are upcoming/ungraded work.
+  // We don't filter by the word "test" because Spirit of Math columns are named things
+  // like "L12-Challenge", "L12-Review", etc. — any ungraded column counts as upcoming.
+  const termColsForUpcoming = getTermAssignCols(termCode);
+  const upcomingCols = (termColsForUpcoming.length ? termColsForUpcoming : allAssignCols)
+    .filter(col => !colHasMarks(col));
 
   if (!upcomingCols.length) {
-    s2List.innerHTML = '<p class="assign-empty">No upcoming test columns found. Columns with "test" in the name and no marks yet will appear here.</p>';
+    s2List.innerHTML = '<p class="assign-empty">No upcoming (ungraded) columns found for this term. Once a column in Brightspace has no marks yet it will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
       const label = cleanAssignLabel(col);
