@@ -231,6 +231,7 @@ header {
 
 .student-card {
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   border-radius: var(--radius);
   padding: 10px;
   background: var(--bg);
@@ -240,7 +241,12 @@ header {
   transition: border-color .15s;
 }
 
-.student-card.underperforming {
+/* ── Performance-level card colours (mirrors Teacher Tools) ─────────────────── */
+.student-card.perf-good         { border-left-color: #6abf45; background: #f4fbee; }
+.student-card.perf-satisfactory { border-left-color: var(--border); }
+.student-card.perf-average      { border-left-color: #e6a817; background: #fffbf2; }
+.student-card.perf-needs_support {
+  border-left-color: var(--danger-border);
   border-color: var(--danger-border);
   background: var(--danger-light);
 }
@@ -266,11 +272,14 @@ header {
 .student-grade {
   font-size: 12px;
   font-weight: 700;
-  color: var(--success);
+  color: var(--muted);
   flex-shrink: 0;
 }
 
-.student-grade.grade-low { color: var(--danger); }
+.student-grade.grade-good          { color: #3a8a1a; }
+.student-grade.grade-satisfactory  { color: var(--muted); }
+.student-grade.grade-average       { color: #b07d0a; }
+.student-grade.grade-needs_support { color: var(--danger); }
 
 /* ── Comment textarea ───────────────────────────────────────────────────────── */
 
@@ -581,8 +590,15 @@ header {
     border-color: var(--border);
   }
 
-  .student-card { background: #16213e; }
-  .student-card.underperforming { background: #2d1414; }
+  .student-card                  { background: #16213e; border-left-color: #2c3a5a; }
+  .student-card.perf-good        { background: #0f2918; border-left-color: #4a9a2a; }
+  .student-card.perf-average     { background: #221a00; border-left-color: #b07d0a; }
+  .student-card.perf-needs_support { background: #2d1414; border-left-color: #b91c1c; border-color: #7f1d1d; }
+
+  .student-grade.grade-good          { color: #86efac; }
+  .student-grade.grade-satisfactory  { color: #94a3b8; }
+  .student-grade.grade-average       { color: #fcd34d; }
+  .student-grade.grade-needs_support { color: #fca5a5; }
 
   .filter-btn {
     background: #2d2214;
