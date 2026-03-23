@@ -523,20 +523,18 @@ function showAssignOverlay(onConfirm) {
   const s2List = document.createElement('div');
   s2List.className = 'assign-list';
 
-  // Show test columns for the selected term where fewer than 25% of students
-  // have marks — meaning the test is largely upcoming/ungraded.
+  // Show test columns for the selected term that have ZERO marks entered.
+  // A column with no marks = the test hasn't happened yet = it's upcoming.
   // Spirit of Math names all test columns with the word "Test"
   // e.g. "L6 - Relocation Property Test", "L7 - Mastermind Test".
-  // Using a 25% threshold (instead of strict 0%) handles edge cases where a
-  // data offset from collapsed Brightspace column groups created a phantom mark.
-  const UPCOMING_SUBMIT_THRESHOLD = 25; // % of students with marks — below this = upcoming
+  // Now that the rowspan data bug is fixed, colHasMarks() is accurate so
+  // we can use the strict rule: any mark at all = test already happened.
   const termColsForUpcoming = getTermAssignCols(termCode);
   const upcomingCols = (termColsForUpcoming.length ? termColsForUpcoming : allAssignCols)
-    .filter(col => /\btest\b/i.test(cleanAssignLabel(col)) &&
-                   (getColSubmitRate(col) ?? 0) < UPCOMING_SUBMIT_THRESHOLD);
+    .filter(col => /\btest\b/i.test(cleanAssignLabel(col)) && !colHasMarks(col));
 
   if (!upcomingCols.length) {
-    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and fewer than 25% of students graded will appear here.</p>';
+    s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and no marks entered yet will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
       const label = cleanAssignLabel(col);
