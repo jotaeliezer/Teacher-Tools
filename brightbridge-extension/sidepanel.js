@@ -96,40 +96,75 @@ function cleanNameText(raw) {
 
 // ── Student processing ─────────────────────────────────────────────────────────
 
+// Case-insensitive key lookup on a row object — handles minor whitespace/case mismatches
+function rowGet(row, key) {
+  if (!key) return '';
+  if (row[key] !== undefined) return row[key]; // exact match first
+  const lk = key.toLowerCase().trim();
+  const found = Object.keys(row).find(k => k.toLowerCase().trim() === lk);
+  return found ? row[found] : '';
+}
+
 function processStudents({ headers, rows }) {
+  // ── Debug logging — open Side Panel DevTools (right-click → Inspect) to view ──
+  console.log('[BrightBridge] headers:', JSON.stringify(headers));
+  console.log('[BrightBridge] row count:', rows.length);
+  if (rows.length) console.log('[BrightBridge] first row keys:', JSON.stringify(Object.keys(rows[0])));
+  if (rows.length) console.log('[BrightBridge] first row sample:', JSON.stringify(rows[0]));
+
   const cols = detectCols(headers);
+  console.log('[BrightBridge] detected cols — fullCol:', cols.fullCol, '| gradeCol:', cols.gradeCol);
 
   return rows.map((row, idx) => {
     // Name — clean up Brightspace cell noise (icons, arrows, checkboxes)
     let name = '';
+
     if (cols.fullCol) {
-      name = cleanNameText(row[cols.fullCol] || '');
+      name = cleanNameText(rowGet(row, cols.fullCol));
     } else if (cols.firstCol && cols.lastCol) {
-      const fn = cleanNameText(row[cols.firstCol] || '');
-      const ln = cleanNameText(row[cols.lastCol] || '');
+      const fn = cleanNameText(rowGet(row, cols.firstCol));
+      const ln = cleanNameText(rowGet(row, cols.lastCol));
       name = `${fn} ${ln}`.trim();
-    } else {
-      // Broader fallback: matches "Learner", "Student Name", any name-like column
-      const fallback = headers.find(h =>
-        /name|learner|student/i.test(h) && !/grade|mark|score|percent/i.test(h)
-      );
-      name = fallback ? cleanNameText(row[fallback] || '') : '';
     }
+
+    // Broader fallback 1: any header containing name/learner/student
+    if (!name || name.length < 2) {
+      const fallback = headers.find(h =>
+        /name|learner|student/i.test(h) && !/grade|mark|score|percent|enrolled/i.test(h)
+      );
+      if (fallback) name = cleanNameText(rowGet(row, fallback));
+    }
+
+    // Broader fallback 2: first column that contains at least 2 letters and looks like a name
+    if (!name || name.length < 2) {
+      for (const h of headers) {
+        const val = cleanNameText(rowGet(row, h));
+        if (
+          val.length >= 2 &&
+          /[a-zA-Z]{2,}/.test(val) &&             // at least 2 consecutive letters
+          !/grade|calculated|percent|enrolled|week|exercise|mastermind/i.test(val)
+        ) {
+          name = val;
+          break;
+        }
+      }
+    }
+
     if (!name || name.length < 2) return null;
 
     const firstName = cols.firstCol
-      ? cleanNameText(row[cols.firstCol] || '')
+      ? cleanNameText(rowGet(row, cols.firstCol))
       : name.split(' ')[0];
-    const lastName = cols.lastCol ? cleanNameText(row[cols.lastCol] || '') : '';
+    const lastName = cols.lastCol ? cleanNameText(rowGet(row, cols.lastCol)) : '';
 
     // Grade
-    const gradeRaw = cols.gradeCol ? (row[cols.gradeCol] || '') : '';
+    const gradeRaw = cols.gradeCol ? rowGet(row, cols.gradeCol) : '';
     const gradeNum = parseGradeNum(gradeRaw);
 
     // Assignment columns (everything except name/id/grade/email cols)
     const assignments = headers
       .filter(h => !cols.skipCols.has(h))
-      .map(h => ({ label: h, value: (row[h] || '').trim() }))
+      .map(h => ({ label: h, value: (rowGet(row, h) || '').trim() }))
       .filter(a => a.value && a.value !== '- -' && a.value !== '--' && a.value !== 'N/A');
 
     return { idx, name, firstName, lastName, gradeRaw, gradeNum, assignments, row };

@@ -142,19 +142,32 @@ function getClassName() {
 // ── Main scrape ────────────────────────────────────────────────────────────────
 
 function scrapeGrades() {
+  const allTables = Array.from(document.querySelectorAll('table'));
+  console.log('[BrightBridge] total tables on page:', allTables.length);
+
   const tbl = findGradeTable();
   if (!tbl) {
     return {
       success: false,
-      error: 'No grade table found. Make sure you\'re on the Brightspace Grades page.'
+      error: `No grade table found. ${allTables.length} table(s) on page. Make sure you're on the Brightspace Grades page.`
     };
   }
 
+  const thead = tbl.querySelector('thead');
+  const tbody = tbl.querySelector('tbody');
+  console.log('[BrightBridge] table found — rows:', tbl.rows.length,
+    '| thead rows:', thead ? thead.querySelectorAll('tr').length : 0,
+    '| tbody rows:', tbody ? tbody.querySelectorAll('tr').length : 0);
+
   const data = parseTable(tbl);
+  console.log('[BrightBridge] parseTable result — headers:', JSON.stringify(data?.headers),
+    '| data rows:', data?.rows?.length ?? 0);
+  if (data?.rows?.length) console.log('[BrightBridge] first data row:', JSON.stringify(data.rows[0]));
+
   if (!data || !data.rows.length) {
     return {
       success: false,
-      error: 'Grade table found but no student rows could be extracted.'
+      error: `Grade table found (${tbl.rows.length} total rows) but no data rows extracted. Try switching to Spreadsheet View in Brightspace.`
     };
   }
 
