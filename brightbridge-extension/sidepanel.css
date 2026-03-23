@@ -403,9 +403,8 @@ header {
   transition: background .12s;
 }
 .pronoun-toast:hover { background: #fef08a; }
-.pronoun-toast[data-pronoun="he"]   { background: #dbeafe; border-color: #93c5fd; color: #1e3a5f; }
-.pronoun-toast[data-pronoun="she"]  { background: #fce7f3; border-color: #f9a8d4; color: #6b1040; }
-.pronoun-toast[data-pronoun="they"] { background: #d1fae5; border-color: #6ee7b7; color: #064e3b; }
+.pronoun-toast[data-pronoun="he"]  { background: #dbeafe; border-color: #93c5fd; color: #1e3a5f; }
+.pronoun-toast[data-pronoun="she"] { background: #fce7f3; border-color: #f9a8d4; color: #6b1040; }
 
 .pronoun-chooser {
   display: flex;
@@ -593,9 +592,8 @@ header {
     border-color: #a16207;
     color: #fde68a;
   }
-  .pronoun-toast[data-pronoun="he"]   { background: #172554; border-color: #1d4ed8; color: #bfdbfe; }
-  .pronoun-toast[data-pronoun="she"]  { background: #3b0764; border-color: #a21caf; color: #f5d0fe; }
-  .pronoun-toast[data-pronoun="they"] { background: #052e16; border-color: #15803d; color: #bbf7d0; }
+  .pronoun-toast[data-pronoun="he"]  { background: #172554; border-color: #1d4ed8; color: #bfdbfe; }
+  .pronoun-toast[data-pronoun="she"] { background: #3b0764; border-color: #a21caf; color: #f5d0fe; }
 
   .advanced-panel {
     background: #1a1040;
