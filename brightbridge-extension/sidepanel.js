@@ -406,8 +406,10 @@ function buildCard(student) {
   const comment = generatedComments[student.idx] || '';
   const state   = getCardState(student.idx, student.firstName);
 
+  const perf  = perfCode(student.gradeNum);  // 'good'|'satisfactory'|'average'|'needs_support'
+
   const card = document.createElement('div');
-  card.className = 'student-card' + (under ? ' underperforming' : '');
+  card.className = `student-card perf-${perf}`;
   card.dataset.idx = student.idx;
 
   // ── Card header ──
@@ -422,7 +424,7 @@ function buildCard(student) {
   collapseBtn.textContent = state.collapsed ? '▶' : '▼';
   header.appendChild(collapseBtn);
 
-  if (under) {
+  if (perf === 'needs_support') {
     const badge = document.createElement('span');
     badge.className = 'warning-badge';
     badge.textContent = '⚠️';
@@ -434,7 +436,7 @@ function buildCard(student) {
   nameEl.textContent = student.name;
 
   const gradeEl = document.createElement('span');
-  gradeEl.className = 'student-grade' + (under ? ' grade-low' : '');
+  gradeEl.className = `student-grade grade-${perf}`;
   gradeEl.textContent = formatGrade(student.gradeNum);
 
   // Edit button
