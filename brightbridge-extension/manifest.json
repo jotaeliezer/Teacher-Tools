@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "BrightBridge — Teacher Tools",
+  "description": "Generate report card comments from your Brightspace gradebook without leaving the page.",
+  "version": "1.0",
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs"],
+  "host_permissions": ["*://*.brightspace.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.brightspace.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Open BrightBridge",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

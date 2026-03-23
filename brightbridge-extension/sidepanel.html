@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BrightBridge</title>
+  <link rel="stylesheet" href="sidepanel.css"/>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ── -->
+    <header id="bbHeader">
+      <div class="header-left">
+        <span class="logo">🎓</span>
+        <div class="header-text">
+          <span class="app-name">BrightBridge</span>
+          <span id="classLabel" class="class-label">Spirit of Math</span>
+        </div>
+      </div>
+      <button class="btn icon-btn" id="refreshBtn" title="Re-load grades from this page">↻</button>
+    </header>
+
+    <!-- ── Status bar ── -->
+    <div id="statusBar" class="status-bar status-idle">
+      <span id="statusText">Loading grades from page…</span>
+    </div>
+
+    <!-- ── Controls ── -->
+    <div id="controls" class="controls" style="display:none">
+      <div class="control-row">
+        <label>Term</label>
+        <select id="termSelect">
+          <option value="Term 1">Term 1</option>
+          <option value="Term 2">Term 2</option>
+          <option value="Term 3">Term 3</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>Grade Grp</label>
+        <select id="gradeGroupSelect">
+          <option value="sk_gr2">SK – Gr 2</option>
+          <option value="gr3_gr4">Gr 3 – Gr 4</option>
+          <option value="gr5_gr8" selected>Gr 5 – Gr 8</option>
+          <option value="gr9_gr11">Gr 9 – Gr 11</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>Structure</label>
+        <select id="structureSelect">
+          <option value="sandwich_paragraph">Sandwich Paragraph</option>
+          <option value="strengths_feedback_blocks">Strengths / Feedback</option>
+          <option value="bullet_points">Bullet Points</option>
+        </select>
+      </div>
+      <div class="control-row filter-row">
+        <button class="btn filter-btn" id="filterUnderperformingBtn" type="button">⚠️ Show Underperforming</button>
+        <span id="studentCount" class="student-count"></span>
+      </div>
+      <button class="btn primary generate-all-btn" id="generateAllBtn" type="button">▶ Generate All Comments</button>
+    </div>
+
+    <!-- ── Student list ── -->
+    <div id="studentList" class="student-list"></div>
+
+    <!-- ── Empty / error state ── -->
+    <div id="emptyState" class="empty-state" style="display:none">
+      <p class="empty-icon">📊</p>
+      <p>Open your Brightspace <strong>Grades</strong> page,<br/>then click <strong>↻</strong> to load students.</p>
+    </div>
+
+  </div>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
