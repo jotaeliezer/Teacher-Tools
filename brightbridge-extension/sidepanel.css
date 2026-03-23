@@ -276,7 +276,7 @@ header {
 
 .comment-textarea {
   width: 100%;
-  min-height: 80px;
+  min-height: 72px;
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -286,7 +286,8 @@ header {
   background: var(--bg);
   resize: vertical;
   line-height: 1.55;
-  transition: border-color .15s;
+  overflow: hidden;       /* hide scrollbar while typewriter runs */
+  transition: border-color .15s, height .05s;
 }
 
 .comment-textarea:focus {

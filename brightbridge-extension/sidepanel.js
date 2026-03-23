@@ -314,10 +314,33 @@ function parseApiResponse(data) {
   return '';
 }
 
+// Typewriter animation — types the comment character by character into the textarea
+function typewriterAnimate(textarea, text, onDone) {
+  textarea.value = '';
+  let i = 0;
+  const CHAR_DELAY = 12; // ms per character — adjust for speed
+
+  function typeNext() {
+    if (i < text.length) {
+      textarea.value += text[i];
+      // Auto-grow height as text fills in
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+      i++;
+      setTimeout(typeNext, CHAR_DELAY);
+    } else {
+      if (onDone) onDone();
+    }
+  }
+
+  typeNext();
+}
+
 async function generateOne(student, textarea, genBtn, copyBtn) {
   genBtn.disabled = true;
   genBtn.textContent = '…';
   textarea.classList.add('loading');
+  textarea.value = '';
 
   try {
     const res = await fetch(API_ENDPOINT, {
@@ -331,16 +354,23 @@ async function generateOne(student, textarea, genBtn, copyBtn) {
     const comment = parseApiResponse(data);
     if (!comment) throw new Error('Empty response from server');
 
-    textarea.value = comment;
     generatedComments[student.idx] = comment;
-    updateCopyBtn(copyBtn, comment);
+    textarea.classList.remove('loading');
+
+    // Typewriter animation — re-enable buttons only after typing finishes
+    typewriterAnimate(textarea, comment, () => {
+      updateCopyBtn(copyBtn, comment);
+      genBtn.disabled    = false;
+      genBtn.textContent = '↺ Generate';
+    });
+    return; // buttons re-enabled inside onDone above
 
   } catch (err) {
     textarea.value = `⚠ Error: ${err.message}. Click ↺ to retry.`;
   }
 
   textarea.classList.remove('loading');
-  genBtn.disabled  = false;
+  genBtn.disabled    = false;
   genBtn.textContent = '↺ Generate';
 }
 
