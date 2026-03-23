@@ -157,6 +157,7 @@ function normalizeTermCode(val) {
 
 const $  = id => document.getElementById(id);
 const refreshBtn               = $('refreshBtn');
+const darkToggleBtn            = $('darkToggleBtn');
 const statusBar                = $('statusBar');
 const statusText               = $('statusText');
 const classLabel               = $('classLabel');
@@ -169,6 +170,23 @@ const studentCount             = $('studentCount');
 const generateAllBtn           = $('generateAllBtn');
 const studentList              = $('studentList');
 const emptyState               = $('emptyState');
+
+// ── Dark mode toggle ────────────────────────────────────────────────────────────
+
+function applyDarkMode(dark) {
+  document.body.classList.toggle('dark', dark);
+  darkToggleBtn.textContent = dark ? '☀️' : '🌙';
+  darkToggleBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+}
+
+// Restore preference on load (default: light)
+applyDarkMode(localStorage.getItem('bb-dark') === '1');
+
+darkToggleBtn.addEventListener('click', () => {
+  const isDark = document.body.classList.contains('dark');
+  localStorage.setItem('bb-dark', isDark ? '0' : '1');
+  applyDarkMode(!isDark);
+});
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 

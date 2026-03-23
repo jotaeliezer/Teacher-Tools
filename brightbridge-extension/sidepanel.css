@@ -662,60 +662,79 @@ header {
 
 .empty-icon { font-size: 36px; }
 
-/* ── Dark mode ──────────────────────────────────────────────────────────────── */
+/* ── Dark mode toggle button ─────────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:             #101216;
-    --surface:        #1c1f24;
-    --text:           #f4f4f4;
-    --muted:          #b8bdc7;
-    --border:         #2a2e34;
-    --primary-light:  #3b0020;
-    --primary-border: #800050;
-    --green-light:    #1a200a;
-    --green-border:   #3a4a10;
-    --success-light:  #14271a;
-    --success-border: #166534;
-    --danger-light:   #2d1414;
-    --danger-border:  #991b1b;
-  }
-
-  .control-row select,
-  .comment-textarea,
-  .adv-select,
-  .adv-note,
-  .assign-search {
-    background: #1c1f24;
-    color: var(--text);
-    border-color: var(--border);
-  }
-
-  .student-card                    { background: #1c1f24; border-left-color: #2a2e34; }
-  .student-card.perf-good          { background: #1a220a; border-left-color: #8fb020; }
-  .student-card.perf-average       { background: #221e00; border-left-color: #b09000; }
-  .student-card.perf-needs_support { background: #2a0015; border-left-color: #800050; border-color: #3b0020; }
-
-  .student-grade.grade-good          { color: #b8d84a; }
-  .student-grade.grade-satisfactory  { color: #b8bdc7; }
-  .student-grade.grade-average       { color: #d4b800; }
-  .student-grade.grade-needs_support { color: #f9a8d4; }
-
-  .filter-btn { background: #2a2200; color: #d4b800; border-color: #6a5800; }
-
-  .pronoun-toast { background: #2a2200; border-color: #6a5800; color: #d4b800; }
-
-  .advanced-panel { background: #1a220a; border-color: #3a4a10; }
-
-  .adv-label { color: #8fb020; }
-
-  .pronoun-radio-btn { background: #1c1f24; border-color: #800050; }
-  .pronoun-radio-btn:hover { background: #3b0020; }
-
-  .pronoun-choice { background: #1c1f24; }
-
-  .assign-modal { background: #1c1f24; box-shadow: 0 -4px 24px rgba(0,0,0,.5); }
-  .assign-row:hover { background: #1a220a; }
-  .assign-label { color: #f4f4f4; }
-  .assign-search { background: #16191e; }
+.dark-toggle {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 4px 9px;
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background .12s;
 }
+.dark-toggle:hover { background: rgba(255,255,255,0.28); }
+
+/* ── Dark mode (class-based, toggled by button) ──────────────────────────────── */
+
+body.dark {
+  --bg:             #101216;
+  --surface:        #1c1f24;
+  --text:           #f0f0f0;
+  --muted:          #b8bdc7;
+  --border:         #2a2e34;
+  --primary-light:  #3b0020;
+  --primary-border: #800050;
+  --green-light:    #1a200a;
+  --green-border:   #3a4a10;
+  --success-light:  #14271a;
+  --success-border: #166534;
+  --danger-light:   #2d1414;
+  --danger-border:  #991b1b;
+}
+
+body.dark .control-row select,
+body.dark .comment-textarea,
+body.dark .adv-select,
+body.dark .adv-note,
+body.dark .assign-search {
+  background: #1c1f24;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+body.dark .student-card                    { background: #1c1f24; border-left-color: #2a2e34; }
+body.dark .student-card.perf-good          { background: #1a220a; border-left-color: #8fb020; }
+body.dark .student-card.perf-average       { background: #221e00; border-left-color: #b09000; }
+body.dark .student-card.perf-needs_support { background: #2a0015; border-left-color: #800050; border-color: #3b0020; }
+
+body.dark .student-grade.grade-good          { color: #b8d84a; }
+body.dark .student-grade.grade-satisfactory  { color: #b8bdc7; }
+body.dark .student-grade.grade-average       { color: #d4b800; }
+body.dark .student-grade.grade-needs_support { color: #f9a8d4; }
+
+body.dark .filter-btn { background: #2a2200; color: #d4b800; border-color: #6a5800; }
+
+body.dark .pronoun-toast { background: #2a2200; border-color: #6a5800; color: #d4b800; }
+
+body.dark .advanced-panel { background: #1a220a; border-color: #3a4a10; }
+
+body.dark .adv-label { color: #8fb020; }
+
+body.dark .pronoun-radio-btn { background: #1c1f24; border-color: #800050; }
+body.dark .pronoun-radio-btn:hover { background: #3b0020; }
+
+body.dark .pronoun-choice { background: #1c1f24; }
+
+body.dark .assign-modal { background: #1c1f24; box-shadow: 0 -4px 24px rgba(0,0,0,.5); }
+body.dark .assign-row:hover { background: #1a220a; }
+body.dark .assign-label { color: #f0f0f0; }
+body.dark .assign-search { background: #16191e; }
+
+body.dark .controls { background: #1a200a; }
+body.dark .btn { background: #1c1f24; }
+body.dark .copy-btn { background: #1c1f24; }
