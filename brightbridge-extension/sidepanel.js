@@ -50,7 +50,12 @@ const GRADE_HINTS = [
 ];
 
 function norm(h) {
-  return (h || '').toLowerCase().replace(/\s*#\s*$/, '').replace(/\s+/g, ' ').trim();
+  return (h || '')
+    .replace(/[▼▲►◄▸▾⌄⌃]/g, '') // strip sort arrows Brightspace puts in headers
+    .toLowerCase()
+    .replace(/\s*#\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function detectCols(headers) {
@@ -133,8 +138,10 @@ function processStudents({ headers, rows }) {
 
 function parseGradeNum(raw) {
   if (!raw) return null;
-  const cleaned = String(raw).replace(/[%\s]/g, '').replace(',', '.');
-  const n = parseFloat(cleaned);
+  // Extract the first number in the string (handles "81.34 % 👁", "0 %", "- -", etc.)
+  const match = String(raw).match(/(\d+[.,]?\d*)/);
+  if (!match) return null;
+  const n = parseFloat(match[1].replace(',', '.'));
   return isNaN(n) ? null : n;
 }
 
