@@ -45,6 +45,12 @@ const COMMENT_BANK_MINI = [
   }
 ];
 
+const SUPPORT_TRAIT_HINTS = [
+  'Shows effort despite struggles',
+  'Smart and capable, great potential',
+  'Pleasant, remains positive through challenges'
+];
+
 // ── Pronoun guess from first name (mirrors Teacher Tools main.js) ──────────────
 
 function guessPronounFromFirstName(firstName) {
@@ -147,6 +153,7 @@ let students            = [];   // processed student objects
 let generatedComments   = {};   // { studentIdx: string }
 let showOnlyUnderperf   = false;
 let isGeneratingAll     = false;
+let selectedAssignLabels = [];  // teacher-selected assignment columns for bulk generation
 
 // Per-card state: collapse/expand, pronoun override, advanced panel data
 const cardStates = {};   // { [idx]: CardState }
@@ -745,6 +752,139 @@ function updateCopyBtn(btn, text) {
   btn.textContent = has ? 'Copy ✓' : 'Copy';
 }
 
+// ── Assignment stats & selection ───────────────────────────────────────────────
+
+// Calculate class average and submission rate for each assignment column across all students.
+function getAssignmentStats() {
+  const labelSet = new Set();
+  students.forEach(s => s.assignments.forEach(a => labelSet.add(a.label)));
+
+  return [...labelSet].map(label => {
+    const values = students.map(s => {
+      const a = s.assignments.find(x => x.label === label);
+      return a ? parseGradeNum(a.value) : null;
+    });
+    const submitted = values.filter(v => v !== null);
+    const classAvg  = submitted.length
+      ? submitted.reduce((a, b) => a + b, 0) / submitted.length
+      : null;
+    const submissionRate = students.length
+      ? (submitted.length / students.length) * 100
+      : 0;
+    return { label, classAvg, submissionRate, submittedCount: submitted.length };
+  })
+  .filter(s => s.submittedCount > 0)                        // skip empty columns
+  .sort((a, b) => b.submissionRate - a.submissionRate);     // most-submitted first
+}
+
+// Pick up to 2 of the teacher-selected assignments for one student, add tone.
+function computeAssignmentFacts(student, labels) {
+  if (!labels || !labels.length) return [];
+  // Randomly pick 2 for variety across students (same logic as Teacher Tools)
+  const shuffled = [...labels].sort(() => Math.random() - 0.5);
+  const picked   = shuffled.slice(0, Math.min(2, shuffled.length));
+  return picked.map(label => {
+    const a = student.assignments.find(x => x.label === label);
+    if (!a) return null;
+    const scoreValue = parseGradeNum(a.value);
+    return {
+      label,
+      scoreText:  a.value || '',
+      scoreValue,
+      tone: scoreValue !== null && scoreValue > 75 ? 'positive' : 'constructive'
+    };
+  }).filter(Boolean);
+}
+
+// ── Assignment overlay DOM ─────────────────────────────────────────────────────
+
+const assignOverlay    = $('assignOverlay');
+const assignSearch     = $('assignSearch');
+const assignList       = $('assignList');
+const assignWarning    = $('assignWarning');
+const assignCancelBtn  = $('assignCancelBtn');
+const assignGenerateBtn = $('assignGenerateBtn');
+
+function avgColor(avg) {
+  if (avg === null) return 'var(--muted)';
+  if (avg >= 85) return '#3a8a1a';
+  if (avg >= 70) return '#b07d0a';
+  return '#b91c1c';
+}
+
+function populateAssignList(filter) {
+  const stats    = getAssignmentStats();
+  const q        = (filter || '').toLowerCase();
+  const filtered = q ? stats.filter(s => s.label.toLowerCase().includes(q)) : stats;
+
+  assignList.innerHTML = '';
+
+  if (!filtered.length) {
+    const empty = document.createElement('p');
+    empty.className = 'assign-empty';
+    empty.textContent = 'No assignments found.';
+    assignList.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach(({ label, classAvg, submissionRate }) => {
+    const row = document.createElement('label');
+    row.className = 'assign-row';
+
+    const cb = document.createElement('input');
+    cb.type    = 'checkbox';
+    cb.checked = selectedAssignLabels.includes(label);
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        if (selectedAssignLabels.length >= 3) {
+          cb.checked = false;
+          assignWarning.style.display = '';
+          return;
+        }
+        selectedAssignLabels.push(label);
+        assignWarning.style.display = 'none';
+      } else {
+        selectedAssignLabels = selectedAssignLabels.filter(l => l !== label);
+        assignWarning.style.display = 'none';
+      }
+    });
+
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'assign-label';
+    nameEl.textContent = label;
+
+    const avgEl = document.createElement('span');
+    avgEl.className   = 'assign-avg';
+    avgEl.style.color = avgColor(classAvg);
+    avgEl.textContent = classAvg !== null ? classAvg.toFixed(1) + '%' : '—';
+
+    const subEl = document.createElement('span');
+    subEl.className   = 'assign-sub';
+    subEl.textContent = submissionRate.toFixed(0) + '%';
+
+    row.appendChild(cb);
+    row.appendChild(nameEl);
+    row.appendChild(avgEl);
+    row.appendChild(subEl);
+    assignList.appendChild(row);
+  });
+}
+
+function showAssignOverlay() {
+  selectedAssignLabels = []; // reset each time
+  populateAssignList();
+  assignSearch.value         = '';
+  assignWarning.style.display = 'none';
+  assignOverlay.style.display = 'flex';
+}
+
+assignSearch.addEventListener('input', () => populateAssignList(assignSearch.value));
+assignCancelBtn.addEventListener('click', () => { assignOverlay.style.display = 'none'; });
+assignGenerateBtn.addEventListener('click', () => {
+  assignOverlay.style.display = 'none';
+  runGenerateAll();
+});
+
 // ── API & comment generation ───────────────────────────────────────────────────
 
 function buildPayload(student, state) {
@@ -752,24 +892,44 @@ function buildPayload(student, state) {
   const gradeGroup  = gradeGroupSelect.value;
   const structure   = structureSelect.value;
 
-  const resolvedPerf = state && state.perfOverride
-    ? state.perfOverride
-    : perfCode(student.gradeNum);
+  const resolvedPerf   = (state && state.perfOverride) ? state.perfOverride : perfCode(student.gradeNum);
+  const resolvedPronoun = state ? state.pronoun : 'they';
 
-  const resolvedPronoun = state ? state.pronoun : 'unknown';
+  // ── Assignment facts ──
+  // Use teacher-selected assignments if available, otherwise fall back to student's top 2.
+  const labelsToUse  = selectedAssignLabels.length ? selectedAssignLabels : [];
+  const assignmentFacts = labelsToUse.length
+    ? computeAssignmentFacts(student, labelsToUse)
+    : student.assignments.slice(0, 2).map(a => {
+        const scoreValue = parseGradeNum(a.value);
+        return {
+          label:      a.label,
+          scoreText:  a.value || '',
+          scoreValue,
+          tone: scoreValue !== null && scoreValue > 75 ? 'positive' : 'constructive'
+        };
+      });
 
-  // Up to 4 assignment facts for the prompt
-  const assignmentFacts = student.assignments.slice(0, 4).map(a => ({
-    label: a.label,
-    value: a.value
-  }));
+  // ── Support trait hint (for severely underperforming students) ──
+  // Mirror Teacher Tools: omit final mark and include an opening trait hint when
+  // student is needs_support AND their grade is > 10 points below the class average.
+  const classGradeAvg = (() => {
+    const vals = students.map(s => s.gradeNum).filter(v => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  })();
+  const omitMark = resolvedPerf === 'needs_support'
+    && student.gradeNum !== null
+    && (classGradeAvg === null ? student.gradeNum < 65 : student.gradeNum < classGradeAvg - 10);
+  const supportTraitHint = omitMark
+    ? SUPPORT_TRAIT_HINTS[Math.floor(Math.random() * SUPPORT_TRAIT_HINTS.length)]
+    : null;
 
-  // Append selected comment bank items + custom note to additional context
+  // ── Comment bank + custom note → additionalContext ──
   let additionalContext = '';
   if (state && state.selectedBank.size > 0) {
     additionalContext += 'Incorporate these notes: ' + [...state.selectedBank].join('; ') + '.';
   }
-  if (state && state.customNote.trim()) {
+  if (state && state.customNote && state.customNote.trim()) {
     additionalContext += (additionalContext ? ' ' : '') + state.customNote.trim();
   }
 
@@ -784,14 +944,15 @@ function buildPayload(student, state) {
     studentName:             student.name,
     studentFirstName:        student.firstName,
     pronounGuess:            resolvedPronoun,
-    finalMark:               student.gradeRaw || '',
+    finalMark:               omitMark ? '' : (student.gradeRaw || ''),
     performanceLevel:        resolvedPerf,
     performanceLabel:        resolvedPerf.replace('_', ' '),
-    needsSupport:            resolvedPerf === 'needs_support',
+    needsSupport:            omitMark,
+    supportTraitHint:        supportTraitHint || undefined,
     gradeGroup,
     assignmentFacts,
     upcomingTests:           [],
-    allowedAssignmentLabels: student.assignments.map(a => a.label),
+    allowedAssignmentLabels: assignmentFacts.map(a => a.label),
     classFirstNames,
     additionalContext:       additionalContext || undefined
   };
@@ -866,17 +1027,26 @@ async function generateOne(student, textarea, genBtn, copyBtn, pronounRow, state
   genBtn.textContent = '↺ Generate';
 }
 
-async function generateAll() {
+function generateAll() {
+  if (isGeneratingAll || !students.length) return;
+  showAssignOverlay(); // open assignment picker first; Generate button inside calls runGenerateAll()
+}
+
+async function runGenerateAll() {
   if (isGeneratingAll || !students.length) return;
   isGeneratingAll = true;
-  generateAllBtn.disabled  = true;
+  generateAllBtn.disabled    = true;
   generateAllBtn.textContent = '⏳ Generating…';
 
   const visible = showOnlyUnderperf ? students.filter(isUnderperforming) : students;
   const queue   = [...visible];
   let done = 0;
 
-  setStatus(`Generating comments for ${visible.length} students…`, 'loading');
+  const selCount = selectedAssignLabels.length;
+  setStatus(
+    `Generating ${visible.length} comments${selCount ? ` (${selCount} assignment${selCount > 1 ? 's' : ''} selected)` : ''}…`,
+    'loading'
+  );
 
   async function worker() {
     while (queue.length) {
@@ -884,11 +1054,11 @@ async function generateAll() {
       const card    = studentList.querySelector(`.student-card[data-idx="${student.idx}"]`);
       if (!card) continue;
 
-      const textarea  = card.querySelector('.comment-textarea');
-      const genBtn    = card.querySelector('.gen-btn');
-      const copyBtn   = card.querySelector('.copy-btn');
+      const textarea   = card.querySelector('.comment-textarea');
+      const genBtn     = card.querySelector('.gen-btn');
+      const copyBtn    = card.querySelector('.copy-btn');
       const pronounRow = card.querySelector('.pronoun-row');
-      const state     = getCardState(student.idx);
+      const state      = getCardState(student.idx, student.firstName);
 
       if (textarea && genBtn && copyBtn) {
         await generateOne(student, textarea, genBtn, copyBtn, pronounRow, state);
@@ -901,7 +1071,7 @@ async function generateAll() {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
 
   setStatus(`✓ ${done} comments ready!`, 'success');
-  generateAllBtn.disabled  = false;
+  generateAllBtn.disabled    = false;
   generateAllBtn.textContent = '▶ Generate All Comments';
   isGeneratingAll = false;
 }
