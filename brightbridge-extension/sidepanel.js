@@ -1369,7 +1369,10 @@ function buildCommentBankSection(state) {
       arrow.style.transform = c ? '' : 'rotate(90deg)';
     });
 
-    cat.options.forEach(item => {
+    const sortedOptions = [...cat.options].sort((a, b) =>
+      (a.type === 'positive' ? 0 : 1) - (b.type === 'positive' ? 0 : 1)
+    );
+    sortedOptions.forEach(item => {
       const row = document.createElement('label');
       row.className = `bank-item bank-item--${item.type}`;
       const cb = document.createElement('input');
@@ -1699,24 +1702,27 @@ function renderSingleStudentView() {
     const resolvedPerf = singleState.perfOverride || basePerfCode;
     const resolvedPron = singleState.pronoun === 'unknown' ? guessPronounFromName(firstName) : singleState.pronoun;
 
+    const apiPerf = normalizePerfForApi(resolvedPerf);
     const payload = {
-      reviseMode:       'refine_basic',
-      basicStructure:   structure,
-      draft:            '',
-      studentName:      displayName,
-      studentFirstName: firstName,
-      pronoun:          resolvedPron === 'unknown' ? 'he' : resolvedPron,
-      finalGrade:       data.finalPercent != null ? `${data.finalPercent}%` : '',
-      performanceLevel: normalizePerfForApi(resolvedPerf),
-      termLabel:        term,
+      reviseMode:             'advanced_generate',
+      draft:                  '',
+      basicStructure:         structure,
+      studentName:            displayName,
+      studentFirstName:       firstName,
+      pronoun:                resolvedPron === 'unknown' ? 'he' : resolvedPron,
       gradeGroup,
-      assignmentFacts:  singleState.selectedAssigns.slice(0, 3).map(a => ({ label: a.name, scoreText: `${a.percent}%` })),
-      futureAssignments: singleState.selectedUpcoming ? [singleState.selectedUpcoming.name] : [],
-      lateAssignments:  [],
-      selectedComments: [...singleState.selectedBankItems.values()].map(item => ({
-        id: item.id, category: item.categoryId, text: item.text, type: item.type
+      performanceLevel:       apiPerf,
+      termLabel:              term,
+      finalGrade:             data.finalPercent != null ? `${data.finalPercent}%` : '',
+      needsSupport:           apiPerf.startsWith('poor'),
+      assignmentFacts:        singleState.selectedAssigns.slice(0, 6).map(a => ({ label: a.name, scoreText: `${a.percent}%` })),
+      futureAssignments:      singleState.selectedUpcoming ? [singleState.selectedUpcoming.name] : [],
+      lateAssignments:        [],
+      selectedComments:       [...singleState.selectedBankItems.values()].map(item => ({
+        category: item.categoryId, text: item.text
       })),
-      customComment:    singleState.customNote.trim()
+      customComment:          singleState.customNote.trim(),
+      allowedAssignmentLabels: singleState.selectedAssigns.slice(0, 6).map(a => a.name)
     };
 
     console.log('[BrightBridge] Single Student payload:', JSON.stringify(payload, null, 2));
