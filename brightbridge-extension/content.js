@@ -306,11 +306,61 @@ function scrapeGrades() {
   };
 }
 
+// ── Single-student page scraper ────────────────────────────────────────────────
+
+function scrapeSingleStudent() {
+  const h1 = document.querySelector('h1');
+  if (!h1 || !/final calculated grade/i.test(document.body.innerText)) {
+    return {
+      success: false,
+      error: "Not on a single-student grade page. In Brightspace, open the Grades tab and click on a student's name first."
+    };
+  }
+
+  // 1. Student name — strip D2L dropdown arrow glyphs from h1 text
+  const studentName = h1.innerText
+    .replace(/[▼▲›∨⌄↓⌃\uFE0F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 2. Final grade % — find "Scheme: XX.XX %" within 400 chars after "Final Calculated Grade"
+  let finalPercent = null;
+  const bodyText = document.body.innerText;
+  const fcgMatch = bodyText.match(/final calculated grade[\s\S]{0,400}?scheme:\s*(\d+\.?\d*)\s*%/i);
+  if (fcgMatch) finalPercent = parseFloat(fcgMatch[1]);
+
+  // 3. Grade items — find elements whose text contains a lesson number (L1–L99)
+  //    then walk up the DOM to find their enclosing container's "Scheme: XX %" value
+  const assignments = [];
+  const seen = new Set();
+  document.querySelectorAll('h3, h4, strong, [class*="name"], [class*="title"]').forEach(el => {
+    const text = el.innerText?.trim();
+    if (!text || seen.has(text) || text.length > 120) return;
+    if (!/\bL\d{1,2}\b/i.test(text)) return;
+    seen.add(text);
+    let node = el.parentElement;
+    for (let i = 0; i < 6; i++) {
+      if (!node) break;
+      const m = node.innerText?.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
+      if (m) {
+        assignments.push({ name: text, percent: parseFloat(m[1]) });
+        break;
+      }
+      node = node.parentElement;
+    }
+  });
+
+  return { success: true, isSingleStudent: true, studentName, finalPercent, assignments };
+}
+
 // ── Message listener ───────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'scrapeGrades') {
     sendResponse(scrapeGrades());
+  }
+  if (message.action === 'scrapeSingleStudent') {
+    sendResponse(scrapeSingleStudent());
   }
   return true; // keep channel open for async
 });
