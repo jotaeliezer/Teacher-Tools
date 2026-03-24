@@ -1701,51 +1701,78 @@ function renderSingleStudentView() {
     const structure    = structSelEl ? structSelEl.value : 'sandwich_paragraph';
     const resolvedPerf = singleState.perfOverride || basePerfCode;
     const resolvedPron = singleState.pronoun === 'unknown' ? guessPronounFromName(firstName) : singleState.pronoun;
-
-    const apiPerf = normalizePerfForApi(resolvedPerf);
-    const payload = {
-      reviseMode:             'advanced_generate',
-      draft:                  '',
-      basicStructure:         structure,
-      studentName:            displayName,
-      studentFirstName:       firstName,
-      pronoun:                resolvedPron === 'unknown' ? 'he' : resolvedPron,
-      gradeGroup,
-      performanceLevel:       apiPerf,
-      termLabel:              term,
-      finalGrade:             data.finalPercent != null ? `${data.finalPercent}%` : '',
-      needsSupport:           apiPerf.startsWith('poor'),
-      assignmentFacts:        singleState.selectedAssigns.slice(0, 6).map(a => ({ label: a.name, scoreText: `${a.percent}%` })),
-      futureAssignments:      singleState.selectedUpcoming ? [singleState.selectedUpcoming.name] : [],
-      lateAssignments:        [],
-      selectedComments:       [...singleState.selectedBankItems.values()].map(item => ({
-        category: item.categoryId, text: item.text
-      })),
-      customComment:          singleState.customNote.trim(),
-      allowedAssignmentLabels: singleState.selectedAssigns.slice(0, 6).map(a => a.name)
-    };
-
-    console.log('[BrightBridge] Single Student payload:', JSON.stringify(payload, null, 2));
+    const apiPerf      = normalizePerfForApi(resolvedPerf);
+    const pronoun      = resolvedPron === 'unknown' ? 'he' : resolvedPron;
+    const assignFacts  = singleState.selectedAssigns.slice(0, 6).map(a => ({ label: a.name, scoreText: `${a.percent}%` }));
+    const assignLabels = singleState.selectedAssigns.slice(0, 6).map(a => a.name);
+    const future       = singleState.selectedUpcoming ? [singleState.selectedUpcoming.name] : [];
+    const selectedComments = [...singleState.selectedBankItems.values()];
 
     genBtn.disabled = true;
-    genBtn.textContent = '…';
     outTA.classList.add('loading');
     outTA.value = '';
 
     try {
-      const res = await fetch(API_ENDPOINT, {
+      // ── Step 1: generate base comment with basic_bulk (no draft needed) ──
+      genBtn.textContent = selectedComments.length ? '1/2 Generating…' : '…';
+      const step1 = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          mode:                    'basic_bulk',
+          reviseMode:              'basic_bulk',
+          targetStructure:         structure,
+          basicStructure:          structure,
+          termLabel:               term,
+          studentName:             displayName,
+          studentFirstName:        firstName,
+          pronounGuess:            pronoun,
+          finalMark:               data.finalPercent != null ? `${data.finalPercent}%` : '',
+          performanceLevel:        apiPerf,
+          performanceLabel:        formatPerfLabel(resolvedPerf),
+          needsSupport:            apiPerf.startsWith('poor'),
+          gradeGroup,
+          assignmentFacts:         assignFacts,
+          upcomingTests:           future,
+          allowedAssignmentLabels: assignLabels,
+          additionalContext:       singleState.customNote.trim() || undefined
+        })
       });
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        console.error('[BrightBridge] API error', res.status, errBody);
-        throw new Error(`Server error ${res.status}: ${errBody}`);
-      }
-      const responseData = await res.json();
-      const comment = parseApiResponse(responseData);
+      if (!step1.ok) { const e = await step1.text().catch(() => ''); throw new Error(`Server error ${step1.status}: ${e}`); }
+      let comment = parseApiResponse(await step1.json());
       if (!comment) throw new Error('Empty response from server');
+
+      // ── Step 2: if comment bank items are selected, refine with advanced_generate ──
+      if (selectedComments.length > 0) {
+        genBtn.textContent = '2/2 Refining…';
+        const step2 = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reviseMode:             'advanced_generate',
+            draft:                  comment,
+            basicStructure:         structure,
+            studentName:            displayName,
+            studentFirstName:       firstName,
+            pronoun,
+            gradeGroup,
+            performanceLevel:       apiPerf,
+            termLabel:              term,
+            finalGrade:             data.finalPercent != null ? `${data.finalPercent}%` : '',
+            needsSupport:           apiPerf.startsWith('poor'),
+            assignmentFacts:        assignFacts,
+            futureAssignments:      future,
+            lateAssignments:        [],
+            selectedComments:       selectedComments.map(item => ({ category: item.categoryId, text: item.text })),
+            customComment:          singleState.customNote.trim(),
+            allowedAssignmentLabels: assignLabels
+          })
+        });
+        if (!step2.ok) { const e = await step2.text().catch(() => ''); throw new Error(`Server error ${step2.status}: ${e}`); }
+        const refined = parseApiResponse(await step2.json());
+        if (refined) comment = refined;
+      }
+
       outTA.classList.remove('loading');
       typewriterAnimate(outTA, comment, () => {
         outTA.classList.add('has-content');
