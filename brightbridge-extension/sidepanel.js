@@ -1151,10 +1151,12 @@ function updateCopyBtn(btn, text) {
 // ── API & comment generation ───────────────────────────────────────────────────
 
 function normalizePerfForApi(val) {
-  // Strip version suffix (good1 → good), map needs_support → poor
-  const stripped = val.replace(/\d+$/, '');
-  if (stripped === 'needs_support') return 'poor';
-  return stripped;
+  // API expects versioned values: good1, satisfactory1, average1, poor1, newstu1, etc.
+  // Ensure the value has a version suffix; map needs_support → poor.
+  let base = val.replace(/\d+$/, '');                // strip trailing digits
+  const ver  = val.match(/\d+$/)?.[0] || '1';        // keep existing version or default to 1
+  if (base === 'needs_support') base = 'poor';
+  return `${base}${ver}`;
 }
 
 function formatPerfLabel(val) {
