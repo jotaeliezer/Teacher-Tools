@@ -330,27 +330,33 @@ function scrapeSingleStudent() {
   if (fcgMatch) finalPercent = parseFloat(fcgMatch[1]);
 
   // 3. Grade items — find elements whose text contains a lesson number (L1–L99)
-  //    then walk up the DOM to find their enclosing container's "Scheme: XX %" value
-  const assignments = [];
+  //    then walk up the DOM to find their enclosing container's "Scheme: XX %" value.
+  //    Items WITH a scheme % = graded assignments.
+  //    Items WITHOUT a scheme % = upcoming (no mark entered yet).
+  const assignments   = [];
+  const upcomingItems = [];
   const seen = new Set();
   document.querySelectorAll('h3, h4, strong, [class*="name"], [class*="title"]').forEach(el => {
     const text = el.innerText?.trim();
     if (!text || seen.has(text) || text.length > 120) return;
     if (!/\bL\d{1,2}\b/i.test(text)) return;
     seen.add(text);
+    let percent = null;
     let node = el.parentElement;
     for (let i = 0; i < 6; i++) {
       if (!node) break;
       const m = node.innerText?.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
-      if (m) {
-        assignments.push({ name: text, percent: parseFloat(m[1]) });
-        break;
-      }
+      if (m) { percent = parseFloat(m[1]); break; }
       node = node.parentElement;
+    }
+    if (percent !== null) {
+      assignments.push({ name: text, percent });
+    } else {
+      upcomingItems.push({ name: text });
     }
   });
 
-  return { success: true, isSingleStudent: true, studentName, finalPercent, assignments };
+  return { success: true, isSingleStudent: true, studentName, finalPercent, assignments, upcomingItems };
 }
 
 // ── Message listener ───────────────────────────────────────────────────────────
