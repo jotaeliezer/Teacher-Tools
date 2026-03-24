@@ -354,16 +354,23 @@ function scrapeSingleStudent() {
 }
 
 // ── Message listener ───────────────────────────────────────────────────────────
+// Guard: only register once, even if content.js is injected multiple times.
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.action === 'scrapeGrades') {
-    sendResponse(scrapeGrades());
-  }
-  if (message.action === 'scrapeSingleStudent') {
-    sendResponse(scrapeSingleStudent());
-  }
-  return true; // keep channel open for async
-});
+if (!window.__bbListenerRegistered) {
+  window.__bbListenerRegistered = true;
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.action === 'scrapeGrades') {
+      sendResponse(scrapeGrades());
+      return false;
+    }
+    if (message.action === 'scrapeSingleStudent') {
+      sendResponse(scrapeSingleStudent());
+      return false;
+    }
+    return false;
+  });
+}
 
 // ── MutationObserver: notify panel when grade table appears ───────────────────
 
