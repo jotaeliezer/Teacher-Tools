@@ -1719,6 +1719,8 @@ function renderSingleStudentView() {
       customComment:    singleState.customNote.trim()
     };
 
+    console.log('[BrightBridge] Single Student payload:', JSON.stringify(payload, null, 2));
+
     genBtn.disabled = true;
     genBtn.textContent = '…';
     outTA.classList.add('loading');
@@ -1730,7 +1732,11 @@ function renderSingleStudentView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error('[BrightBridge] API error', res.status, errBody);
+        throw new Error(`Server error ${res.status}: ${errBody}`);
+      }
       const responseData = await res.json();
       const comment = parseApiResponse(responseData);
       if (!comment) throw new Error('Empty response from server');
