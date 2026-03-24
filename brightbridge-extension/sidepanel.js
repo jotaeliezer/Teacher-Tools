@@ -285,11 +285,13 @@ let isGeneratingAll   = false;
 // Single student state
 let singleStudentData = null;
 let singleState = {
-  pronoun:       'unknown',
-  perfOverride:  null,
-  selectedBank:  new Set(),
-  customNote:    '',
-  selectedAssigns: [],
+  pronoun:          'unknown',
+  perfOverride:     null,
+  selectedBank:     new Set(),   // kept for bulk card compat; single student uses selectedBankItems
+  selectedBankItems: new Map(),  // Map<id, {id, categoryId, text, type}>
+  customNote:       '',
+  selectedAssigns:  [],
+  selectedUpcoming: null,        // { name } or null
 };
 
 // Raw scrape data — kept for assignment overlay stats
@@ -1148,6 +1150,13 @@ function updateCopyBtn(btn, text) {
 
 // ── API & comment generation ───────────────────────────────────────────────────
 
+function normalizePerfForApi(val) {
+  // Strip version suffix (good1 → good), map needs_support → poor
+  const stripped = val.replace(/\d+$/, '');
+  if (stripped === 'needs_support') return 'poor';
+  return stripped;
+}
+
 function formatPerfLabel(val) {
   const map = {
     good: 'good', satisfactory: 'satisfactory', average: 'average',
@@ -1363,10 +1372,15 @@ function buildCommentBankSection(state) {
       row.className = `bank-item bank-item--${item.type}`;
       const cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.checked = state.selectedBank.has(item.text);
+      cb.checked = state.selectedBankItems ? state.selectedBankItems.has(item.id) : state.selectedBank.has(item.text);
       cb.addEventListener('change', () => {
-        if (cb.checked) state.selectedBank.add(item.text);
-        else            state.selectedBank.delete(item.text);
+        if (state.selectedBankItems) {
+          if (cb.checked) state.selectedBankItems.set(item.id, { id: item.id, categoryId: cat.id, text: item.text, type: item.type });
+          else            state.selectedBankItems.delete(item.id);
+        } else {
+          if (cb.checked) state.selectedBank.add(item.text);
+          else            state.selectedBank.delete(item.text);
+        }
       });
       row.appendChild(cb);
       row.appendChild(document.createTextNode(' ' + item.label));
@@ -1396,11 +1410,13 @@ function renderSingleStudentView() {
   const perfLabels   = { good: 'Good', satisfactory: 'Satisfactory', average: 'Average', needs_support: 'Needs Support' };
 
   // Reset singleState on new load
-  singleState.pronoun      = guessPronounFromName(firstName);
-  singleState.perfOverride = null;
-  singleState.selectedBank = new Set();
-  singleState.customNote   = '';
-  singleState.selectedAssigns = data.assignments ? [...data.assignments] : [];
+  singleState.pronoun           = guessPronounFromName(firstName);
+  singleState.perfOverride      = null;
+  singleState.selectedBank      = new Set();
+  singleState.selectedBankItems = new Map();
+  singleState.customNote        = '';
+  singleState.selectedAssigns   = [];   // unchecked by default
+  singleState.selectedUpcoming  = null;
 
   singleContent.innerHTML = '';
 
@@ -1544,12 +1560,12 @@ function renderSingleStudentView() {
       singleState.selectedAssigns = [];
       return;
     }
-    singleState.selectedAssigns = [...filtered]; // default: all selected
+    singleState.selectedAssigns = []; // unchecked by default
     filtered.forEach(a => {
       const row = document.createElement('div');
       row.className = 'ss-assign-row';
       const cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.checked = true;
+      cb.type = 'checkbox'; cb.checked = false;
       cb.addEventListener('change', () => {
         if (cb.checked) { if (!singleState.selectedAssigns.includes(a)) singleState.selectedAssigns.push(a); }
         else            { singleState.selectedAssigns = singleState.selectedAssigns.filter(x => x !== a); }
@@ -1571,6 +1587,54 @@ function renderSingleStudentView() {
 
   assignWrap.appendChild(assignList);
   singleContent.appendChild(assignWrap);
+
+  // ── Upcoming Tests section ──
+  if (data.upcomingItems && data.upcomingItems.length > 0) {
+    const upcomingWrap = document.createElement('div');
+    upcomingWrap.className = 'ss-section';
+    const upcomingTitle = document.createElement('div');
+    upcomingTitle.className = 'ss-section-title';
+    upcomingTitle.textContent = 'Upcoming Tests';
+    const upcomingHint = document.createElement('p');
+    upcomingHint.style.cssText = 'font-size:11px;color:var(--muted);margin:2px 0 6px';
+    upcomingHint.textContent = 'Select one to mention at the end of the comment (optional).';
+    upcomingWrap.appendChild(upcomingTitle);
+    upcomingWrap.appendChild(upcomingHint);
+
+    const upcomingList = document.createElement('div');
+    upcomingList.className = 'ss-assign-list';
+
+    // "None" option
+    const noneRow = document.createElement('div');
+    noneRow.className = 'ss-assign-row';
+    const noneRb = document.createElement('input');
+    noneRb.type = 'radio'; noneRb.name = 'ss-upcoming'; noneRb.value = '';
+    noneRb.checked = true;
+    noneRb.addEventListener('change', () => { if (noneRb.checked) singleState.selectedUpcoming = null; });
+    const noneLbl = document.createElement('span');
+    noneLbl.textContent = 'None';
+    noneLbl.style.flex = '1';
+    noneRow.appendChild(noneRb); noneRow.appendChild(noneLbl);
+    noneRow.addEventListener('click', e => { if (e.target === noneRb) return; noneRb.checked = true; noneRb.dispatchEvent(new Event('change')); });
+    upcomingList.appendChild(noneRow);
+
+    data.upcomingItems.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'ss-assign-row';
+      const rb = document.createElement('input');
+      rb.type = 'radio'; rb.name = 'ss-upcoming'; rb.value = item.name;
+      rb.addEventListener('change', () => { if (rb.checked) singleState.selectedUpcoming = item; });
+      const lbl = document.createElement('span');
+      lbl.textContent = item.name;
+      lbl.style.flex = '1';
+      row.appendChild(rb); row.appendChild(lbl);
+      row.addEventListener('click', e => { if (e.target === rb) return; rb.checked = true; rb.dispatchEvent(new Event('change')); });
+      upcomingList.appendChild(row);
+    });
+
+    upcomingWrap.appendChild(upcomingList);
+    singleContent.appendChild(upcomingWrap);
+  }
 
   // ── Comment bank ──
   singleContent.appendChild(buildCommentBankSection(singleState));
@@ -1632,27 +1696,24 @@ function renderSingleStudentView() {
     const resolvedPerf = singleState.perfOverride || basePerfCode;
     const resolvedPron = singleState.pronoun === 'unknown' ? guessPronounFromName(firstName) : singleState.pronoun;
 
-    let additionalContext = '';
-    if (singleState.selectedBank.size > 0) additionalContext += 'Incorporate these notes: ' + [...singleState.selectedBank].join('; ') + '.';
-    if (singleState.customNote.trim())     additionalContext += (additionalContext ? ' ' : '') + singleState.customNote.trim();
-
     const payload = {
-      mode:             'advanced_single',
-      reviseMode:       'advanced_single',
-      targetStructure:  structure,
+      reviseMode:       'refine_basic',
       basicStructure:   structure,
-      termLabel:        term,
+      draft:            '',
       studentName:      displayName,
       studentFirstName: firstName,
-      pronounGuess:     resolvedPron,
-      finalMark:        data.finalPercent != null ? `${data.finalPercent}%` : '',
-      performanceLevel: resolvedPerf,
-      performanceLabel: formatPerfLabel(resolvedPerf),
-      needsSupport:     resolvedPerf === 'needs_support' || resolvedPerf.startsWith('poor'),
+      pronoun:          resolvedPron === 'unknown' ? 'he' : resolvedPron,
+      finalGrade:       data.finalPercent != null ? `${data.finalPercent}%` : '',
+      performanceLevel: normalizePerfForApi(resolvedPerf),
+      termLabel:        term,
       gradeGroup,
-      assignmentFacts:  singleState.selectedAssigns.slice(0, 3).map(a => ({ label: a.name, value: `${a.percent}%` })),
-      upcomingTests:    [],
-      additionalContext: additionalContext || undefined
+      assignmentFacts:  singleState.selectedAssigns.slice(0, 3).map(a => ({ label: a.name, scoreText: `${a.percent}%` })),
+      futureAssignments: singleState.selectedUpcoming ? [singleState.selectedUpcoming.name] : [],
+      lateAssignments:  [],
+      selectedComments: [...singleState.selectedBankItems.values()].map(item => ({
+        id: item.id, category: item.categoryId, text: item.text, type: item.type
+      })),
+      customComment:    singleState.customNote.trim()
     };
 
     genBtn.disabled = true;
