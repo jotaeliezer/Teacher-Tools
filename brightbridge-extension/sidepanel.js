@@ -120,15 +120,15 @@ const COMMENT_BANK_MINI = [
   {
     id: 'personalQualities', title: '✨ Personal Qualities',
     options: [
-      {id:'pq1', label:'Warm and friendly', text:"[Student] is a warm and friendly student with a positive demeanor.", type:'positive'},
-      {id:'pq2', label:'Kind-hearted, offers valuable insights', text:"[Student] is a kind-hearted student who consistently offers valuable insights during class discussions.", type:'positive'},
-      {id:'pq3', label:'Honest and hardworking', text:"[Student] is an honest and hardworking student whose diligence has yielded remarkable results this term.", type:'positive'},
-      {id:'pq4', label:'Demonstrates humility and willingness to learn', text:"[Student] demonstrates humility, effort, and willingness to learn.", type:'positive'},
-      {id:'pq5', label:'Pleasant, remains positive through challenges', text:"[Student] is a pleasant student who remains positive while working through challenging problems.", type:'positive'},
-      {id:'pq6', label:'Smart and capable, great potential', text:"[Student] is a smart and capable student with great potential.", type:'positive'},
-      {id:'pq7', label:'Sincere, committed to overcome challenges', text:"[Student] demonstrates sincerity and a commitment to overcome challenges.", type:'positive'},
-      {id:'pq8', label:'Dedicated, diligent in all work', text:"[Student] is a dedicated student whose diligence is evident in all aspects of [his/her] work.", type:'positive'},
-      {id:'pq9', label:'Fortitude and commitment to excellence', text:"[Student] demonstrates fortitude and commitment to excellence that are admirable.", type:'positive'},
+      {id:'pq1',  label:'Warm and friendly', text:"[Student] is a warm and friendly student with a positive demeanor.", type:'positive'},
+      {id:'pq2',  label:'Kind-hearted, offers valuable insights', text:"[Student] is a kind-hearted student who consistently offers valuable insights during class discussions.", type:'positive'},
+      {id:'pq3',  label:'Honest and hardworking', text:"[Student] is an honest and hardworking student whose diligence has yielded remarkable results this term.", type:'positive'},
+      {id:'pq4',  label:'Demonstrates humility and willingness to learn', text:"[Student] demonstrates humility, effort, and willingness to learn.", type:'positive'},
+      {id:'pq5',  label:'Pleasant, remains positive through challenges', text:"[Student] is a pleasant student who remains positive while working through challenging problems.", type:'positive'},
+      {id:'pq6',  label:'Smart and capable, great potential', text:"[Student] is a smart and capable student with great potential.", type:'positive'},
+      {id:'pq7',  label:'Sincere, committed to overcome challenges', text:"[Student] demonstrates sincerity and a commitment to overcome challenges.", type:'positive'},
+      {id:'pq8',  label:'Dedicated, diligent in all work', text:"[Student] is a dedicated student whose diligence is evident in all aspects of [his/her] work.", type:'positive'},
+      {id:'pq9',  label:'Fortitude and commitment to excellence', text:"[Student] demonstrates fortitude and commitment to excellence that are admirable.", type:'positive'},
       {id:'pq10', label:'Takes work seriously, strives for excellence', text:"[Student] takes [his/her] work seriously and strives for excellence in all that [he/she] does.", type:'positive'},
       {id:'pq11', label:'Cheerful and kind', text:"[Student] is cheerful, kind, and contributes to a positive classroom atmosphere.", type:'positive'},
       {id:'pq12', label:'Polite and well-behaved', text:"[Student] is polite, well-behaved, and shows respect to teachers and peers alike.", type:'positive'},
@@ -139,15 +139,15 @@ const COMMENT_BANK_MINI = [
   {
     id: 'understanding', title: '🎓 Understanding & Mastery',
     options: [
-      {id:'und1', label:'Demonstrates mastery', text:"[Student] demonstrates mastery of core concepts and applies them skillfully.", type:'positive'},
-      {id:'und2', label:'Natural aptitude, impressive problem-solving', text:"[Student] demonstrates a natural aptitude for mathematics and impressive problem-solving skills.", type:'positive'},
-      {id:'und3', label:'Propensity and love for mathematics', text:"[Student] demonstrates a propensity and love for mathematics through active engagement with the material.", type:'positive'},
-      {id:'und4', label:'Evident skill, asset to class', text:"[His/Her] evident skill in mathematics has made [him/her] a highly engaged student and an asset to the class.", type:'positive'},
-      {id:'und5', label:'Advanced understanding', text:"[Student] demonstrates an advanced understanding of the material.", type:'positive'},
-      {id:'und6', label:'Understands basics, struggles with difficult', text:"[Student] shows understanding of many concepts but sometimes struggles with more challenging applications.", type:'constructive'},
-      {id:'und7', label:'Inconsistent understanding', text:"[Student] demonstrates inconsistent understanding and would benefit from more thorough review of fundamental concepts.", type:'constructive'},
-      {id:'und8', label:'Capable, needs more confidence', text:"[Student] is capable of excellent work but needs to develop more confidence in [his/her] abilities.", type:'constructive'},
-      {id:'und9', label:'Expertly applies rules, sophisticated techniques', text:"[Student] expertly applies mathematical rules and demonstrates sophisticated problem-solving techniques.", type:'positive'},
+      {id:'und1',  label:'Demonstrates mastery', text:"[Student] demonstrates mastery of core concepts and applies them skillfully.", type:'positive'},
+      {id:'und2',  label:'Natural aptitude, impressive problem-solving', text:"[Student] demonstrates a natural aptitude for mathematics and impressive problem-solving skills.", type:'positive'},
+      {id:'und3',  label:'Propensity and love for mathematics', text:"[Student] demonstrates a propensity and love for mathematics through active engagement with the material.", type:'positive'},
+      {id:'und4',  label:'Evident skill, asset to class', text:"[His/Her] evident skill in mathematics has made [him/her] a highly engaged student and an asset to the class.", type:'positive'},
+      {id:'und5',  label:'Advanced understanding', text:"[Student] demonstrates an advanced understanding of the material.", type:'positive'},
+      {id:'und6',  label:'Understands basics, struggles with difficult', text:"[Student] shows understanding of many concepts but sometimes struggles with more challenging applications.", type:'constructive'},
+      {id:'und7',  label:'Inconsistent understanding', text:"[Student] demonstrates inconsistent understanding and would benefit from more thorough review of fundamental concepts.", type:'constructive'},
+      {id:'und8',  label:'Capable, needs more confidence', text:"[Student] is capable of excellent work but needs to develop more confidence in [his/her] abilities.", type:'constructive'},
+      {id:'und9',  label:'Expertly applies rules, sophisticated techniques', text:"[Student] expertly applies mathematical rules and demonstrates sophisticated problem-solving techniques.", type:'positive'},
       {id:'und10', label:'Creative solutions to higher-order problems', text:"[Student] consistently impresses with [his/her] ability to think of creative solutions to higher-order problems.", type:'positive'}
     ]
   },
@@ -168,15 +168,15 @@ const COMMENT_BANK_MINI = [
   {
     id: 'future', title: '🔮 Looking Ahead',
     options: [
-      {id:'future1', label:'On track for successful year', text:"[Student] is well-positioned for a successful year ahead.", type:'positive'},
-      {id:'future2', label:'Hope to see continued success', text:"I hope to see [Student] continue [his/her] strong performance in Term 2.", type:'positive'},
-      {id:'future3', label:'Confident of better results with effort', text:"With more consistent effort, I am confident [Student] is capable of achieving stronger results in the coming term.", type:'constructive'},
-      {id:'future4', label:'Hope to see leadership', text:"I hope to see [Student] being a leader in the class for the rest of the year.", type:'positive'},
-      {id:'future5', label:'Next term = opportunity', text:"The next term offers an opportunity to build on [his/her] strengths and address areas for improvement.", type:'constructive'},
-      {id:'future6', label:'Confident feedback will bring success', text:"By implementing this feedback, I am confident [Student] will see greater success in Term 2.", type:'constructive'},
-      {id:'future7', label:'Certain of success with feedback', text:"As [Student] implements this feedback, I am certain [he/she] will have a successful term 2.", type:'constructive'},
-      {id:'future8', label:'Look forward to working next term', text:"I look forward to continuing to work with [Student] next term.", type:'positive'},
-      {id:'future9', label:'Will excel with ongoing effort', text:"With ongoing effort, [he/she] will certainly continue to excel.", type:'positive'},
+      {id:'future1',  label:'On track for successful year', text:"[Student] is well-positioned for a successful year ahead.", type:'positive'},
+      {id:'future2',  label:'Hope to see continued success', text:"I hope to see [Student] continue [his/her] strong performance in Term 2.", type:'positive'},
+      {id:'future3',  label:'Confident of better results with effort', text:"With more consistent effort, I am confident [Student] is capable of achieving stronger results in the coming term.", type:'constructive'},
+      {id:'future4',  label:'Hope to see leadership', text:"I hope to see [Student] being a leader in the class for the rest of the year.", type:'positive'},
+      {id:'future5',  label:'Next term = opportunity', text:"The next term offers an opportunity to build on [his/her] strengths and address areas for improvement.", type:'constructive'},
+      {id:'future6',  label:'Confident feedback will bring success', text:"By implementing this feedback, I am confident [Student] will see greater success in Term 2.", type:'constructive'},
+      {id:'future7',  label:'Certain of success with feedback', text:"As [Student] implements this feedback, I am certain [he/she] will have a successful term 2.", type:'constructive'},
+      {id:'future8',  label:'Look forward to working next term', text:"I look forward to continuing to work with [Student] next term.", type:'positive'},
+      {id:'future9',  label:'Will excel with ongoing effort', text:"With ongoing effort, [he/she] will certainly continue to excel.", type:'positive'},
       {id:'future10', label:'Successful year with adjustments', text:"[Student] is on [his/her] way to a successful year if [he/she] makes a few adjustments.", type:'constructive'}
     ]
   },
@@ -276,10 +276,21 @@ function guessPronounFromName(firstName) {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
+let currentMode       = 'bulk'; // 'bulk' | 'single'
 let students          = [];
 let generatedComments = {};
 let showOnlyUnderperf = false;
 let isGeneratingAll   = false;
+
+// Single student state
+let singleStudentData = null;
+let singleState = {
+  pronoun:       'unknown',
+  perfOverride:  null,
+  selectedBank:  new Set(),
+  customNote:    '',
+  selectedAssigns: [],
+};
 
 // Raw scrape data — kept for assignment overlay stats
 let rawRows       = [];
@@ -335,6 +346,11 @@ const studentCount             = $('studentCount');
 const generateAllBtn           = $('generateAllBtn');
 const studentList              = $('studentList');
 const emptyState               = $('emptyState');
+const bulkPanel                = $('bulkPanel');
+const singlePanel              = $('singlePanel');
+const singleContent            = $('singleContent');
+const modeBulkBtn              = $('modeBulkBtn');
+const modeSingleBtn            = $('modeSingleBtn');
 
 // ── Dark mode toggle ────────────────────────────────────────────────────────────
 
@@ -563,7 +579,7 @@ function showAssignOverlay(onConfirm) {
 
   const s1Hint = document.createElement('div');
   s1Hint.className = 'assign-hint';
-  s1Hint.textContent = 'Choose up to 3 assignments to highlight in the report.';
+  s1Hint.textContent = 'Choose up to 3. Avg = class average · Sub = submission rate.';
 
   const s1Search = document.createElement('input');
   s1Search.className = 'assign-search';
@@ -587,7 +603,7 @@ function showAssignOverlay(onConfirm) {
     s1List.innerHTML = `<p class="assign-empty">No assignment columns found for ${termSelect.value}. Make sure Brightspace assignment columns include a lesson number in their name (e.g. "L14 – Assignment Name").</p>`;
   } else {
     termCols.forEach(col => {
-      const label = cleanAssignLabel(col);
+      const label  = cleanAssignLabel(col);
       const safeId = `bka-${col.replace(/[^a-z0-9]/gi, '_')}`;
 
       const row = document.createElement('div');
@@ -686,7 +702,7 @@ function showAssignOverlay(onConfirm) {
     s2List.innerHTML = '<p class="assign-empty">No upcoming tests found for this term. Columns with "Test" in the name and no marks entered yet will appear here.</p>';
   } else {
     upcomingCols.forEach(col => {
-      const label = cleanAssignLabel(col);
+      const label  = cleanAssignLabel(col);
       const safeId = `bku-${col.replace(/[^a-z0-9]/gi, '_')}`;
 
       const row = document.createElement('div');
@@ -1008,7 +1024,7 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
   pronounSection.appendChild(pronounGroup);
   panel.appendChild(pronounSection);
 
-  // Performance override
+  // Performance override (versioned)
   const perfSection = document.createElement('div');
   perfSection.className = 'adv-section';
   const perfLabel = document.createElement('div');
@@ -1017,31 +1033,29 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
   const perfSelect = document.createElement('select');
   perfSelect.className = 'adv-select';
 
-  // Auto option
   const autoOpt = document.createElement('option');
   autoOpt.value = '';
   autoOpt.textContent = `Auto (${perfCode(student.gradeNum).replace('_', ' ')})`;
   if (!state.perfOverride) autoOpt.selected = true;
   perfSelect.appendChild(autoOpt);
 
-  // Versioned groups — 5 levels × 3 versions, matching Teacher Tools website
   [
-    { label: 'Good',          base: 'good'         },
-    { label: 'Satisfactory',  base: 'satisfactory' },
-    { label: 'Average',       base: 'average'      },
-    { label: 'New Student',   base: 'newstu'       },
-    { label: 'Needs Support', base: 'poor'         }
-  ].forEach(({ label, base }) => {
-    const grp = document.createElement('optgroup');
-    grp.label = `── ${label} ──`;
+    { group: 'Good',          base: 'good' },
+    { group: 'Satisfactory',  base: 'satisfactory' },
+    { group: 'Average',       base: 'average' },
+    { group: 'New Student',   base: 'newstu' },
+    { group: 'Needs Support', base: 'poor' }
+  ].forEach(({ group, base }) => {
+    const og = document.createElement('optgroup');
+    og.label = group;
     [1, 2, 3].forEach(v => {
       const o = document.createElement('option');
       o.value = `${base}${v}`;
-      o.textContent = `${label} – Version ${v}`;
-      if (o.value === (state.perfOverride || '')) o.selected = true;
-      grp.appendChild(o);
+      o.textContent = `${group} – Version ${v}`;
+      if (o.value === state.perfOverride) o.selected = true;
+      og.appendChild(o);
     });
-    perfSelect.appendChild(grp);
+    perfSelect.appendChild(og);
   });
 
   perfSelect.addEventListener('change', () => { state.perfOverride = perfSelect.value || null; });
@@ -1075,16 +1089,22 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
 
   COMMENT_BANK_MINI.forEach(cat => {
     const catHeader = document.createElement('div');
-    catHeader.className = 'bank-category';
-    catHeader.textContent = cat.title + ' ▾';
+    catHeader.className = 'bank-category bank-category-header';
+    const catTitle = document.createElement('span');
+    catTitle.textContent = cat.title;
+    const catArrow = document.createElement('span');
+    catArrow.textContent = '▸';
+    catArrow.style.fontSize = '10px';
+    catArrow.style.transition = 'transform .15s';
+    catHeader.appendChild(catTitle);
+    catHeader.appendChild(catArrow);
+    bankSection.appendChild(catHeader);
 
     const itemsContainer = document.createElement('div');
-    itemsContainer.className = 'bank-items';
-
+    itemsContainer.className = 'bank-items-container collapsed';
     catHeader.addEventListener('click', () => {
-      catHeader.classList.toggle('collapsed');
-      itemsContainer.style.display = catHeader.classList.contains('collapsed') ? 'none' : '';
-      catHeader.textContent = cat.title + (catHeader.classList.contains('collapsed') ? ' ▸' : ' ▾');
+      const collapsed = itemsContainer.classList.toggle('collapsed');
+      catArrow.style.transform = collapsed ? '' : 'rotate(90deg)';
     });
 
     cat.options.forEach(item => {
@@ -1101,8 +1121,6 @@ function buildAdvancedPanel(student, state, textarea, genBtn, copyBtn, pronounRo
       itemRow.appendChild(document.createTextNode(' ' + item.label));
       itemsContainer.appendChild(itemRow);
     });
-
-    bankSection.appendChild(catHeader);
     bankSection.appendChild(itemsContainer);
   });
   panel.appendChild(bankSection);
@@ -1131,10 +1149,13 @@ function updateCopyBtn(btn, text) {
 // ── API & comment generation ───────────────────────────────────────────────────
 
 function formatPerfLabel(val) {
-  const map = { good: 'good', satisfactory: 'satisfactory', average: 'average', newstu: 'new student', poor: 'needs support', needs_support: 'needs support' };
+  const map = {
+    good: 'good', satisfactory: 'satisfactory', average: 'average',
+    newstu: 'new student', poor: 'needs support', needs_support: 'needs support'
+  };
   const m = val.match(/^([a-z_]+?)(\d+)$/);
   if (m) return `${map[m[1]] || m[1]} version ${m[2]}`;
-  return val.replace('_', ' ');
+  return val.replace(/_/g, ' ');
 }
 
 function buildPayload(student, state) {
@@ -1308,6 +1329,400 @@ async function generateAll() {
   });
 }
 
+// ── Single Student mode ────────────────────────────────────────────────────────
+
+function buildCommentBankSection(state) {
+  const bankWrap = document.createElement('div');
+  bankWrap.className = 'ss-section';
+  const bankTitle = document.createElement('div');
+  bankTitle.className = 'ss-section-title';
+  bankTitle.textContent = 'Comment Bank';
+  bankWrap.appendChild(bankTitle);
+
+  COMMENT_BANK_MINI.forEach(cat => {
+    const catHeader = document.createElement('div');
+    catHeader.className = 'bank-category bank-category-header';
+    const catSpan = document.createElement('span');
+    catSpan.textContent = cat.title;
+    const arrow = document.createElement('span');
+    arrow.textContent = '▸';
+    arrow.style.cssText = 'font-size:10px;transition:transform .15s';
+    catHeader.appendChild(catSpan);
+    catHeader.appendChild(arrow);
+    bankWrap.appendChild(catHeader);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'bank-items-container collapsed';
+    catHeader.addEventListener('click', () => {
+      const c = itemsWrap.classList.toggle('collapsed');
+      arrow.style.transform = c ? '' : 'rotate(90deg)';
+    });
+
+    cat.options.forEach(item => {
+      const row = document.createElement('label');
+      row.className = `bank-item bank-item--${item.type}`;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = state.selectedBank.has(item.text);
+      cb.addEventListener('change', () => {
+        if (cb.checked) state.selectedBank.add(item.text);
+        else            state.selectedBank.delete(item.text);
+      });
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(' ' + item.label));
+      itemsWrap.appendChild(row);
+    });
+    bankWrap.appendChild(itemsWrap);
+  });
+  return bankWrap;
+}
+
+function renderSingleStudentView() {
+  if (!singleStudentData) return;
+  const data = singleStudentData;
+
+  // Parse name: Brightspace stores as "Last, First"
+  const rawName  = data.studentName || 'Student';
+  let firstName  = rawName;
+  let lastName   = '';
+  const commaIdx = rawName.indexOf(',');
+  if (commaIdx > -1) {
+    lastName  = rawName.slice(0, commaIdx).trim();
+    firstName = rawName.slice(commaIdx + 1).trim();
+  }
+  const displayName = commaIdx > -1 ? `${firstName} ${lastName}` : rawName;
+
+  const basePerfCode = data.finalPercent != null ? perfCode(data.finalPercent) : 'average';
+  const perfLabels   = { good: 'Good', satisfactory: 'Satisfactory', average: 'Average', needs_support: 'Needs Support' };
+
+  // Reset singleState on new load
+  singleState.pronoun      = guessPronounFromName(firstName);
+  singleState.perfOverride = null;
+  singleState.selectedBank = new Set();
+  singleState.customNote   = '';
+  singleState.selectedAssigns = data.assignments ? [...data.assignments] : [];
+
+  singleContent.innerHTML = '';
+
+  // ── Student info card ──
+  const infoCard = document.createElement('div');
+  infoCard.className = 'ss-info-card';
+  const infoRow1 = document.createElement('div');
+  infoRow1.className = 'ss-info-row';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'ss-name';
+  nameEl.textContent = displayName;
+  const gradeEl = document.createElement('span');
+  gradeEl.className = 'ss-grade';
+  gradeEl.textContent = data.finalPercent != null ? `${data.finalPercent}%` : '—';
+  const perfBadge = document.createElement('span');
+  perfBadge.className = `ss-perf-badge perf-${basePerfCode}`;
+  perfBadge.textContent = perfLabels[basePerfCode] || basePerfCode;
+  infoRow1.appendChild(nameEl);
+  infoRow1.appendChild(gradeEl);
+  infoRow1.appendChild(perfBadge);
+  infoCard.appendChild(infoRow1);
+  singleContent.appendChild(infoCard);
+
+  // ── Settings section ──
+  const settingsWrap = document.createElement('div');
+  settingsWrap.className = 'ss-section';
+  const settingsTitle = document.createElement('div');
+  settingsTitle.className = 'ss-section-title';
+  settingsTitle.textContent = 'Settings';
+  settingsWrap.appendChild(settingsTitle);
+
+  // Term / Grade group / Structure dropdowns
+  [
+    { label: 'Term', id: 'ss-term', options: [['Term 1','Term 1'],['Term 2','Term 2'],['Term 3','Term 3']], state: 'term' },
+    { label: 'Grade Grp', id: 'ss-gg', options: [['sk_gr2','SK – Gr 2'],['gr3_gr4','Gr 3 – Gr 4'],['gr5_gr8','Gr 5 – Gr 8'],['gr9_gr11','Gr 9 – Gr 11']], state: 'gg', default: 'gr5_gr8' },
+    { label: 'Structure', id: 'ss-struct', options: [['sandwich_paragraph','Sandwich Paragraph'],['strengths_feedback_blocks','Strengths / Feedback'],['bullet_points','Bullet Points']], state: 'struct' }
+  ].forEach(def => {
+    const row = document.createElement('div');
+    row.className = 'ss-control-row';
+    const lbl = document.createElement('label');
+    lbl.htmlFor = def.id;
+    lbl.textContent = def.label;
+    const sel = document.createElement('select');
+    sel.id = def.id;
+    sel.className = 'adv-select';
+    def.options.forEach(([val, txt]) => {
+      const o = document.createElement('option');
+      o.value = val; o.textContent = txt;
+      if (def.default && val === def.default) o.selected = true;
+      sel.appendChild(o);
+    });
+    // Try to restore from bulk settings
+    try {
+      const saved = JSON.parse(localStorage.getItem('bb_settings') || '{}');
+      if (def.state === 'term' && saved.term && sel.querySelector(`option[value="${saved.term}"]`)) sel.value = saved.term;
+      if (def.state === 'gg' && saved.gradeGroup && sel.querySelector(`option[value="${saved.gradeGroup}"]`)) sel.value = saved.gradeGroup;
+      if (def.state === 'struct' && saved.structure && sel.querySelector(`option[value="${saved.structure}"]`)) sel.value = saved.structure;
+    } catch (_) {}
+    row.appendChild(lbl);
+    row.appendChild(sel);
+    settingsWrap.appendChild(row);
+  });
+
+  // Pronoun radio
+  const pronounRow = document.createElement('div');
+  pronounRow.className = 'ss-control-row';
+  const pronounLbl = document.createElement('label');
+  pronounLbl.textContent = 'Pronoun';
+  const pronounGrp = document.createElement('div');
+  pronounGrp.className = 'ss-pronoun-group pronoun-radio-group';
+  [{ val:'unknown', label:'Auto' },{ val:'he', label:'🚹 He' },{ val:'she', label:'🚺 She' }].forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pronoun-radio-btn' + (singleState.pronoun === opt.val ? ' active' : '');
+    btn.dataset.val = opt.val;
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => {
+      singleState.pronoun = opt.val;
+      pronounGrp.querySelectorAll('.pronoun-radio-btn').forEach(b => b.classList.toggle('active', b.dataset.val === opt.val));
+    });
+    pronounGrp.appendChild(btn);
+  });
+  pronounRow.appendChild(pronounLbl);
+  pronounRow.appendChild(pronounGrp);
+  settingsWrap.appendChild(pronounRow);
+
+  // Performance override (versioned)
+  const perfRow = document.createElement('div');
+  perfRow.className = 'ss-control-row';
+  const perfLbl = document.createElement('label');
+  perfLbl.textContent = 'Performance';
+  const perfSel = document.createElement('select');
+  perfSel.className = 'adv-select';
+  const autoO = document.createElement('option');
+  autoO.value = ''; autoO.textContent = `Auto (${perfLabels[basePerfCode] || basePerfCode})`; autoO.selected = true;
+  perfSel.appendChild(autoO);
+  [{ group:'Good', base:'good' },{ group:'Satisfactory', base:'satisfactory' },{ group:'Average', base:'average' },{ group:'New Student', base:'newstu' },{ group:'Needs Support', base:'poor' }].forEach(({ group, base }) => {
+    const og = document.createElement('optgroup'); og.label = group;
+    [1,2,3].forEach(v => {
+      const o = document.createElement('option'); o.value = `${base}${v}`; o.textContent = `${group} – Version ${v}`;
+      og.appendChild(o);
+    });
+    perfSel.appendChild(og);
+  });
+  perfSel.addEventListener('change', () => { singleState.perfOverride = perfSel.value || null; });
+  perfRow.appendChild(perfLbl);
+  perfRow.appendChild(perfSel);
+  settingsWrap.appendChild(perfRow);
+
+  singleContent.appendChild(settingsWrap);
+
+  // ── Assignments section ──
+  const assignWrap = document.createElement('div');
+  assignWrap.className = 'ss-section';
+  const assignTitle = document.createElement('div');
+  assignTitle.className = 'ss-section-title';
+  assignTitle.textContent = 'Assignments (from page)';
+  assignWrap.appendChild(assignTitle);
+
+  const termSelEl = settingsWrap.querySelector('#ss-term');
+  function filterAssignsByTerm() {
+    const termCode = normalizeTermCode(termSelEl ? termSelEl.value : 'Term 1');
+    const ranges   = { T1:[1,13], T2:[14,26], T3:[27,39] };
+    const [lo, hi] = ranges[termCode] || [1,99];
+    return (data.assignments || []).filter(a => {
+      const m = a.name.match(/\bL(\d+)\b/i);
+      if (!m) return false;
+      const n = parseInt(m[1]);
+      return n >= lo && n <= hi;
+    });
+  }
+
+  const assignList = document.createElement('div');
+  assignList.className = 'ss-assign-list';
+
+  function renderAssignList() {
+    assignList.innerHTML = '';
+    const filtered = filterAssignsByTerm();
+    if (!filtered.length) {
+      assignList.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:4px">No assignments found for selected term.</p>';
+      singleState.selectedAssigns = [];
+      return;
+    }
+    singleState.selectedAssigns = [...filtered]; // default: all selected
+    filtered.forEach(a => {
+      const row = document.createElement('div');
+      row.className = 'ss-assign-row';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = true;
+      cb.addEventListener('change', () => {
+        if (cb.checked) { if (!singleState.selectedAssigns.includes(a)) singleState.selectedAssigns.push(a); }
+        else            { singleState.selectedAssigns = singleState.selectedAssigns.filter(x => x !== a); }
+      });
+      const lbl = document.createElement('span');
+      lbl.textContent = a.name;
+      lbl.style.flex = '1';
+      const pct = document.createElement('span');
+      pct.className = 'ss-assign-pct';
+      pct.textContent = `${a.percent}%`;
+      row.appendChild(cb); row.appendChild(lbl); row.appendChild(pct);
+      row.addEventListener('click', e => { if (e.target === cb) return; cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
+      assignList.appendChild(row);
+    });
+  }
+
+  renderAssignList();
+  if (termSelEl) termSelEl.addEventListener('change', renderAssignList);
+
+  assignWrap.appendChild(assignList);
+  singleContent.appendChild(assignWrap);
+
+  // ── Comment bank ──
+  singleContent.appendChild(buildCommentBankSection(singleState));
+
+  // ── Custom note ──
+  const noteWrap = document.createElement('div');
+  noteWrap.className = 'ss-section';
+  const noteTitle = document.createElement('div');
+  noteTitle.className = 'ss-section-title';
+  noteTitle.textContent = 'Custom Note';
+  const noteTA = document.createElement('textarea');
+  noteTA.className = 'ss-comment-out';
+  noteTA.style.minHeight = '50px';
+  noteTA.placeholder = 'e.g. "Recently joined from another school." — added to the prompt';
+  noteTA.rows = 2;
+  noteTA.addEventListener('input', () => { singleState.customNote = noteTA.value; });
+  noteWrap.appendChild(noteTitle);
+  noteWrap.appendChild(noteTA);
+  singleContent.appendChild(noteWrap);
+
+  // ── Generate + output ──
+  const outWrap = document.createElement('div');
+  outWrap.className = 'ss-section';
+  const outTitle = document.createElement('div');
+  outTitle.className = 'ss-section-title';
+  outTitle.textContent = 'Generated Comment';
+  const outTA = document.createElement('textarea');
+  outTA.className = 'ss-comment-out';
+  outTA.rows = 5;
+  outTA.placeholder = 'Generated comment will appear here…';
+  const actionRow = document.createElement('div');
+  actionRow.className = 'ss-action-row';
+
+  const genBtn = document.createElement('button');
+  genBtn.type = 'button';
+  genBtn.className = 'btn primary ss-gen-btn';
+  genBtn.textContent = '▶ Generate Comment';
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'btn ss-copy-btn';
+  copyBtn.textContent = 'Copy';
+
+  copyBtn.addEventListener('click', () => {
+    if (outTA.value.trim()) {
+      navigator.clipboard.writeText(outTA.value).catch(() => {});
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    }
+  });
+
+  genBtn.addEventListener('click', async () => {
+    const termSelEl2   = singleContent.querySelector('#ss-term');
+    const ggSelEl      = singleContent.querySelector('#ss-gg');
+    const structSelEl  = singleContent.querySelector('#ss-struct');
+    const term         = termSelEl2 ? termSelEl2.value : 'Term 1';
+    const gradeGroup   = ggSelEl    ? ggSelEl.value    : 'gr5_gr8';
+    const structure    = structSelEl ? structSelEl.value : 'sandwich_paragraph';
+    const resolvedPerf = singleState.perfOverride || basePerfCode;
+    const resolvedPron = singleState.pronoun === 'unknown' ? guessPronounFromName(firstName) : singleState.pronoun;
+
+    let additionalContext = '';
+    if (singleState.selectedBank.size > 0) additionalContext += 'Incorporate these notes: ' + [...singleState.selectedBank].join('; ') + '.';
+    if (singleState.customNote.trim())     additionalContext += (additionalContext ? ' ' : '') + singleState.customNote.trim();
+
+    const payload = {
+      mode:             'advanced_single',
+      reviseMode:       'advanced_single',
+      targetStructure:  structure,
+      basicStructure:   structure,
+      termLabel:        term,
+      studentName:      displayName,
+      studentFirstName: firstName,
+      pronounGuess:     resolvedPron,
+      finalMark:        data.finalPercent != null ? `${data.finalPercent}%` : '',
+      performanceLevel: resolvedPerf,
+      performanceLabel: formatPerfLabel(resolvedPerf),
+      needsSupport:     resolvedPerf === 'needs_support' || resolvedPerf.startsWith('poor'),
+      gradeGroup,
+      assignmentFacts:  singleState.selectedAssigns.slice(0, 3).map(a => ({ label: a.name, value: `${a.percent}%` })),
+      upcomingTests:    [],
+      additionalContext: additionalContext || undefined
+    };
+
+    genBtn.disabled = true;
+    genBtn.textContent = '…';
+    outTA.classList.add('loading');
+    outTA.value = '';
+
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const responseData = await res.json();
+      const comment = parseApiResponse(responseData);
+      if (!comment) throw new Error('Empty response from server');
+      outTA.classList.remove('loading');
+      typewriterAnimate(outTA, comment, () => {
+        outTA.classList.add('has-content');
+        copyBtn.classList.add('has-content');
+        copyBtn.textContent = 'Copy ✓';
+        genBtn.disabled = false;
+        genBtn.textContent = '↺ Regenerate';
+      });
+    } catch (err) {
+      outTA.value = `⚠ Error: ${err.message}`;
+      outTA.classList.remove('loading');
+      genBtn.disabled = false;
+      genBtn.textContent = '▶ Generate Comment';
+    }
+  });
+
+  actionRow.appendChild(genBtn);
+  actionRow.appendChild(copyBtn);
+  outWrap.appendChild(outTitle);
+  outWrap.appendChild(actionRow);
+  outWrap.appendChild(outTA);
+  singleContent.appendChild(outWrap);
+}
+
+async function loadSingleStudent() {
+  setStatus('Reading student data from page…', 'loading');
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) throw new Error('No active tab found.');
+
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    }).catch(() => {});
+
+    const result = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeSingleStudent' });
+    if (!result)         throw new Error('No response from page.');
+    if (!result.success) throw new Error(result.error);
+
+    singleStudentData = result;
+    renderSingleStudentView();
+    setStatus(`✓ Loaded ${result.studentName}`, 'success');
+  } catch (err) {
+    setStatus(`⚠ ${err.message}`, 'error');
+    // Revert to Bulk mode if scraping fails
+    currentMode = 'bulk';
+    modeBulkBtn.classList.add('active');
+    modeSingleBtn.classList.remove('active');
+    bulkPanel.style.display  = '';
+    singlePanel.style.display = 'none';
+  }
+}
+
 // ── Data loading ───────────────────────────────────────────────────────────────
 
 async function loadGrades() {
@@ -1381,7 +1796,29 @@ function restoreSettings() {
 
 // ── Event wiring ───────────────────────────────────────────────────────────────
 
-refreshBtn.addEventListener('click', loadGrades);
+modeBulkBtn.addEventListener('click', () => {
+  if (currentMode === 'bulk') return;
+  currentMode = 'bulk';
+  modeBulkBtn.classList.add('active');
+  modeSingleBtn.classList.remove('active');
+  bulkPanel.style.display   = '';
+  singlePanel.style.display = 'none';
+});
+
+modeSingleBtn.addEventListener('click', () => {
+  if (currentMode === 'single') return;
+  currentMode = 'single';
+  modeSingleBtn.classList.add('active');
+  modeBulkBtn.classList.remove('active');
+  bulkPanel.style.display   = 'none';
+  singlePanel.style.display = '';
+  loadSingleStudent();
+});
+
+refreshBtn.addEventListener('click', () => {
+  if (currentMode === 'single') loadSingleStudent();
+  else loadGrades();
+});
 generateAllBtn.addEventListener('click', generateAll);
 
 filterUnderperformingBtn.addEventListener('click', () => {
