@@ -769,6 +769,19 @@ body.dark .copy-btn { background: #1c1f24; }
 
 /* ── Comment bank — positive/constructive type indicators ───────────────────── */
 
+.bank-item--positive {
+  background: #f4fbe6;
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+.bank-item--constructive {
+  background: #fce7f3;
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+body.dark .bank-item--positive  { background: #1a2600; }
+body.dark .bank-item--constructive { background: #2a0018; }
+
 .bank-item--positive::before {
   content: '';
   display: inline-block;
@@ -890,8 +903,20 @@ body.dark .bank-item--constructive::before { background: #d4900a; }
   cursor: pointer;
   border-radius: 4px;
 }
-.ss-assign-row:hover { background: var(--green-light); }
-.ss-assign-pct { color: var(--muted); font-size: 11px; margin-left: auto; }
+.ss-assign-row:hover { background: #e8f5c0; }
+.ss-assign-row--high  { background: #f4fbe6; }   /* ≥ 85% — green tint */
+.ss-assign-row--mid   { background: #fffbe6; }   /* 70–84% — yellow tint */
+.ss-assign-row--low   { background: #fce7f3; }   /* < 70% — magenta tint */
+.ss-assign-row--high:hover { background: #e8f5c0; }
+.ss-assign-row--mid:hover  { background: #fff3a0; }
+.ss-assign-row--low:hover  { background: #f9d0e8; }
+body.dark .ss-assign-row--high { background: #1a2600; }
+body.dark .ss-assign-row--mid  { background: #1f1a00; }
+body.dark .ss-assign-row--low  { background: #2a0018; }
+.ss-assign-pct { font-size: 11px; margin-left: auto; font-weight: 600; }
+.ss-assign-row--high .ss-assign-pct { color: #5a7a00; }
+.ss-assign-row--mid  .ss-assign-pct { color: #8a6000; }
+.ss-assign-row--low  .ss-assign-pct { color: var(--primary); }
 
 .ss-comment-out {
   width: 100%;

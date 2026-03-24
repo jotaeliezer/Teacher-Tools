@@ -1563,7 +1563,8 @@ function renderSingleStudentView() {
     singleState.selectedAssigns = []; // unchecked by default
     filtered.forEach(a => {
       const row = document.createElement('div');
-      row.className = 'ss-assign-row';
+      const gradeTier = a.percent >= 85 ? 'high' : a.percent >= 70 ? 'mid' : 'low';
+      row.className = `ss-assign-row ss-assign-row--${gradeTier}`;
       const cb = document.createElement('input');
       cb.type = 'checkbox'; cb.checked = false;
       cb.addEventListener('change', () => {
