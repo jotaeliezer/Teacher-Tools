@@ -26,6 +26,7 @@
     <div class="mode-tabs">
       <button class="mode-tab active" id="modeBulkBtn" type="button">Bulk</button>
       <button class="mode-tab" id="modeSingleBtn" type="button">Single Student</button>
+      <button class="mode-tab" id="modeMarkingBtn" type="button">📷 Marks</button>
     </div>
 
     <!-- ── Status bar ── -->
@@ -84,6 +85,86 @@
     <!-- ── Single Student panel ── -->
     <div id="singlePanel" style="display:none">
       <div id="singleContent" class="single-content"></div>
+    </div>
+
+    <!-- ── Marking Assistant panel ── -->
+    <div id="markingPanel" style="display:none">
+      <div class="marking-panel">
+
+        <!-- Setup fields -->
+        <div class="marking-setup-bar">
+          <label class="marking-setup-field">
+            <span class="marking-setup-label">Assignment / Test</span>
+            <input type="text" id="markingAssignmentInput" placeholder="e.g. Unit 4 Test" />
+          </label>
+        </div>
+
+        <!-- Upload area -->
+        <div class="marking-upload-area" id="markingUploadArea">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#9ca3af">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <p class="marking-upload-hint">Photo each student's marked assignment page</p>
+          <div class="marking-upload-btns">
+            <label class="btn primary" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingCameraInput" accept="image/*" capture="environment" style="display:none;" />
+              📷 Camera
+            </label>
+            <label class="btn" style="cursor:pointer; margin:0;">
+              <input type="file" id="markingFileInput" accept="image/*" style="display:none;" />
+              Choose File
+            </label>
+          </div>
+        </div>
+
+        <!-- Queue strip — thumbnails of captured photos -->
+        <div id="markingQueueStrip" class="marking-queue-strip" style="display:none;"></div>
+        <div class="marking-queue-bar" id="markingQueueBar" style="display:none;">
+          <span id="markingQueueBadge" class="badge"></span>
+          <button class="btn primary" type="button" id="markingProcessBtn" style="flex:1;">
+            ⚡ Process All Photos
+          </button>
+          <button class="btn" type="button" id="markingClearQueueBtn" style="color:var(--danger);">✕</button>
+        </div>
+
+        <!-- Spinner + status -->
+        <div id="markingSpinner" class="marking-spinner" style="display:none;">
+          <div class="spinner-ring"></div>
+          <span id="markingSpinnerLabel">Scanning…</span>
+        </div>
+        <div id="markingStatus" class="marking-status"></div>
+
+        <!-- Results table -->
+        <div id="markingResultsEmpty" class="marking-results-empty">
+          <p class="muted" style="font-size:12px;">Photos you capture will queue here. When ready, hit ⚡ Process All Photos and results appear below.</p>
+        </div>
+        <div id="markingResultsWrap" style="display:none;">
+          <div class="marking-results-toolbar">
+            <span id="markingResultsMeta" class="badge"></span>
+            <span style="flex:1;"></span>
+            <button class="btn" type="button" id="markingAddRowBtn" style="font-size:11px; padding:3px 8px;">+ Row</button>
+            <button class="btn" type="button" id="markingClearAllBtn" style="font-size:11px; padding:3px 8px; color:var(--danger);">Clear</button>
+            <button class="btn primary" type="button" id="markingDownloadCsvBtn" style="font-size:11px; padding:3px 8px;">⬇ CSV</button>
+          </div>
+          <div class="marking-table-wrap">
+            <table id="markingResultsTable" class="marking-results-table"></table>
+          </div>
+
+          <!-- Push to Brightspace -->
+          <div class="marking-push-section">
+            <div class="marking-push-bar" id="markingPushBar">
+              <button class="btn" type="button" id="markingLoadColsBtn" style="font-size:12px;">🔄 Load Columns</button>
+              <select id="markingColumnSelect" class="marking-col-select" style="display:none; flex:1;">
+                <option value="">— Select column —</option>
+              </select>
+              <button class="btn primary" type="button" id="markingPushBtn" disabled style="font-size:12px;">⬆ Push</button>
+            </div>
+            <div id="markingPushStatus" class="marking-status"></div>
+          </div>
+        </div>
+
+      </div>
     </div>
 
     <!-- ── Assignment selector overlay ── -->

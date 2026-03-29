@@ -362,6 +362,89 @@ function scrapeSingleStudent() {
 // ── Message listener ───────────────────────────────────────────────────────────
 // Guard: only register once, even if content.js is injected multiple times.
 
+// ── Fill grades (Marking Assistant push) ──────────────────────────────────────
+
+function waitForInput(container, timeoutMs) {
+  return new Promise(resolve => {
+    const check = () => {
+      const input = container.querySelector('input[type="text"], input:not([type])')
+        || container.closest('tr')?.querySelector('input[type="text"], input:not([type])');
+      if (input) { obs.disconnect(); resolve(input); }
+    };
+    const obs = new MutationObserver(check);
+    obs.observe(document.body, { childList: true, subtree: true });
+    check();
+    setTimeout(() => { obs.disconnect(); resolve(null); }, timeoutMs);
+  });
+}
+
+async function fillGrades(rows, columnName) {
+  const tbl = findGradeTable();
+  if (!tbl) return { success: false, error: 'Grade table not found. Navigate to the Brightspace gradebook page first.' };
+
+  const parsed = parseTable(tbl);
+  if (!parsed) return { success: false, error: 'Could not parse grade table.' };
+
+  const { headers } = parsed;
+  const colIdx = headers.findIndex(h => h === columnName);
+  if (colIdx === -1) return { success: false, error: `Column "${columnName}" not found in the table.` };
+
+  const studentColIdx = headers.findIndex(h => /^(learner|student)/i.test(h));
+  const tbody = tbl.querySelector('tbody');
+  const dataRows = tbody ? [...tbody.querySelectorAll('tr')] : [];
+
+  const normalize = s => s.toLowerCase().replace(/[,.]/g, '').replace(/\s+/g, ' ').trim();
+
+  const results = [];
+  for (const row of rows) {
+    const name  = row['Student Name'] || '';
+    const score = row['Score'] || '';
+    if (!name || name === '?') { results.push({ name, status: 'skipped' }); continue; }
+
+    const normName = normalize(name);
+    const parts    = normName.split(' ');
+    const swapped  = parts.length >= 2 ? `${parts.slice(1).join(' ')} ${parts[0]}` : normName;
+
+    const matchRow = dataRows.find(tr => {
+      const cell = tr.cells[studentColIdx];
+      if (!cell) return false;
+      const cellText = normalize(cell.innerText);
+      return cellText.includes(normName) || cellText.includes(swapped);
+    });
+
+    if (!matchRow) { results.push({ name, status: 'not_found' }); continue; }
+
+    const targetCell = matchRow.cells[colIdx];
+    if (!targetCell) { results.push({ name, status: 'no_cell' }); continue; }
+
+    targetCell.dispatchEvent(new MouseEvent('click',     { bubbles: true }));
+    targetCell.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+    const input = await waitForInput(targetCell, 1500);
+    if (!input) { results.push({ name, status: 'input_timeout' }); continue; }
+
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (setter) setter.call(input, score);
+    else input.value = score;
+
+    input.dispatchEvent(new Event('input',  { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+
+    await new Promise(r => setTimeout(r, 350));
+    results.push({ name, status: 'ok' });
+  }
+
+  // Try to click Brightspace's save button if one exists
+  let saved = false;
+  const saveBtn = document.querySelector('[data-key="save"], button[title*="Save"], .d2l-button-primary[type="submit"]');
+  if (saveBtn) { saveBtn.click(); saved = true; }
+
+  return { success: true, results, saved };
+}
+
+// ── Message listener ──────────────────────────────────────────────────────────
+
 if (!window.__bbListenerRegistered) {
   window.__bbListenerRegistered = true;
 
@@ -373,6 +456,10 @@ if (!window.__bbListenerRegistered) {
     if (message.action === 'scrapeSingleStudent') {
       sendResponse(scrapeSingleStudent());
       return false;
+    }
+    if (message.action === 'fillGrades') {
+      fillGrades(message.rows, message.columnName).then(sendResponse);
+      return true; // async
     }
     return false;
   });
