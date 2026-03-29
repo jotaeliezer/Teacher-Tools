@@ -3,7 +3,7 @@
   "name": "BrightBridge — Teacher Tools",
   "description": "Generate report card comments from your Brightspace gradebook without leaving the page.",
   "version": "1.0",
-  "permissions": ["sidePanel", "activeTab", "scripting", "tabs"],
+  "permissions": ["sidePanel", "activeTab", "scripting", "tabs", "storage"],
   "host_permissions": ["*://*.brightspace.com/*"],
   "background": {
     "service_worker": "background.js"

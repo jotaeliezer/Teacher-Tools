@@ -9,208 +9,160 @@
 <body>
   <div id="app">
 
-    <!-- ── Header ── -->
-    <header id="bbHeader">
-      <div class="header-left">
-        <span class="logo">🎓</span>
-        <div class="header-text">
-          <span class="app-name">BrightBridge</span>
-          <span id="classLabel" class="class-label">Spirit of Math</span>
-        </div>
-      </div>
-      <button class="dark-toggle" id="darkToggleBtn" title="Toggle dark mode">🌙</button>
-      <button class="btn icon-btn" id="refreshBtn" title="Re-load grades from this page">↻</button>
-    </header>
-
-    <!-- ── Mode tabs ── -->
-    <div class="mode-tabs">
-      <button class="mode-tab active" id="modeBulkBtn" type="button">Bulk</button>
-      <button class="mode-tab" id="modeSingleBtn" type="button">Single Student</button>
-      <button class="mode-tab" id="modeMarkingBtn" type="button">📷 Marks</button>
-    </div>
-
-    <!-- ── Status bar ── -->
-    <div id="statusBar" class="status-bar status-idle">
-      <span id="statusText">Loading grades from page…</span>
-    </div>
-
-    <!-- ── Bulk panel ── -->
-    <div id="bulkPanel">
-
-      <!-- ── Controls ── -->
-      <div id="controls" class="controls" style="display:none">
-        <div class="control-row">
-          <label>Term</label>
-          <select id="termSelect">
-            <option value="Term 1">Term 1</option>
-            <option value="Term 2">Term 2</option>
-            <option value="Term 3">Term 3</option>
-          </select>
-        </div>
-        <div class="control-row">
-          <label>Grade Grp</label>
-          <select id="gradeGroupSelect">
-            <option value="sk_gr2">SK – Gr 2</option>
-            <option value="gr3_gr4">Gr 3 – Gr 4</option>
-            <option value="gr5_gr8" selected>Gr 5 – Gr 8</option>
-            <option value="gr9_gr11">Gr 9 – Gr 11</option>
-          </select>
-        </div>
-        <div class="control-row">
-          <label>Structure</label>
-          <select id="structureSelect">
-            <option value="sandwich_paragraph">Sandwich Paragraph</option>
-            <option value="strengths_feedback_blocks">Strengths / Feedback</option>
-            <option value="bullet_points">Bullet Points</option>
-          </select>
-        </div>
-        <div class="control-row filter-row">
-          <button class="btn filter-btn" id="filterUnderperformingBtn" type="button">⚠️ Show Underperforming</button>
-          <span id="studentCount" class="student-count"></span>
-        </div>
-        <button class="btn primary generate-all-btn" id="generateAllBtn" type="button">▶ Generate All Comments</button>
-      </div>
-
-      <!-- ── Student list ── -->
-      <div id="studentList" class="student-list"></div>
-
-      <!-- ── Empty / error state ── -->
-      <div id="emptyState" class="empty-state" style="display:none">
-        <p class="empty-icon">📊</p>
-        <p>Open your Brightspace <strong>Grades</strong> page,<br/>then click <strong>↻</strong> to load students.</p>
-      </div>
-
-    </div><!-- /#bulkPanel -->
-
-    <!-- ── Single Student panel ── -->
-    <div id="singlePanel" style="display:none">
-      <div id="singleContent" class="single-content"></div>
-    </div>
-
-    <!-- ── Marking Assistant panel ── -->
-    <div id="markingPanel" style="display:none">
-      <div class="marking-panel">
-
-        <!-- Setup fields -->
-        <div class="marking-setup-bar">
-          <label class="marking-setup-field">
-            <span class="marking-setup-label">Assignment / Test</span>
-            <input type="text" id="markingAssignmentInput" placeholder="e.g. Unit 4 Test" />
-          </label>
-        </div>
-
-        <!-- Upload area -->
-        <div class="marking-upload-area" id="markingUploadArea">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#9ca3af">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          <p class="marking-upload-hint">Photo each student's marked assignment page</p>
-          <div class="marking-upload-btns">
-            <label class="btn primary" style="cursor:pointer; margin:0;">
-              <input type="file" id="markingCameraInput" accept="image/*" capture="environment" style="display:none;" />
-              📷 Camera
-            </label>
-            <label class="btn" style="cursor:pointer; margin:0;">
-              <input type="file" id="markingFileInput" accept="image/*" style="display:none;" />
-              Choose File
-            </label>
+    <!-- ── Home ── -->
+    <div id="homeView" class="tool-view">
+      <header class="home-header">
+        <div class="header-left">
+          <span class="logo">🎓</span>
+          <div class="header-text">
+            <span class="app-name">BrightBridge</span>
+            <span class="class-label">Teacher Tools</span>
           </div>
         </div>
-
-        <!-- Queue strip — thumbnails of captured photos -->
-        <div id="markingQueueStrip" class="marking-queue-strip" style="display:none;"></div>
-        <div class="marking-queue-bar" id="markingQueueBar" style="display:none;">
-          <span id="markingQueueBadge" class="badge"></span>
-          <button class="btn primary" type="button" id="markingProcessBtn" style="flex:1;">
-            ⚡ Process All Photos
-          </button>
-          <button class="btn" type="button" id="markingClearQueueBtn" style="color:var(--danger);">✕</button>
+        <button type="button" class="dark-toggle js-dark-toggle" title="Toggle dark mode">🌙</button>
+      </header>
+      <div class="home-grid">
+        <div class="home-tool-section home-tool-section--live">
+          <button type="button" class="home-tool-card btn home-tool-card--live" data-tool="phoneLogs">Phone logs</button>
+          <button type="button" class="home-tool-card btn home-tool-card--live" data-tool="printTemplates">Print Templates</button>
+          <button type="button" class="home-tool-card btn home-tool-card--live" data-tool="report">Report Card Generator</button>
         </div>
-
-        <!-- Spinner + status -->
-        <div id="markingSpinner" class="marking-spinner" style="display:none;">
-          <div class="spinner-ring"></div>
-          <span id="markingSpinnerLabel">Scanning…</span>
+        <div class="home-tool-section home-tool-section--soon">
+          <h2 class="home-soon-heading">Coming soon</h2>
+          <button type="button" class="home-tool-card btn home-tool-card--soon" data-tool="advancedClassData">Advanced Class Data</button>
+          <button type="button" class="home-tool-card btn home-tool-card--soon" data-tool="drillAverages">Drill Averages</button>
+          <button type="button" class="home-tool-card btn home-tool-card--soon" data-tool="transferMarks">Transfer students marks</button>
         </div>
-        <div id="markingStatus" class="marking-status"></div>
-
-        <!-- Results table -->
-        <div id="markingResultsEmpty" class="marking-results-empty">
-          <p class="muted" style="font-size:12px;">Photos you capture will queue here. When ready, hit ⚡ Process All Photos and results appear below.</p>
-        </div>
-        <div id="markingResultsWrap" style="display:none;">
-          <div class="marking-results-toolbar">
-            <span id="markingResultsMeta" class="badge"></span>
-            <span style="flex:1;"></span>
-            <button class="btn" type="button" id="markingAddRowBtn" style="font-size:11px; padding:3px 8px;">+ Row</button>
-            <button class="btn" type="button" id="markingClearAllBtn" style="font-size:11px; padding:3px 8px; color:var(--danger);">Clear</button>
-            <button class="btn primary" type="button" id="markingDownloadCsvBtn" style="font-size:11px; padding:3px 8px;">⬇ CSV</button>
-          </div>
-          <div class="marking-table-wrap">
-            <table id="markingResultsTable" class="marking-results-table"></table>
-          </div>
-
-          <!-- Push to Brightspace -->
-          <div class="marking-push-section">
-            <div class="marking-push-bar" id="markingPushBar">
-              <button class="btn" type="button" id="markingLoadColsBtn" style="font-size:12px;">🔄 Load Columns</button>
-              <select id="markingColumnSelect" class="marking-col-select" style="display:none; flex:1;">
-                <option value="">— Select column —</option>
-              </select>
-              <button class="btn primary" type="button" id="markingPushBtn" disabled style="font-size:12px;">⬆ Push</button>
-            </div>
-            <div id="markingPushStatus" class="marking-status"></div>
-          </div>
-        </div>
-
       </div>
     </div>
 
-    <!-- ── Assignment selector overlay ── -->
-    <div id="assignOverlay" class="assign-overlay" style="display:none">
-      <div class="assign-modal">
-
-        <!-- Step 1: choose assignments to include -->
-        <div id="assignStep1">
-          <div class="assign-modal-header">
-            <div class="assign-step-label">Step 1 of 2</div>
-            <h3 class="assign-title">Choose Assignments</h3>
-            <p class="assign-hint">Select <strong>up to 3</strong>. Each comment references 2 of your picks — framed as a strength if above 75%, or constructive feedback if not.</p>
-          </div>
-          <input type="text" id="assignSearch" class="assign-search" placeholder="Search assignments…"/>
-          <div class="assign-table-head">
-            <span></span>
-            <span>Assignment / Test</span>
-          </div>
-          <div id="assignList" class="assign-list"></div>
-          <p id="assignWarning" class="assign-warning" style="display:none">⚠ Max 3 — deselect one first.</p>
-          <div class="assign-footer">
-            <button class="btn" id="assignCancelBtn" type="button">Cancel</button>
-            <button class="btn primary" id="assignStep1Btn" type="button">Continue →</button>
+    <!-- ── Report Card Generator (existing UI) ── -->
+    <div id="reportView" class="tool-view view--hidden">
+      <header id="reportHeader" class="tool-panel-header">
+        <button type="button" class="btn back-btn" id="backFromReportBtn" title="Back to home">←</button>
+        <div class="header-left">
+          <span class="logo">🎓</span>
+          <div class="header-text">
+            <span class="app-name">BrightBridge</span>
+            <span id="classLabel" class="class-label">Spirit of Math</span>
           </div>
         </div>
+        <button type="button" class="dark-toggle js-dark-toggle" title="Toggle dark mode">🌙</button>
+        <button class="btn icon-btn" id="refreshBtn" title="Re-load grades from this page">↻</button>
+      </header>
 
-        <!-- Step 2: choose one upcoming test -->
-        <div id="assignStep2" style="display:none">
-          <div class="assign-modal-header">
-            <div class="assign-step-label">Step 2 of 2</div>
-            <h3 class="assign-title">Upcoming Test</h3>
-            <p class="assign-hint">Optionally pick <strong>one</strong> upcoming test to mention at the end of each comment. Skip this step if none apply.</p>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="modeBulkBtn" type="button">Bulk</button>
+        <button class="mode-tab" id="modeSingleBtn" type="button">Single Student</button>
+      </div>
+
+      <div id="statusBar" class="status-bar status-idle">
+        <span id="statusText">Open a tool from the home menu.</span>
+      </div>
+
+      <div id="bulkPanel">
+        <div id="controls" class="controls" style="display:none">
+          <div class="control-row">
+            <label>Term</label>
+            <select id="termSelect">
+              <option value="Term 1">Term 1</option>
+              <option value="Term 2">Term 2</option>
+              <option value="Term 3">Term 3</option>
+            </select>
           </div>
-          <input type="text" id="upcomingSearch" class="assign-search" placeholder="Search tests…"/>
-          <div id="upcomingList" class="assign-list"></div>
-          <div class="assign-footer">
-            <button class="btn" id="assignBackBtn" type="button">← Back</button>
-            <button class="btn" id="assignSkipBtn" type="button">Skip</button>
-            <button class="btn primary" id="assignGenerateBtn" type="button">▶ Generate All</button>
+          <div class="control-row">
+            <label>Grade Grp</label>
+            <select id="gradeGroupSelect">
+              <option value="sk_gr2">SK – Gr 2</option>
+              <option value="gr3_gr4">Gr 3 – Gr 4</option>
+              <option value="gr5_gr8" selected>Gr 5 – Gr 8</option>
+              <option value="gr9_gr11">Gr 9 – Gr 11</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label>Structure</label>
+            <select id="structureSelect">
+              <option value="sandwich_paragraph">Sandwich Paragraph</option>
+              <option value="strengths_feedback_blocks">Strengths / Feedback</option>
+              <option value="bullet_points">Bullet Points</option>
+            </select>
+          </div>
+          <div class="control-row filter-row">
+            <button class="btn filter-btn" id="filterUnderperformingBtn" type="button">⚠️ Show Underperforming</button>
+            <span id="studentCount" class="student-count"></span>
+          </div>
+          <button class="btn primary generate-all-btn" id="generateAllBtn" type="button">▶ Generate All Comments</button>
+        </div>
+        <div id="studentList" class="student-list"></div>
+        <div id="emptyState" class="empty-state" style="display:none">
+          <p class="empty-icon">📊</p>
+          <p>Open your Brightspace <strong>Grades</strong> page,<br/>then click <strong>↻</strong> to load students.</p>
+        </div>
+      </div>
+
+      <div id="singlePanel" style="display:none">
+        <div id="singleContent" class="single-content"></div>
+      </div>
+    </div>
+
+    <!-- ── Phone logs ── -->
+    <div id="phoneLogsView" class="tool-view view--hidden">
+      <header class="tool-panel-header">
+        <button type="button" class="btn back-btn" id="backFromPhoneLogsBtn" title="Back to home">←</button>
+        <div class="header-left">
+          <span class="logo">📞</span>
+          <div class="header-text">
+            <span class="app-name">Phone logs</span>
+            <span class="class-label">From gradebook</span>
           </div>
         </div>
+        <button type="button" class="dark-toggle js-dark-toggle" title="Toggle dark mode">🌙</button>
+        <button class="btn icon-btn" id="phoneLogsRefreshBtn" title="Re-load grades from page">↻</button>
+      </header>
+      <div id="phoneLogsStatus" class="status-bar status-idle"><span id="phoneLogsStatusText">Loading…</span></div>
+      <div id="phoneLogsRoot" class="phone-logs-root"></div>
+    </div>
 
+    <!-- ── Print templates ── -->
+    <div id="printTemplatesView" class="tool-view view--hidden">
+      <header class="tool-panel-header">
+        <button type="button" class="btn back-btn" id="backFromPrintBtn" title="Back to home">←</button>
+        <div class="header-left">
+          <span class="logo">🖨</span>
+          <div class="header-text">
+            <span class="app-name">Print Templates</span>
+            <span id="printTemplateClassHint" class="class-label">Gradebook</span>
+          </div>
+        </div>
+        <button type="button" class="dark-toggle js-dark-toggle" title="Toggle dark mode">🌙</button>
+      </header>
+      <div id="printTemplatesStatus" class="status-bar status-idle"><span id="printTemplatesStatusText"></span></div>
+      <div id="printTemplatesRoot" class="print-templates-root"></div>
+    </div>
+
+    <!-- ── Placeholder tools ── -->
+    <div id="placeholderView" class="tool-view view--hidden">
+      <header class="tool-panel-header">
+        <button type="button" class="btn back-btn" id="backFromPlaceholderBtn" title="Back to home">←</button>
+        <div class="header-left">
+          <span class="logo">🎓</span>
+          <div class="header-text">
+            <span class="app-name" id="placeholderTitle">Coming soon</span>
+          </div>
+        </div>
+        <button type="button" class="dark-toggle js-dark-toggle" title="Toggle dark mode">🌙</button>
+      </header>
+      <div class="placeholder-body">
+        <p id="placeholderBody">This tool is not available yet.</p>
       </div>
     </div>
 
   </div>
+
+  <iframe id="printFrame" class="print-frame" title="Print"></iframe>
+
+  <script src="print-templates.js"></script>
+  <script src="phone-logs.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

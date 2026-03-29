@@ -300,6 +300,11 @@ let singleState = {
 // Raw scrape data — kept for assignment overlay stats
 let rawRows       = [];
 let allAssignCols = [];
+let lastHeaders   = [];
+let lastClassName = '';
+
+// Tool router: home | report | phoneLogs | printTemplates | placeholder
+let activeTool = 'home';
 
 // Selections from the Generate All overlay
 let overlayAssignCols   = [];
@@ -338,7 +343,6 @@ function normalizeTermCode(val) {
 
 const $  = id => document.getElementById(id);
 const refreshBtn               = $('refreshBtn');
-const darkToggleBtn            = $('darkToggleBtn');
 const statusBar                = $('statusBar');
 const statusText               = $('statusText');
 const classLabel               = $('classLabel');
@@ -383,21 +387,25 @@ const markingColumnSelect      = $('markingColumnSelect');
 const markingPushBtn           = $('markingPushBtn');
 const markingPushStatusEl      = $('markingPushStatus');
 
-// ── Dark mode toggle ────────────────────────────────────────────────────────────
+// ── Dark mode toggle (multiple headers use .js-dark-toggle) ───────────────────
 
 function applyDarkMode(dark) {
   document.body.classList.toggle('dark', dark);
-  darkToggleBtn.textContent = dark ? '☀️' : '🌙';
-  darkToggleBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  document.querySelectorAll('.js-dark-toggle').forEach(btn => {
+    btn.textContent = dark ? '☀️' : '🌙';
+    btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  });
 }
 
 // Restore preference on load (default: light)
 applyDarkMode(localStorage.getItem('bb-dark') === '1');
 
-darkToggleBtn.addEventListener('click', () => {
-  const isDark = document.body.classList.contains('dark');
-  localStorage.setItem('bb-dark', isDark ? '0' : '1');
-  applyDarkMode(!isDark);
+document.querySelectorAll('.js-dark-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.contains('dark');
+    localStorage.setItem('bb-dark', isDark ? '0' : '1');
+    applyDarkMode(!isDark);
+  });
 });
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
@@ -405,6 +413,52 @@ darkToggleBtn.addEventListener('click', () => {
 function setStatus(text, type = 'idle') {
   statusText.textContent = text;
   statusBar.className = `status-bar status-${type}`;
+}
+
+// ── Tool router & BrightBridge API for phone-logs / print-templates modules ───
+
+function setActiveTool(tool) {
+  activeTool = tool;
+  const map = {
+    home: $('homeView'),
+    report: $('reportView'),
+    phoneLogs: $('phoneLogsView'),
+    printTemplates: $('printTemplatesView'),
+    placeholder: $('placeholderView')
+  };
+  Object.values(map).forEach(el => { if (el) el.classList.add('view--hidden'); });
+  const show = map[tool];
+  if (show) show.classList.remove('view--hidden');
+}
+
+async function scrapeGradebookRaw() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) throw new Error('No active tab found.');
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['content.js']
+  }).catch(() => {});
+  const result = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeGrades' });
+  if (!result || !result.success) throw new Error(result?.error || 'Could not read gradebook.');
+  return {
+    headers: result.data.headers,
+    rows: result.data.rows,
+    className: result.className || '',
+    teacherName: (result.teacherName || '').trim()
+  };
+}
+
+/** Reads Brightspace navbar profile name (no grade table required). */
+async function fetchTeacherNameFromPage() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return '';
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['content.js']
+  }).catch(() => {});
+  const result = await chrome.tabs.sendMessage(tab.id, { action: 'getTeacherName' });
+  if (!result || !result.success) return '';
+  return String(result.teacherName || '').trim();
 }
 
 // ── Column detection ───────────────────────────────────────────────────────────
@@ -1875,6 +1929,14 @@ async function loadGrades() {
     if (!result)         throw new Error('No response from page. Try refreshing Brightspace.');
     if (!result.success) throw new Error(result.error);
 
+    lastHeaders = result.data.headers || [];
+    lastClassName = result.className || '';
+    window.__bbLastScrape = {
+      headers: lastHeaders,
+      rows: result.data.rows,
+      className: lastClassName
+    };
+
     students = processStudents(result.data);
     if (!students.length) throw new Error('No student rows found in the grade table.');
 
@@ -1895,14 +1957,16 @@ async function loadGrades() {
       setStatus(`✓ ${students.length} students loaded`, 'success');
     }
 
+    refreshBtn.disabled = false;
+    return true;
   } catch (err) {
     setStatus(`⚠ ${err.message}`, 'error');
     emptyState.style.display = '';
     controls.style.display   = 'none';
     studentList.innerHTML    = '';
+    refreshBtn.disabled = false;
+    return false;
   }
-
-  refreshBtn.disabled = false;
 }
 
 // ── Settings persistence ───────────────────────────────────────────────────────
@@ -2283,9 +2347,140 @@ filterUnderperformingBtn.addEventListener('click', () => {
 });
 
 chrome.runtime.onMessage.addListener(msg => {
-  if (msg.action === 'gradeTableDetected') {
+  if (msg.action !== 'gradeTableDetected') return;
+  const care = ['report', 'phoneLogs', 'printTemplates'].includes(activeTool);
+  if (!care) return;
+  if (activeTool === 'report') {
     setStatus('Grade table detected — click ↻ to load', 'idle');
+  } else if (activeTool === 'phoneLogs' && window.BBPhoneLogs?.setStatus) {
+    window.BBPhoneLogs.setStatus('Grade table detected — click ↻ to load', 'idle');
+  } else if (activeTool === 'printTemplates' && window.BBPrintTemplates?.setStatus) {
+    window.BBPrintTemplates.setStatus('Grade table detected — use Add students to template', 'idle');
   }
 });
 
-loadGrades();
+function wireHomeAndBack() {
+  document.querySelectorAll('.home-grid [data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.getAttribute('data-tool');
+      if (t === 'report') {
+        setActiveTool('report');
+        setStatus('Loading grades from page…', 'loading');
+        loadGrades();
+        return;
+      }
+      if (t === 'phoneLogs') {
+        setActiveTool('phoneLogs');
+        if (window.BBPhoneLogs?.init) window.BBPhoneLogs.init(window.BB);
+        loadGrades().then(() => window.BBPhoneLogs?.render?.()).catch(() => {});
+        return;
+      }
+      if (t === 'printTemplates') {
+        setActiveTool('printTemplates');
+        if (window.BBPrintTemplates?.init) window.BBPrintTemplates.init(window.BB);
+        return;
+      }
+      if (t === 'transferMarks') {
+        $('placeholderTitle').textContent = 'Transfer students marks';
+        $('placeholderBody').textContent = 'Coming soon.';
+        setActiveTool('placeholder');
+        return;
+      }
+      if (t === 'advancedClassData') {
+        $('placeholderTitle').textContent = 'Advanced Class Data';
+        $('placeholderBody').textContent = 'Coming soon.';
+        setActiveTool('placeholder');
+        return;
+      }
+      if (t === 'drillAverages') {
+        $('placeholderTitle').textContent = 'Drill Averages';
+        $('placeholderBody').textContent = 'Coming soon.';
+        setActiveTool('placeholder');
+        return;
+      }
+    });
+  });
+  $('backFromReportBtn')?.addEventListener('click', () => setActiveTool('home'));
+  $('backFromPhoneLogsBtn')?.addEventListener('click', () => setActiveTool('home'));
+  $('backFromPrintBtn')?.addEventListener('click', () => setActiveTool('home'));
+  $('backFromPlaceholderBtn')?.addEventListener('click', () => setActiveTool('home'));
+}
+
+/**
+ * Side-panel + hidden iframe: Chrome often ignores print() (no dialog). Prefer blob URL +
+ * new tab (reliable); fall back to off-screen iframe if popups are blocked.
+ */
+function bbPrintHtml(fullHtml) {
+  function iframePrintFallback() {
+    const frame = document.getElementById('printFrame');
+    if (!frame) return;
+    frame.style.cssText =
+      'position:fixed;left:-9999px;top:0;width:8.5in;min-height:11in;border:0;opacity:0;pointer-events:none;z-index:-1;';
+    const win = frame.contentWindow;
+    const doc = win.document;
+    try {
+      doc.open();
+      doc.write(fullHtml);
+      doc.close();
+      setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (e) {
+          console.warn('[BrightBridge] iframe print failed', e);
+        }
+      }, 200);
+    } catch (e) {
+      console.warn('[BrightBridge] iframe write failed', e);
+    }
+  }
+
+  try {
+    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (w) {
+      const run = () => {
+        try {
+          w.focus();
+          w.print();
+        } catch (e) {
+          console.warn('[BrightBridge] tab print failed', e);
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 120000);
+      };
+      w.addEventListener('load', () => setTimeout(run, 50), { once: true });
+      return;
+    }
+    URL.revokeObjectURL(url);
+    console.warn('[BrightBridge] window.open blocked — trying iframe print');
+  } catch (e) {
+    console.warn('[BrightBridge] blob print failed', e);
+  }
+
+  iframePrintFallback();
+}
+
+window.bbPrintHtml = bbPrintHtml;
+
+window.BB = {
+  loadGrades,
+  scrapeGradebookRaw,
+  fetchTeacherNameFromPage,
+  getStudents: () => students,
+  getRawRows: () => rawRows,
+  getHeaders: () => lastHeaders,
+  getClassName: () => lastClassName,
+  detectCols,
+  normHeader: norm,
+  parseGradeNum,
+  cleanNameText,
+  rowGet,
+  processStudents,
+  UNDERPERFORM_THRESHOLD,
+  getActiveTool: () => activeTool,
+  printHtml: bbPrintHtml
+};
+
+wireHomeAndBack();
+setActiveTool('home');

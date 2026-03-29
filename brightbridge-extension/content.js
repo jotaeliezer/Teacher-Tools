@@ -237,6 +237,55 @@ function detectPagination() {
   return { current, total };
 }
 
+// ── Logged-in user (navbar) — same text as Brightspace profile menu ─────────────
+// D2L Daylight puts the personal menu inside web components (shadow roots), so
+// document.querySelector alone often returns null.
+
+function querySelectorDeep(root, selector) {
+  if (!root || !selector) return null;
+  try {
+    const hit = root.querySelector(selector);
+    if (hit) return hit;
+  } catch (_) {
+    return null;
+  }
+  const hosts = root.querySelectorAll ? Array.from(root.querySelectorAll('*')) : [];
+  for (const el of hosts) {
+    try {
+      if (el.shadowRoot) {
+        const found = querySelectorDeep(el.shadowRoot, selector);
+        if (found) return found;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+function getTeacherName() {
+  const spanSelectors = [
+    'span.d2l-navigation-s-personal-menu-text',
+    '.d2l-navigation-s-personal-menu-text',
+    'a.d2l-navigation-s-personal-menu span[class*="personal-menu-text"]'
+  ];
+  for (const sel of spanSelectors) {
+    const el = querySelectorDeep(document, sel);
+    if (el) {
+      const raw = (el.innerText || el.textContent || '').trim();
+      if (raw) return cleanCellText(raw);
+    }
+  }
+
+  const profile = querySelectorDeep(document, 'd2l-profile-image-base');
+  if (profile && profile.getAttribute) {
+    const fn = (profile.getAttribute('first-name') || profile.getAttribute('firstname') || '').trim();
+    const ln = (profile.getAttribute('last-name') || profile.getAttribute('lastname') || '').trim();
+    const combined = cleanCellText(`${fn} ${ln}`.trim());
+    if (combined) return combined;
+  }
+
+  return '';
+}
+
 // ── Class name detection ───────────────────────────────────────────────────────
 
 function getClassName() {
@@ -451,6 +500,10 @@ if (!window.__bbListenerRegistered) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'scrapeGrades') {
       sendResponse(scrapeGrades());
+      return false;
+    }
+    if (message.action === 'getTeacherName') {
+      sendResponse({ success: true, teacherName: getTeacherName() });
       return false;
     }
     if (message.action === 'scrapeSingleStudent') {
