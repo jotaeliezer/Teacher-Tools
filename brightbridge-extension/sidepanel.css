@@ -947,3 +947,242 @@ body.dark .ss-section-title { color: #8fb020; }
 body.dark .ss-assign-row:hover { background: #1a220a; }
 body.dark .ss-comment-out { background: #16191e; border-color: #2e3340; color: #f0f0f0; }
 body.dark .ss-copy-btn.has-content { background: #1a2a00; border-color: #5a7a00; color: #c1d82f; }
+
+/* ── Marking Assistant ──────────────────────────────────────────────────────── */
+
+.marking-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.marking-setup-bar {
+  display: flex;
+  gap: 8px;
+}
+.marking-setup-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 3px;
+}
+.marking-setup-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.marking-setup-field input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}
+.marking-setup-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* Upload area */
+.marking-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: center;
+  transition: border-color .15s, background .15s;
+}
+.marking-upload-area:hover,
+.marking-upload-area.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.marking-upload-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.marking-upload-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Queue strip */
+.marking-queue-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+.marking-queue-thumb {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.marking-queue-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.marking-queue-thumb .remove-thumb {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  font-size: 9px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.marking-queue-thumb .remove-thumb:hover { background: var(--danger); }
+
+.marking-queue-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Spinner */
+.marking-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-ring {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Status */
+.marking-status {
+  font-size: 12px;
+  text-align: center;
+  min-height: 14px;
+  color: var(--muted);
+}
+.marking-status.status-ok    { color: var(--success); }
+.marking-status.status-error { color: var(--danger); }
+
+/* Results empty state */
+.marking-results-empty {
+  text-align: center;
+  padding: 10px 4px;
+}
+
+/* Results toolbar */
+.marking-results-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+/* Table */
+.marking-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.marking-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.marking-th {
+  background: var(--green-light);
+  padding: 5px 8px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.marking-td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  min-width: 80px;
+  outline: none;
+}
+.marking-td:focus { background: var(--primary-light); }
+.marking-results-table tr:last-child .marking-td { border-bottom: none; }
+
+@keyframes marking-flash {
+  0%   { background: #fffde7; }
+  100% { background: transparent; }
+}
+.marking-row-flash { animation: marking-flash 1.2s ease-out; }
+
+/* Push to Brightspace */
+.marking-push-section {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.marking-push-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.marking-col-select {
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+}
+.marking-col-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+/* Dark mode */
+body.dark .marking-upload-area           { background: #1c1f24; border-color: #2e3340; }
+body.dark .marking-upload-area:hover,
+body.dark .marking-upload-area.drag-over { border-color: #e879b0; background: #3b0020; }
+body.dark .marking-setup-field input     { background: #1c1f24; border-color: #2e3340; color: #f0f0f0; }
+body.dark .marking-th                    { background: #1a220a; }
+body.dark .marking-td:focus              { background: #3b0020; }
+body.dark .marking-col-select            { background: #1c1f24; border-color: #2e3340; color: #f0f0f0; }
+body.dark .marking-queue-thumb           { border-color: #2e3340; }

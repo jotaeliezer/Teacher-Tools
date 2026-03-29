@@ -2,9 +2,12 @@
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const API_ENDPOINT = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
-const CONCURRENCY  = 2;
+const API_ENDPOINT   = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/generate-comment';
+const SCAN_ENDPOINT  = 'https://jotaeliezer-teacher-tools-api-fj1k.vercel.app/api/scan-marks';
+const CONCURRENCY    = 2;
+const SCAN_CONCURRENCY = 2;
 const UNDERPERFORM_THRESHOLD = 60;
+const MARKING_COLUMNS = ['Student Name', 'Score'];
 
 const COMMENT_BANK_MINI = [
   {
@@ -276,7 +279,7 @@ function guessPronounFromName(firstName) {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-let currentMode       = 'bulk'; // 'bulk' | 'single'
+let currentMode       = 'bulk'; // 'bulk' | 'single' | 'marking'
 let students          = [];
 let generatedComments = {};
 let showOnlyUnderperf = false;
@@ -353,6 +356,32 @@ const singlePanel              = $('singlePanel');
 const singleContent            = $('singleContent');
 const modeBulkBtn              = $('modeBulkBtn');
 const modeSingleBtn            = $('modeSingleBtn');
+const modeMarkingBtn           = $('modeMarkingBtn');
+const markingPanel             = $('markingPanel');
+const markingAssignmentInput   = $('markingAssignmentInput');
+const markingUploadArea        = $('markingUploadArea');
+const markingCameraInput       = $('markingCameraInput');
+const markingFileInput         = $('markingFileInput');
+const markingQueueStrip        = $('markingQueueStrip');
+const markingQueueBar          = $('markingQueueBar');
+const markingQueueBadge        = $('markingQueueBadge');
+const markingProcessBtn        = $('markingProcessBtn');
+const markingClearQueueBtn     = $('markingClearQueueBtn');
+const markingSpinner           = $('markingSpinner');
+const markingSpinnerLabel      = $('markingSpinnerLabel');
+const markingStatusEl          = $('markingStatus');
+const markingResultsEmpty      = $('markingResultsEmpty');
+const markingResultsWrap       = $('markingResultsWrap');
+const markingResultsMeta       = $('markingResultsMeta');
+const markingResultsTable      = $('markingResultsTable');
+const markingAddRowBtn         = $('markingAddRowBtn');
+const markingClearAllBtn       = $('markingClearAllBtn');
+const markingDownloadCsvBtn    = $('markingDownloadCsvBtn');
+const markingPushBar           = $('markingPushBar');
+const markingLoadColsBtn       = $('markingLoadColsBtn');
+const markingColumnSelect      = $('markingColumnSelect');
+const markingPushBtn           = $('markingPushBtn');
+const markingPushStatusEl      = $('markingPushStatus');
 
 // ── Dark mode toggle ────────────────────────────────────────────────────────────
 
@@ -1897,6 +1926,229 @@ function restoreSettings() {
   } catch (_) {}
 }
 
+// ── Marking Assistant ───────────────────────────────────────────────────────────
+
+let markingQueue = []; // [{ dataUrl, mimeType }]
+let markingRows  = []; // [{ 'Student Name': '', 'Score': '' }]
+
+function setMarkingStatus(msg, tone) {
+  if (!markingStatusEl) return;
+  markingStatusEl.textContent = msg;
+  markingStatusEl.className = 'marking-status' + (tone ? ` status-${tone}` : '');
+}
+
+function setMarkingPushStatus(msg, tone) {
+  if (!markingPushStatusEl) return;
+  markingPushStatusEl.textContent = msg;
+  markingPushStatusEl.className = 'marking-status' + (tone ? ` status-${tone}` : '');
+}
+
+function compressImageForScan(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+function updateMarkingQueueUI() {
+  const n = markingQueue.length;
+  if (markingQueueBadge) markingQueueBadge.textContent = `${n} photo${n !== 1 ? 's' : ''}`;
+  if (markingQueueStrip) markingQueueStrip.style.display = n ? '' : 'none';
+  if (markingQueueBar)   markingQueueBar.style.display   = n ? '' : 'none';
+  if (markingProcessBtn) markingProcessBtn.disabled = n === 0;
+}
+
+function addToQueue(dataUrl, mimeType) {
+  markingQueue.push({ dataUrl, mimeType });
+  const wrap = document.createElement('div');
+  wrap.className = 'marking-queue-thumb';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'remove-thumb';
+  removeBtn.textContent = '✕';
+  removeBtn.title = 'Remove';
+  removeBtn.addEventListener('click', () => {
+    const allThumbs = markingQueueStrip ? [...markingQueueStrip.children] : [];
+    const ti = allThumbs.indexOf(wrap);
+    if (ti !== -1) markingQueue.splice(ti, 1);
+    wrap.remove();
+    updateMarkingQueueUI();
+  });
+  wrap.appendChild(img);
+  wrap.appendChild(removeBtn);
+  if (markingQueueStrip) markingQueueStrip.appendChild(wrap);
+  updateMarkingQueueUI();
+}
+
+function clearQueueStrip() {
+  markingQueue = [];
+  if (markingQueueStrip) markingQueueStrip.innerHTML = '';
+  updateMarkingQueueUI();
+}
+
+function handleMarkingFileSelect(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const compressed = await compressImageForScan(e.target.result);
+    addToQueue(compressed, 'image/jpeg');
+    const n = markingQueue.length;
+    setMarkingStatus(`${n} photo${n !== 1 ? 's' : ''} queued — keep shooting or hit ⚡ Process All.`, '');
+  };
+  reader.readAsDataURL(file);
+}
+
+function initMarkingTable() {
+  if (!markingResultsTable) return;
+  markingResultsTable.innerHTML = '';
+  const thead = markingResultsTable.createTHead();
+  const tr = thead.insertRow();
+  MARKING_COLUMNS.forEach(col => {
+    const th = document.createElement('th');
+    th.className = 'marking-th';
+    th.textContent = col;
+    tr.appendChild(th);
+  });
+  const thDel = document.createElement('th');
+  thDel.className = 'marking-th';
+  thDel.style.width = '28px';
+  tr.appendChild(thDel);
+  markingResultsTable.createTBody();
+}
+
+function updateMarkingMeta() {
+  const n = markingRows.length;
+  if (markingResultsMeta) markingResultsMeta.textContent = `${n} student${n !== 1 ? 's' : ''}`;
+}
+
+function appendMarkingRow(name, score, flash) {
+  if (!markingResultsTable) return;
+  let tbody = markingResultsTable.tBodies[0];
+  if (!tbody) { initMarkingTable(); tbody = markingResultsTable.tBodies[0]; }
+
+  const rowObj = { 'Student Name': name, 'Score': score };
+  const ri = markingRows.length;
+  markingRows.push(rowObj);
+
+  const tr = document.createElement('tr');
+  MARKING_COLUMNS.forEach((col, ci) => {
+    const td = tr.insertCell();
+    td.contentEditable = 'true';
+    td.className = 'marking-td';
+    td.textContent = rowObj[col];
+    td.addEventListener('blur', () => { markingRows[ri][MARKING_COLUMNS[ci]] = td.textContent.trim(); });
+  });
+  const tdDel = tr.insertCell();
+  tdDel.style.cssText = 'padding:2px 4px; width:28px;';
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'btn';
+  delBtn.style.cssText = 'padding:2px 6px; font-size:10px; color:var(--danger);';
+  delBtn.textContent = '✕';
+  delBtn.addEventListener('click', () => { markingRows.splice(ri, 1); tr.remove(); updateMarkingMeta(); });
+  tdDel.appendChild(delBtn);
+  tbody.appendChild(tr);
+
+  if (flash) {
+    tr.classList.add('marking-row-flash');
+    tr.addEventListener('animationend', () => tr.classList.remove('marking-row-flash'), { once: true });
+  }
+  if (markingResultsEmpty) markingResultsEmpty.style.display = 'none';
+  if (markingResultsWrap)  markingResultsWrap.style.display  = '';
+  updateMarkingMeta();
+}
+
+function serializeCsv(matrix) {
+  return matrix.map(row =>
+    row.map(cell => {
+      const s = String(cell ?? '');
+      return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')
+  ).join('\n');
+}
+
+function downloadMarkingCsv() {
+  if (!markingRows.length) return;
+  const assignment = markingAssignmentInput?.value.trim() || '';
+  const tbody = markingResultsTable?.tBodies[0];
+  const liveRows = tbody
+    ? [...tbody.rows].map(tr => ({
+        'Student Name': tr.cells[0]?.textContent?.trim() ?? '',
+        'Score':        tr.cells[1]?.textContent?.trim() ?? ''
+      }))
+    : markingRows;
+  const matrix = [MARKING_COLUMNS, ...liveRows.map(r => MARKING_COLUMNS.map(c => r[c] ?? ''))];
+  const csv  = serializeCsv(matrix);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(assignment || 'scanned_marks').replace(/[\\/:*?"<>|]+/g, '_')}.csv`;
+  a.click();
+}
+
+async function processAllScans() {
+  if (!markingQueue.length) return;
+  const items = [...markingQueue];
+  clearQueueStrip();
+  if (markingProcessBtn) markingProcessBtn.disabled = true;
+  if (markingSpinner)    markingSpinner.style.display = '';
+  let done = 0;
+  const total = items.length;
+  if (markingSpinnerLabel) markingSpinnerLabel.textContent = `Processing 0 / ${total}…`;
+  setMarkingStatus('');
+
+  let active = 0;
+  const waitQueue = [];
+  const acquire = () => new Promise(resolve => {
+    if (active < SCAN_CONCURRENCY) { active++; resolve(); }
+    else waitQueue.push(resolve);
+  });
+  const release = () => {
+    active--;
+    if (waitQueue.length) { active++; waitQueue.shift()(); }
+  };
+
+  if (!markingResultsTable.tBodies[0]) initMarkingTable();
+
+  await Promise.all(items.map(async item => {
+    await acquire();
+    try {
+      const assignmentName = markingAssignmentInput?.value.trim() || '';
+      const res  = await fetch(SCAN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: item.dataUrl, mimeType: item.mimeType, assignmentName })
+      });
+      const data = await res.json().catch(() => ({}));
+      const name  = (res.ok && !data.error) ? String(data.name  || '?').trim() : '?';
+      const score = (res.ok && !data.error) ? String(data.score || '?').trim() : '?';
+      appendMarkingRow(name, score, true);
+    } catch { appendMarkingRow('?', '?', false); }
+    finally {
+      done++;
+      if (markingSpinnerLabel) markingSpinnerLabel.textContent = `Processing ${done} / ${total}…`;
+      release();
+    }
+  }));
+
+  if (markingSpinner) markingSpinner.style.display = 'none';
+  if (markingProcessBtn) markingProcessBtn.disabled = false;
+  setMarkingStatus(`Done — ${total} page${total !== 1 ? 's' : ''} scanned.`, 'ok');
+}
+
 // ── Event wiring ───────────────────────────────────────────────────────────────
 
 modeBulkBtn.addEventListener('click', () => {
@@ -1904,8 +2156,10 @@ modeBulkBtn.addEventListener('click', () => {
   currentMode = 'bulk';
   modeBulkBtn.classList.add('active');
   modeSingleBtn.classList.remove('active');
-  bulkPanel.style.display   = '';
-  singlePanel.style.display = 'none';
+  modeMarkingBtn.classList.remove('active');
+  bulkPanel.style.display    = '';
+  singlePanel.style.display  = 'none';
+  markingPanel.style.display = 'none';
 });
 
 modeSingleBtn.addEventListener('click', () => {
@@ -1913,9 +2167,102 @@ modeSingleBtn.addEventListener('click', () => {
   currentMode = 'single';
   modeSingleBtn.classList.add('active');
   modeBulkBtn.classList.remove('active');
-  bulkPanel.style.display   = 'none';
-  singlePanel.style.display = '';
+  modeMarkingBtn.classList.remove('active');
+  bulkPanel.style.display    = 'none';
+  singlePanel.style.display  = '';
+  markingPanel.style.display = 'none';
   loadSingleStudent();
+});
+
+modeMarkingBtn.addEventListener('click', () => {
+  if (currentMode === 'marking') return;
+  currentMode = 'marking';
+  modeMarkingBtn.classList.add('active');
+  modeBulkBtn.classList.remove('active');
+  modeSingleBtn.classList.remove('active');
+  bulkPanel.style.display    = 'none';
+  singlePanel.style.display  = 'none';
+  markingPanel.style.display = '';
+});
+
+// Marking assistant events
+markingCameraInput?.addEventListener('change', e => {
+  if (e.target.files[0]) { handleMarkingFileSelect(e.target.files[0]); e.target.value = ''; }
+});
+markingFileInput?.addEventListener('change', e => {
+  if (e.target.files[0]) { handleMarkingFileSelect(e.target.files[0]); e.target.value = ''; }
+});
+markingUploadArea?.addEventListener('dragover', e => {
+  e.preventDefault(); markingUploadArea.classList.add('drag-over');
+});
+markingUploadArea?.addEventListener('dragleave', () => markingUploadArea.classList.remove('drag-over'));
+markingUploadArea?.addEventListener('drop', e => {
+  e.preventDefault(); markingUploadArea.classList.remove('drag-over');
+  [...e.dataTransfer.files].forEach(f => handleMarkingFileSelect(f));
+});
+markingProcessBtn?.addEventListener('click', processAllScans);
+markingClearQueueBtn?.addEventListener('click', () => { clearQueueStrip(); setMarkingStatus('', ''); });
+markingAddRowBtn?.addEventListener('click', () => appendMarkingRow('', '', false));
+markingClearAllBtn?.addEventListener('click', () => {
+  markingRows = [];
+  clearQueueStrip();
+  const tbody = markingResultsTable?.tBodies[0];
+  if (tbody) tbody.innerHTML = '';
+  if (markingResultsWrap)  markingResultsWrap.style.display  = 'none';
+  if (markingResultsEmpty) markingResultsEmpty.style.display = '';
+  updateMarkingMeta();
+  setMarkingStatus('', '');
+  setMarkingPushStatus('', '');
+  if (markingColumnSelect) { markingColumnSelect.innerHTML = '<option value="">— Select column —</option>'; markingColumnSelect.style.display = 'none'; }
+  if (markingPushBtn) markingPushBtn.disabled = true;
+});
+markingDownloadCsvBtn?.addEventListener('click', downloadMarkingCsv);
+
+markingLoadColsBtn?.addEventListener('click', async () => {
+  setMarkingPushStatus('Loading columns…', '');
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] }).catch(() => {});
+  const data = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeGrades' })
+    .catch(e => ({ success: false, error: e.message }));
+  if (!data?.success) {
+    setMarkingPushStatus('No gradebook found. Navigate to the Brightspace gradebook first.', 'error');
+    return;
+  }
+  const systemCols = /^(learner|student|email|username|final|overall|calculated|org defined|#)/i;
+  const cols = (data.data?.headers || []).filter(h => h && !systemCols.test(h));
+  if (!cols.length) { setMarkingPushStatus('No assignment columns found on this page.', 'error'); return; }
+  markingColumnSelect.innerHTML = '<option value="">— Select column —</option>'
+    + cols.map(c => `<option value="${c.replace(/"/g, '&quot;')}">${c}</option>`).join('');
+  markingColumnSelect.style.display = '';
+  setMarkingPushStatus(`${cols.length} columns loaded. Select the assignment to fill.`, 'ok');
+});
+
+markingColumnSelect?.addEventListener('change', () => {
+  if (markingPushBtn) markingPushBtn.disabled = !markingColumnSelect.value;
+});
+
+markingPushBtn?.addEventListener('click', async () => {
+  const col = markingColumnSelect?.value;
+  if (!col) return;
+  const tbody = markingResultsTable?.tBodies[0];
+  const rows = tbody
+    ? [...tbody.rows].map(tr => ({ 'Student Name': tr.cells[0]?.textContent?.trim() ?? '', 'Score': tr.cells[1]?.textContent?.trim() ?? '' }))
+    : markingRows;
+  if (!rows.length) { setMarkingPushStatus('No rows to push.', 'error'); return; }
+  markingPushBtn.disabled = true;
+  setMarkingPushStatus('Filling grade cells…', '');
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const result = await chrome.tabs.sendMessage(tab.id, { action: 'fillGrades', rows, columnName: col })
+    .catch(e => ({ success: false, error: e.message }));
+  markingPushBtn.disabled = false;
+  if (!result?.success) { setMarkingPushStatus(result?.error || 'Failed to connect to page.', 'error'); return; }
+  const ok     = result.results.filter(r => r.status === 'ok').length;
+  const missed = result.results.filter(r => r.status !== 'ok').length;
+  const saveMsg = result.saved ? '' : ' Click Save in Brightspace if prompted.';
+  setMarkingPushStatus(
+    missed ? `Filled ${ok} students. ${missed} not matched — check names.${saveMsg}` : `All ${ok} grades filled!${saveMsg}`,
+    missed ? '' : 'ok'
+  );
 });
 
 refreshBtn.addEventListener('click', () => {
