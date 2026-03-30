@@ -360,8 +360,7 @@ const singlePanel              = $('singlePanel');
 const singleContent            = $('singleContent');
 const modeBulkBtn              = $('modeBulkBtn');
 const modeSingleBtn            = $('modeSingleBtn');
-const modeMarkingBtn           = $('modeMarkingBtn');
-const markingPanel             = $('markingPanel');
+const markingPanel             = $('markingView');
 const markingAssignmentInput   = $('markingAssignmentInput');
 const markingUploadArea        = $('markingUploadArea');
 const markingCameraInput       = $('markingCameraInput');
@@ -424,7 +423,8 @@ function setActiveTool(tool) {
     report: $('reportView'),
     phoneLogs: $('phoneLogsView'),
     printTemplates: $('printTemplatesView'),
-    placeholder: $('placeholderView')
+    placeholder: $('placeholderView'),
+    marking: $('markingView')
   };
   Object.values(map).forEach(el => { if (el) el.classList.add('view--hidden'); });
   const show = map[tool];
@@ -2220,10 +2220,8 @@ modeBulkBtn.addEventListener('click', () => {
   currentMode = 'bulk';
   modeBulkBtn.classList.add('active');
   modeSingleBtn.classList.remove('active');
-  modeMarkingBtn.classList.remove('active');
   bulkPanel.style.display    = '';
   singlePanel.style.display  = 'none';
-  markingPanel.style.display = 'none';
 });
 
 modeSingleBtn.addEventListener('click', () => {
@@ -2231,23 +2229,11 @@ modeSingleBtn.addEventListener('click', () => {
   currentMode = 'single';
   modeSingleBtn.classList.add('active');
   modeBulkBtn.classList.remove('active');
-  modeMarkingBtn.classList.remove('active');
   bulkPanel.style.display    = 'none';
   singlePanel.style.display  = '';
-  markingPanel.style.display = 'none';
   loadSingleStudent();
 });
 
-modeMarkingBtn.addEventListener('click', () => {
-  if (currentMode === 'marking') return;
-  currentMode = 'marking';
-  modeMarkingBtn.classList.add('active');
-  modeBulkBtn.classList.remove('active');
-  modeSingleBtn.classList.remove('active');
-  bulkPanel.style.display    = 'none';
-  singlePanel.style.display  = 'none';
-  markingPanel.style.display = '';
-});
 
 // Marking assistant events
 markingCameraInput?.addEventListener('change', e => {
@@ -2380,6 +2366,10 @@ function wireHomeAndBack() {
         if (window.BBPrintTemplates?.init) window.BBPrintTemplates.init(window.BB);
         return;
       }
+      if (t === 'marking') {
+        setActiveTool('marking');
+        return;
+      }
       if (t === 'transferMarks') {
         $('placeholderTitle').textContent = 'Transfer students marks';
         $('placeholderBody').textContent = 'Coming soon.';
@@ -2404,6 +2394,7 @@ function wireHomeAndBack() {
   $('backFromPhoneLogsBtn')?.addEventListener('click', () => setActiveTool('home'));
   $('backFromPrintBtn')?.addEventListener('click', () => setActiveTool('home'));
   $('backFromPlaceholderBtn')?.addEventListener('click', () => setActiveTool('home'));
+  $('backFromMarkingBtn')?.addEventListener('click', () => setActiveTool('home'));
 }
 
 /**
