@@ -998,15 +998,17 @@ body.dark .ss-copy-btn.has-content { background: #1a2a00; border-color: #5a7a00;
 .tool-panel-header .header-left { flex: 1; min-width: 0; }
 
 .back-btn {
-  min-width: 36px;
-  padding: 6px 8px;
+  flex-shrink: 0;
+  min-width: auto;
+  padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,.45);
   background: rgba(255,255,255,.12);
   color: #fff;
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 .back-btn:hover { background: rgba(255,255,255,.22); }
 
