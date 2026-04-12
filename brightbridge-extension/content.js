@@ -413,11 +413,31 @@ function scrapeSingleStudent() {
 
 // ── Fill grades (Marking Assistant push) ──────────────────────────────────────
 
+/** Text/blank-type inputs used for Brightspace grade cells (includes shadow DOM). */
+function findTextInputInRoot(root) {
+  if (!root) return null;
+  const sel = 'input[type="text"], input:not([type])';
+  const direct = root.querySelector(sel);
+  if (direct) return direct;
+  for (const el of root.querySelectorAll('*')) {
+    try {
+      if (el.shadowRoot) {
+        const found = findTextInputInRoot(el.shadowRoot);
+        if (found) return found;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
 function waitForInput(container, timeoutMs) {
   return new Promise(resolve => {
     const check = () => {
-      const input = container.querySelector('input[type="text"], input:not([type])')
-        || container.closest('tr')?.querySelector('input[type="text"], input:not([type])');
+      let input = findTextInputInRoot(container);
+      if (!input) {
+        const tr = container.closest('tr');
+        if (tr) input = findTextInputInRoot(tr);
+      }
       if (input) { obs.disconnect(); resolve(input); }
     };
     const obs = new MutationObserver(check);

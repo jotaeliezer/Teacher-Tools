@@ -1510,6 +1510,14 @@ body.dark .pt-preview .print-footer-right { color: #f4f4f4; }
 .marking-row-flash { animation: marking-flash 1.2s ease-out; }
 
 /* Push to Brightspace */
+.marking-push-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted, #666);
+  margin: 0 0 8px;
+}
+body.dark .marking-push-hint { color: #9aa3b2; }
+
 .marking-push-section {
   margin-top: 10px;
   display: flex;

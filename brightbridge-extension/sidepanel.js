@@ -2302,6 +2302,7 @@ markingPushBtn?.addEventListener('click', async () => {
   markingPushBtn.disabled = true;
   setMarkingPushStatus('Filling grade cells…', '');
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] }).catch(() => {});
   const result = await chrome.tabs.sendMessage(tab.id, { action: 'fillGrades', rows, columnName: col })
     .catch(e => ({ success: false, error: e.message }));
   markingPushBtn.disabled = false;
