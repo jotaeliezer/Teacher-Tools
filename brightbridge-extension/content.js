@@ -378,26 +378,59 @@ function scrapeSingleStudent() {
   const fcgMatch = bodyText.match(/final calculated grade[\s\S]{0,400}?scheme:\s*(\d+\.?\d*)\s*%/i);
   if (fcgMatch) finalPercent = parseFloat(fcgMatch[1]);
 
-  // 3. Grade items — find elements whose text contains a lesson number (L1–L99)
-  //    then walk up the DOM to find their enclosing container's "Scheme: XX %" value.
-  //    Items WITH a scheme % = graded assignments.
-  //    Items WITHOUT a scheme % = upcoming (no mark entered yet).
+  // 3. Grade items — find elements whose text contains a lesson number (L1–L99).
+  //    Strategy: find the item's own row/card container first using closest(),
+  //    then look for "Scheme: XX%" ONLY inside that specific container.
+  //    This avoids false positives where walking far up the DOM picks up a
+  //    Scheme% from a neighbouring graded item in the same parent container.
+  //    Items WITH a scheme % = graded.  Items WITHOUT = upcoming/ungraded.
   const assignments   = [];
   const upcomingItems = [];
   const seen = new Set();
+
+  // Selectors that typically bound a single grade item in D2L Brightspace
+  const ITEM_BOUNDARY = 'li, tr, [class*="grade-item"], [class*="grade-row"], [class*="item-row"], [class*="result"]';
+
   document.querySelectorAll('h3, h4, strong, [class*="name"], [class*="title"]').forEach(el => {
     const text = el.innerText?.trim();
     if (!text || seen.has(text) || text.length > 120) return;
     if (!/\bL\d{1,2}\b/i.test(text)) return;
     seen.add(text);
+
     let percent = null;
-    let node = el.parentElement;
-    for (let i = 0; i < 6; i++) {
-      if (!node) break;
-      const m = node.innerText?.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
-      if (m) { percent = parseFloat(m[1]); break; }
-      node = node.parentElement;
+
+    // Step 1: try to find a tight item-level container and search within it
+    const itemContainer = el.closest(ITEM_BOUNDARY);
+    if (itemContainer) {
+      const m = itemContainer.innerText?.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
+      if (m) percent = parseFloat(m[1]);
     }
+
+    // Step 2: if no tight container found, walk up max 3 levels (not 6)
+    // but only check each node's OWN text nodes (not full innerText)
+    // to avoid bleeding into siblings
+    if (percent === null) {
+      let node = el.parentElement;
+      for (let i = 0; i < 3; i++) {
+        if (!node) break;
+        // Check only direct text node children of this node, not descendants
+        let nodeOwnText = '';
+        node.childNodes.forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) nodeOwnText += child.textContent;
+        });
+        const m = nodeOwnText.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
+        if (m) { percent = parseFloat(m[1]); break; }
+        // Also check direct child elements (siblings of el at this level)
+        for (const sibling of node.children) {
+          if (sibling.contains(el)) continue; // skip the branch we came from
+          const sm = sibling.innerText?.match(/scheme:\s*(\d+\.?\d*)\s*%/i);
+          if (sm) { percent = parseFloat(sm[1]); break; }
+        }
+        if (percent !== null) break;
+        node = node.parentElement;
+      }
+    }
+
     if (percent !== null) {
       assignments.push({ name: text, percent });
     } else {
